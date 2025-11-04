@@ -51,7 +51,7 @@ sudo yum install -y ca-certificates curl
 **Linux (x86_64)**:
 ```bash
 # Download latest release
-curl -LO https://github.com/your-org/atlas/releases/download/v1.0.0/atlas-linux-x86_64.tar.gz
+curl -LO https://github.com/erikhoward/atlas/releases/download/v1.0.0/atlas-linux-x86_64.tar.gz
 
 # Extract
 tar -xzf atlas-linux-x86_64.tar.gz
@@ -67,7 +67,7 @@ atlas --version
 **macOS (x86_64)**:
 ```bash
 # Download latest release
-curl -LO https://github.com/your-org/atlas/releases/download/v1.0.0/atlas-macos-x86_64.tar.gz
+curl -LO https://github.com/erikhoward/atlas/releases/download/v1.0.0/atlas-macos-x86_64.tar.gz
 
 # Extract
 tar -xzf atlas-macos-x86_64.tar.gz
@@ -100,7 +100,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source $HOME/.cargo/env
 
 # Clone repository
-git clone https://github.com/your-org/atlas.git
+git clone https://github.com/erikhoward/atlas.git
 cd atlas
 
 # Build release binary

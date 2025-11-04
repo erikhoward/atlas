@@ -1,6 +1,6 @@
 # Atlas
 
-[![Build Status](https://img.shields.io/github/actions/workflow/status/your-org/atlas/ci.yml?branch=main)](https://github.com/your-org/atlas/actions)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/erikhoward/atlas/ci.yml?branch=main)](https://github.com/erikhoward/atlas/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Rust Version](https://img.shields.io/badge/rust-1.70%2B-orange.svg)](https://www.rust-lang.org/)
 [![Documentation](https://img.shields.io/badge/docs-latest-brightgreen.svg)](docs/)
@@ -74,7 +74,7 @@ Atlas solves the challenge of making OpenEHR clinical data accessible for modern
 
 ```bash
 # Download latest release
-wget https://github.com/your-org/atlas/releases/download/v1.0.0/atlas-linux-x86_64.tar.gz
+wget https://github.com/erikhoward/atlas/releases/download/v1.0.0/atlas-linux-x86_64.tar.gz
 
 # Extract and install
 tar -xzf atlas-linux-x86_64.tar.gz
@@ -92,7 +92,7 @@ atlas --version
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 # Clone the repository
-git clone https://github.com/your-org/atlas.git
+git clone https://github.com/erikhoward/atlas.git
 cd atlas
 
 # Build release binary
@@ -109,10 +109,10 @@ atlas --version
 
 ```bash
 # Pull Docker image
-docker pull your-org/atlas:latest
+docker pull erikhoward/atlas:latest
 
 # Run Atlas
-docker run --rm -v $(pwd)/atlas.toml:/app/atlas.toml your-org/atlas:latest export
+docker run --rm -v $(pwd)/atlas.toml:/app/atlas.toml erikhoward/atlas:latest export
 ```
 
 ### Configuration
@@ -318,7 +318,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 ```bash
 # Clone repository
-git clone https://github.com/your-org/atlas.git
+git clone https://github.com/erikhoward/atlas.git
 cd atlas
 
 # Install Rust
@@ -347,12 +347,12 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 ### Community
 
-- **GitHub Issues**: [Report bugs or request features](https://github.com/your-org/atlas/issues)
-- **Discussions**: [Ask questions and share ideas](https://github.com/your-org/atlas/discussions)
+- **GitHub Issues**: [Report bugs or request features](https://github.com/erikhoward/atlas/issues)
+- **Discussions**: [Ask questions and share ideas](https://github.com/erikhoward/atlas/discussions)
 
 ### Commercial Support
 
-For enterprise support, training, or custom development, contact: support@your-org.com
+For enterprise support, training, or custom development, contact: erikhoward@pm.me
 
 ## 🙏 Acknowledgments
 

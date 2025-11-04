@@ -93,8 +93,8 @@
 //!
 //! # See Also
 //!
-//! - [Configuration Guide](https://github.com/your-org/atlas/blob/main/docs/configuration.md)
-//! - [Example Configurations](https://github.com/your-org/atlas/tree/main/examples)
+//! - [Configuration Guide](https://github.com/erikhoward/atlas/blob/main/docs/configuration.md)
+//! - [Example Configurations](https://github.com/erikhoward/atlas/tree/main/examples)
 
 pub mod loader;
 pub mod schema;

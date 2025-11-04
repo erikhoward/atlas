@@ -2,10 +2,10 @@
 name = "atlas"
 version = "1.0.0"
 edition = "2021"
-authors = ["Erik Howard","Atlas Contributors"]
+authors = ["Erik Howard", "Atlas Contributors"]
 description = "ETL tool for exporting OpenEHR compositions to Azure Cosmos DB"
 license = "MIT"
-repository = "https://github.com/your-org/atlas"
+repository = "https://github.com/erikhoward/atlas"
 readme = "README.md"
 keywords = ["openehr", "azure", "cosmosdb", "etl", "healthcare"]
 categories = ["command-line-utilities", "database", "healthcare"]

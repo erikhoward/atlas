@@ -47,7 +47,7 @@ This guide provides information for developers who want to contribute to Atlas o
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/atlas.git
+git clone https://github.com/erikhoward/atlas.git
 cd atlas
 
 # Build in debug mode

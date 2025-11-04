@@ -49,7 +49,7 @@ Before using Atlas, ensure you have:
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/atlas.git
+git clone https://github.com/erikhoward/atlas.git
 cd atlas
 
 # Build the release binary
@@ -62,16 +62,16 @@ sudo cp target/release/atlas /usr/local/bin/
 
 ### Option 2: Pre-built Binaries
 
-Download the latest release from the [GitHub Releases page](https://github.com/your-org/atlas/releases):
+Download the latest release from the [GitHub Releases page](https://github.com/erikhoward/atlas/releases):
 
 ```bash
 # Linux
-wget https://github.com/your-org/atlas/releases/download/v1.0.0/atlas-linux-x86_64.tar.gz
+wget https://github.com/erikhoward/atlas/releases/download/v1.0.0/atlas-linux-x86_64.tar.gz
 tar -xzf atlas-linux-x86_64.tar.gz
 sudo mv atlas /usr/local/bin/
 
 # macOS
-wget https://github.com/your-org/atlas/releases/download/v1.0.0/atlas-macos-x86_64.tar.gz
+wget https://github.com/erikhoward/atlas/releases/download/v1.0.0/atlas-macos-x86_64.tar.gz
 tar -xzf atlas-macos-x86_64.tar.gz
 sudo mv atlas /usr/local/bin/
 ```
@@ -80,10 +80,10 @@ sudo mv atlas /usr/local/bin/
 
 ```bash
 # Pull the Docker image
-docker pull your-org/atlas:latest
+docker pull erikhoward/atlas:latest
 
 # Run Atlas in a container
-docker run --rm -v $(pwd)/atlas.toml:/app/atlas.toml your-org/atlas:latest export
+docker run --rm -v $(pwd)/atlas.toml:/app/atlas.toml erikhoward/atlas:latest export
 ```
 
 ### Verify Installation

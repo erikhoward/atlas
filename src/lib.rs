@@ -142,9 +142,9 @@
 //!
 //! ## See Also
 //!
-//! - [User Guide](https://github.com/your-org/atlas/blob/main/docs/user-guide.md)
-//! - [Configuration Guide](https://github.com/your-org/atlas/blob/main/docs/configuration.md)
-//! - [Architecture Documentation](https://github.com/your-org/atlas/blob/main/docs/architecture.md)
+//! - [User Guide](https://github.com/erikhoward/atlas/blob/main/docs/user-guide.md)
+//! - [Configuration Guide](https://github.com/erikhoward/atlas/blob/main/docs/configuration.md)
+//! - [Architecture Documentation](https://github.com/erikhoward/atlas/blob/main/docs/architecture.md)
 
 pub mod adapters;
 pub mod cli;
