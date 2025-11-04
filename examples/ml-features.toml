@@ -1,0 +1,351 @@
+# Atlas Configuration - ML Feature Extraction
+#
+# This configuration is optimized for extracting clinical data to support machine learning
+# and analytics workloads. It uses the "flatten" mode to convert nested OpenEHR paths to
+# flat field names, making it easier to query and analyze data in Cosmos DB.
+#
+# Use Case: Export clinical data for ML model training and feature engineering
+# Expected Volume: 100,000+ compositions
+# Frequency: One-time or periodic (monthly)
+
+[application]
+name = "atlas-ml-features"
+version = "1.0.0"
+log_level = "info"
+dry_run = false
+
+# ============================================================================
+# OpenEHR Configuration
+# ============================================================================
+
+[openehr]
+# OpenEHR server endpoint
+base_url = "https://ehrbase.analytics.example.com/ehrbase/rest/openehr/v1"
+
+# Vendor implementation
+vendor = "ehrbase"
+
+# Authentication
+auth_type = "basic"
+username = "ml_user"
+password = "${ATLAS_OPENEHR_PASSWORD}"
+
+# TLS verification
+tls_verify = true
+
+# Request timeout (longer for large queries)
+timeout_seconds = 90
+
+# Retry configuration
+[openehr.retry]
+max_retries = 5
+initial_delay_ms = 2000
+max_delay_ms = 60000
+backoff_multiplier = 2.0
+
+# Query configuration
+[openehr.query]
+# Templates for ML features (vital signs, labs, medications, diagnoses)
+template_ids = [
+    "IDCR - Vital Signs.v1",
+    "IDCR - Lab Results.v1",
+    "IDCR - Medication List.v1",
+    "IDCR - Problem List.v1",
+    "IDCR - Procedures.v1",
+]
+
+# EHR IDs (empty = all patients for comprehensive ML dataset)
+ehr_ids = []
+
+# Time range for ML training data
+time_range_start = "2020-01-01T00:00:00Z"
+time_range_end = "2024-12-31T23:59:59Z"
+
+# Batch size (maximum for high throughput)
+batch_size = 5000
+
+# Parallel EHR processing (maximum parallelism for speed)
+parallel_ehrs = 32
+
+# ============================================================================
+# Export Configuration
+# ============================================================================
+
+[export]
+# Export mode: "full" for comprehensive ML dataset
+mode = "full"
+
+# Composition format: "flatten" for ML-friendly structure
+# Converts nested paths to flat field names:
+#   "vital_signs/blood_pressure/systolic" -> "vital_signs_blood_pressure_systolic"
+#   "lab_results/glucose/value" -> "lab_results_glucose_value"
+# This makes it easier to:
+# - Query specific features in Cosmos DB
+# - Export to CSV/Parquet for ML frameworks
+# - Build feature vectors for models
+cosmos_composition_format = "flatten"
+
+# Retry configuration
+max_retries = 3
+retry_backoff_ms = 1000
+
+# ============================================================================
+# Cosmos DB Configuration
+# ============================================================================
+
+[cosmosdb]
+# Cosmos DB endpoint
+endpoint = "https://ml-cosmosdb.documents.azure.com:443/"
+
+# Access key
+key = "${ATLAS_COSMOS_KEY}"
+
+# Database name
+database_name = "ml_features"
+
+# Control container
+control_container = "atlas_control"
+
+# Data container prefix
+data_container_prefix = "compositions"
+
+# Partition key (by EHR ID for patient-centric ML features)
+partition_key = "/ehr_id"
+
+# Concurrency (maximum for high throughput)
+max_concurrency = 50
+
+# Request timeout
+request_timeout_seconds = 60
+
+# ============================================================================
+# State Management
+# ============================================================================
+
+[state]
+# Enable checkpointing for fault tolerance
+enable_checkpointing = true
+
+# Checkpoint interval (every 60 seconds for large exports)
+checkpoint_interval_seconds = 60
+
+# ============================================================================
+# Data Verification
+# ============================================================================
+
+[verification]
+# Disable verification for ML export (prioritize speed)
+# Data quality checks can be done in ML pipeline
+enable_verification = false
+
+# Checksum algorithm
+checksum_algorithm = "sha256"
+
+# ============================================================================
+# Logging Configuration
+# ============================================================================
+
+[logging]
+# Local logging
+local_enabled = true
+local_path = "/var/log/atlas"
+local_rotation = "daily"
+local_max_size_mb = 500
+
+# Azure Log Analytics
+# Logs export operations, errors, and performance metrics to Azure Monitor
+azure_enabled = true
+azure_tenant_id = "${AZURE_TENANT_ID}"
+azure_client_id = "${AZURE_CLIENT_ID}"
+azure_client_secret = "${AZURE_CLIENT_SECRET}"
+azure_log_analytics_workspace_id = "${AZURE_LOG_ANALYTICS_WORKSPACE_ID}"
+azure_dcr_immutable_id = "${AZURE_DCR_IMMUTABLE_ID}"
+azure_dce_endpoint = "${AZURE_DCE_ENDPOINT}"
+azure_stream_name = "Custom-AtlasExport_CL"
+
+# ============================================================================
+# Usage Instructions
+# ============================================================================
+#
+# 1. Set environment variables:
+#    export ATLAS_OPENEHR_PASSWORD="your-password"
+#    export ATLAS_COSMOS_KEY="your-cosmos-key"
+#    export AZURE_TENANT_ID="your-tenant-id"
+#    export AZURE_CLIENT_ID="your-client-id"
+#    export AZURE_CLIENT_SECRET="your-client-secret"
+#    export AZURE_LOG_ANALYTICS_WORKSPACE_ID="your-workspace-id"
+#    export AZURE_DCR_IMMUTABLE_ID="your-dcr-id"
+#    export AZURE_DCE_ENDPOINT="https://your-dce.monitor.azure.com"
+#
+# 2. Validate configuration:
+#    atlas validate-config -c examples/ml-features.toml
+#
+# 3. Run dry-run to estimate volume:
+#    atlas export -c examples/ml-features.toml --dry-run
+#
+# 4. Execute export (consider running overnight):
+#    nohup atlas export -c examples/ml-features.toml > ml-export.log 2>&1 &
+#
+# 5. Monitor progress:
+#    tail -f ml-export.log
+#    atlas status -c examples/ml-features.toml
+#
+# ============================================================================
+# Expected Behavior
+# ============================================================================
+#
+# Data Structure:
+# - Each composition is flattened to a single-level JSON document
+# - Nested paths become flat field names with underscores
+# - Arrays are preserved but with flattened element structures
+# - Metadata is added in "atlas_metadata" section
+#
+# Example Flattened Document:
+# {
+#   "id": "composition-uid",
+#   "ehr_id": "ehr-123",
+#   "template_id": "IDCR - Vital Signs.v1",
+#   "vital_signs_blood_pressure_systolic": 120,
+#   "vital_signs_blood_pressure_diastolic": 80,
+#   "vital_signs_heart_rate": 72,
+#   "vital_signs_temperature": 36.5,
+#   "atlas_metadata": {
+#     "exported_at": "2025-01-15T10:30:00Z",
+#     "export_mode": "full",
+#     "composition_format": "flatten"
+#   }
+# }
+#
+# ============================================================================
+# ML Pipeline Integration
+# ============================================================================
+#
+# After export, use Cosmos DB for feature engineering:
+#
+# 1. Query features by patient:
+#    SELECT c.ehr_id, c.vital_signs_blood_pressure_systolic, c.vital_signs_heart_rate
+#    FROM c
+#    WHERE c.ehr_id = 'ehr-123'
+#    ORDER BY c.atlas_metadata.exported_at DESC
+#
+# 2. Export to Azure Synapse Analytics:
+#    - Use Azure Data Factory to copy from Cosmos DB to Synapse
+#    - Create external tables for SQL-based feature engineering
+#
+# 3. Export to Azure Machine Learning:
+#    - Use Azure ML datasets to read from Cosmos DB
+#    - Create feature store with flattened compositions
+#
+# 4. Export to Databricks:
+#    - Use Spark connector for Cosmos DB
+#    - Create Delta tables for feature engineering
+#
+# Example Spark code:
+#   df = spark.read.format("cosmos.oltp") \
+#       .option("spark.cosmos.accountEndpoint", endpoint) \
+#       .option("spark.cosmos.accountKey", key) \
+#       .option("spark.cosmos.database", "ml_features") \
+#       .option("spark.cosmos.container", "compositions_vital_signs") \
+#       .load()
+#
+#   # Feature engineering
+#   features = df.select(
+#       "ehr_id",
+#       "vital_signs_blood_pressure_systolic",
+#       "vital_signs_blood_pressure_diastolic",
+#       "vital_signs_heart_rate"
+#   )
+#
+# ============================================================================
+# Performance Expectations
+# ============================================================================
+#
+# Volume: 100,000 compositions
+# - Throughput: ~1000-2000 compositions/minute
+# - Duration: ~50-100 minutes
+# - Memory: ~6-8 GB RAM
+# - Cosmos DB RUs: ~1,000,000 RUs (~$5 at $5/million RUs)
+#
+# Volume: 500,000 compositions
+# - Duration: ~4-8 hours
+# - Memory: ~8-12 GB RAM
+# - Cosmos DB RUs: ~5,000,000 RUs (~$25)
+#
+# Optimization Tips:
+# - Run during off-peak hours to minimize cost
+# - Use dedicated Cosmos DB throughput (not serverless)
+# - Consider provisioning 10,000+ RU/s for large exports
+# - Monitor RU consumption and scale up if throttled
+#
+# ============================================================================
+# Data Quality Considerations
+# ============================================================================
+#
+# Missing Values:
+# - Flattened fields may be null if not present in source
+# - Handle missing values in ML pipeline (imputation, etc.)
+#
+# Data Types:
+# - Numeric fields are preserved as numbers
+# - Dates are ISO 8601 strings
+# - Coded values include both code and display text
+#
+# Temporal Ordering:
+# - Use "atlas_metadata.exported_at" or composition timestamp
+# - Sort by timestamp for time-series features
+#
+# Patient Privacy:
+# - Ensure PHI/PII handling complies with regulations
+# - Consider de-identification before ML processing
+# - Use Azure RBAC to restrict access to ML team only
+#
+# ============================================================================
+# Example ML Use Cases
+# ============================================================================
+#
+# 1. Predictive Modeling:
+#    - Predict patient readmission risk
+#    - Forecast vital sign trends
+#    - Identify high-risk patients
+#
+# 2. Anomaly Detection:
+#    - Detect abnormal lab results
+#    - Identify unusual vital sign patterns
+#    - Flag potential data quality issues
+#
+# 3. Clustering:
+#    - Group patients by clinical similarity
+#    - Identify patient phenotypes
+#    - Segment populations for targeted interventions
+#
+# 4. Time Series Analysis:
+#    - Analyze vital sign trends over time
+#    - Predict disease progression
+#    - Forecast resource utilization
+#
+# ============================================================================
+# Troubleshooting
+# ============================================================================
+#
+# Issue: Export is very slow
+# - Increase parallel_ehrs to 48-64
+# - Increase batch_size to maximum (5000)
+# - Increase max_concurrency to 100
+# - Provision more RU/s in Cosmos DB (10,000+)
+#
+# Issue: Out of memory
+# - Reduce batch_size to 2000-3000
+# - Reduce parallel_ehrs to 16-24
+# - Increase system memory to 16+ GB
+#
+# Issue: Cosmos DB throttling
+# - Increase provisioned RU/s
+# - Reduce max_concurrency
+# - Add retry delays
+#
+# Issue: Flattened field names too long
+# - Cosmos DB has no field name length limit
+# - Some tools may truncate long names
+# - Consider using "preserve" mode if needed
+#
+# ============================================================================

@@ -1,0 +1,205 @@
+# Atlas Configuration - Clinical Research Export
+#
+# This configuration is optimized for exporting clinical data for research purposes.
+# It uses the "preserve" mode to maintain the exact FLAT JSON structure from OpenEHR,
+# enabling researchers to work with the original data format.
+#
+# Use Case: Export all compositions for specific templates to support a clinical research study
+# Expected Volume: 10,000-100,000 compositions
+# Frequency: One-time or periodic (weekly/monthly)
+
+[application]
+name = "atlas-research"
+version = "1.0.0"
+log_level = "info"
+dry_run = false
+
+# ============================================================================
+# OpenEHR Configuration
+# ============================================================================
+
+[openehr]
+# OpenEHR server endpoint
+base_url = "https://ehrbase.research.example.com/ehrbase/rest/openehr/v1"
+
+# Vendor implementation (ehrbase, better, ocean)
+vendor = "ehrbase"
+
+# Authentication
+auth_type = "basic"
+username = "research_user"
+password = "${ATLAS_OPENEHR_PASSWORD}" # Set via environment variable
+
+# TLS verification (always true in production)
+tls_verify = true
+
+# Request timeout
+timeout_seconds = 60 # Longer timeout for research queries
+
+# Retry configuration for transient failures
+[openehr.retry]
+max_retries = 5          # More retries for reliability
+initial_delay_ms = 2000
+max_delay_ms = 60000
+backoff_multiplier = 2.0
+
+# Query configuration
+[openehr.query]
+# Templates to export (research-specific templates)
+template_ids = [
+    "IDCR - Adverse Reaction List.v1",
+    "IDCR - Problem List.v1",
+    "IDCR - Vital Signs.v1",
+    "IDCR - Lab Results.v1",
+    "IDCR - Medication List.v1",
+]
+
+# EHR IDs (empty = all patients, or specify research cohort)
+# For research, you might specify a specific cohort:
+# ehr_ids = ["ehr-001", "ehr-002", "ehr-003", ...]
+ehr_ids = []
+
+# Time range for research study period
+time_range_start = "2023-01-01T00:00:00Z"
+time_range_end = "2024-12-31T23:59:59Z"
+
+# Batch size (larger batches for better throughput)
+batch_size = 2000
+
+# Parallel EHR processing (moderate parallelism for stability)
+parallel_ehrs = 8
+
+# ============================================================================
+# Export Configuration
+# ============================================================================
+
+[export]
+# Export mode: "full" for initial research data export
+mode = "full"
+
+# Composition format: "preserve" to maintain exact FLAT JSON structure
+# This is important for research to preserve all original data
+cosmos_composition_format = "preserve"
+
+# Retry configuration
+max_retries = 3
+retry_backoff_ms = 2000
+
+# ============================================================================
+# Cosmos DB Configuration
+# ============================================================================
+
+[cosmosdb]
+# Cosmos DB endpoint
+endpoint = "https://research-cosmosdb.documents.azure.com:443/"
+
+# Access key (use environment variable)
+key = "${ATLAS_COSMOS_KEY}"
+
+# Database name
+database_name = "clinical_research_data"
+
+# Control container for state management
+control_container = "atlas_control"
+
+# Data container prefix (one container per template)
+data_container_prefix = "compositions"
+
+# Partition key (by EHR ID for patient-centric queries)
+partition_key = "/ehr_id"
+
+# Concurrency (moderate for stability)
+max_concurrency = 15
+
+# Request timeout
+request_timeout_seconds = 60
+
+# ============================================================================
+# State Management
+# ============================================================================
+
+[state]
+# Enable checkpointing for fault tolerance
+enable_checkpointing = true
+
+# Checkpoint interval (every 60 seconds)
+checkpoint_interval_seconds = 60
+
+# ============================================================================
+# Data Verification
+# ============================================================================
+
+[verification]
+# Enable verification for research data quality
+enable_verification = true
+
+# Checksum algorithm
+checksum_algorithm = "sha256"
+
+# ============================================================================
+# Logging Configuration
+# ============================================================================
+
+[logging]
+# Local logging
+local_enabled = true
+local_path = "/var/log/atlas"
+local_rotation = "daily"
+local_max_size_mb = 500       # Larger logs for research audit trail
+
+# Azure Log Analytics (optional)
+azure_enabled = true
+azure_tenant_id = "${AZURE_TENANT_ID}"
+azure_client_id = "${AZURE_CLIENT_ID}"
+azure_client_secret = "${AZURE_CLIENT_SECRET}"
+azure_log_analytics_workspace_id = "${AZURE_LOG_ANALYTICS_WORKSPACE_ID}"
+azure_dcr_immutable_id = "${AZURE_DCR_IMMUTABLE_ID}"
+azure_dce_endpoint = "${AZURE_DCE_ENDPOINT}"
+azure_stream_name = "Custom-AtlasExport_CL"
+
+# ============================================================================
+# Usage Instructions
+# ============================================================================
+#
+# 1. Set environment variables:
+#    export ATLAS_OPENEHR_PASSWORD="your-password"
+#    export ATLAS_COSMOS_KEY="your-cosmos-key"
+#    export ATLAS_APP_INSIGHTS_KEY="your-insights-key"
+#
+# 2. Validate configuration:
+#    atlas validate-config -c examples/research-export.toml
+#
+# 3. Run dry-run to preview:
+#    atlas export -c examples/research-export.toml --dry-run
+#
+# 4. Execute export:
+#    atlas export -c examples/research-export.toml
+#
+# 5. Monitor progress:
+#    atlas status -c examples/research-export.toml
+#
+# ============================================================================
+# Expected Behavior
+# ============================================================================
+#
+# - Exports all compositions for specified templates within the time range
+# - Preserves exact FLAT JSON structure from OpenEHR
+# - Stores data in Cosmos DB partitioned by EHR ID
+# - Calculates and stores SHA-256 checksums for verification
+# - Enables post-export verification to ensure data integrity
+# - Provides detailed logging for research audit trail
+#
+# ============================================================================
+# Performance Expectations
+# ============================================================================
+#
+# - Throughput: ~500-1000 compositions/minute (depends on composition size)
+# - Memory: ~3-4 GB RAM
+# - Network: Moderate bandwidth usage
+# - Cosmos DB RUs: ~10 RU per composition write
+#
+# For 50,000 compositions:
+# - Estimated time: 50-100 minutes
+# - Estimated cost: ~500,000 RUs (~$2.50 at $5/million RUs)
+#
+# ============================================================================

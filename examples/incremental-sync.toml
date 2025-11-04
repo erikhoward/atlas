@@ -1,0 +1,260 @@
+# Atlas Configuration - Incremental Daily Sync
+#
+# This configuration is optimized for daily incremental synchronization of OpenEHR data
+# to Cosmos DB. It uses watermarks to track the last export and only fetches new or
+# updated compositions since the last run.
+#
+# Use Case: Nightly sync to keep Cosmos DB up-to-date with OpenEHR data
+# Expected Volume: 100-5,000 new compositions per day
+# Frequency: Daily (scheduled via cron or Kubernetes CronJob)
+
+[application]
+name = "atlas-daily-sync"
+version = "1.0.0"
+log_level = "info"
+dry_run = false
+
+# ============================================================================
+# OpenEHR Configuration
+# ============================================================================
+
+[openehr]
+# OpenEHR server endpoint
+base_url = "https://ehrbase.production.example.com/ehrbase/rest/openehr/v1"
+
+# Vendor implementation
+vendor = "ehrbase"
+
+# Authentication
+auth_type = "basic"
+username = "sync_user"
+password = "${ATLAS_OPENEHR_PASSWORD}"
+
+# TLS verification
+tls_verify = true
+
+# Request timeout (shorter for daily sync)
+timeout_seconds = 30
+
+# Retry configuration
+[openehr.retry]
+max_retries = 3
+initial_delay_ms = 1000
+max_delay_ms = 30000
+backoff_multiplier = 2.0
+
+# Query configuration
+[openehr.query]
+# Templates to sync (production templates)
+template_ids = ["IDCR - Vital Signs.v1", "IDCR - Lab Results.v1"]
+
+# EHR IDs (empty = all patients)
+ehr_ids = []
+
+# No time range specified - incremental mode uses watermarks
+# time_range_start and time_range_end are not set
+
+# Batch size (moderate for daily sync)
+batch_size = 1000
+
+# Parallel EHR processing (high parallelism for speed)
+parallel_ehrs = 16
+
+# ============================================================================
+# Export Configuration
+# ============================================================================
+
+[export]
+# Export mode: "incremental" to only fetch new/updated data
+mode = "incremental"
+
+# Composition format: "flatten" for easier querying in Cosmos DB
+# Converts nested paths like "vital_signs/blood_pressure/systolic" to "vital_signs_blood_pressure_systolic"
+cosmos_composition_format = "flatten"
+
+# Retry configuration
+max_retries = 3
+retry_backoff_ms = 1000
+
+# ============================================================================
+# Cosmos DB Configuration
+# ============================================================================
+
+[cosmosdb]
+# Cosmos DB endpoint
+endpoint = "https://production-cosmosdb.documents.azure.com:443/"
+
+# Access key
+key = "${ATLAS_COSMOS_KEY}"
+
+# Database name
+database_name = "openehr_data"
+
+# Control container for watermarks
+control_container = "atlas_control"
+
+# Data container prefix
+data_container_prefix = "compositions"
+
+# Partition key
+partition_key = "/ehr_id"
+
+# Concurrency (high for daily sync performance)
+max_concurrency = 20
+
+# Request timeout
+request_timeout_seconds = 30
+
+# ============================================================================
+# State Management
+# ============================================================================
+
+[state]
+# Enable checkpointing (critical for incremental sync)
+enable_checkpointing = true
+
+# Checkpoint interval (every 30 seconds for frequent saves)
+checkpoint_interval_seconds = 30
+
+# ============================================================================
+# Data Verification
+# ============================================================================
+
+[verification]
+# Disable verification for daily sync (prioritize speed)
+enable_verification = false
+
+# Checksum algorithm (not used when verification disabled)
+checksum_algorithm = "sha256"
+
+# ============================================================================
+# Logging Configuration
+# ============================================================================
+
+[logging]
+# Local logging
+local_enabled = true
+local_path = "/var/log/atlas"
+local_rotation = "daily"
+local_max_size_mb = 100
+
+# Azure Log Analytics
+azure_enabled = true
+azure_tenant_id = "${AZURE_TENANT_ID}"
+azure_client_id = "${AZURE_CLIENT_ID}"
+azure_client_secret = "${AZURE_CLIENT_SECRET}"
+azure_log_analytics_workspace_id = "${AZURE_LOG_ANALYTICS_WORKSPACE_ID}"
+azure_dcr_immutable_id = "${AZURE_DCR_IMMUTABLE_ID}"
+azure_dce_endpoint = "${AZURE_DCE_ENDPOINT}"
+azure_stream_name = "Custom-AtlasExport_CL"
+
+# ============================================================================
+# Usage Instructions
+# ============================================================================
+#
+# 1. Set environment variables:
+#    export ATLAS_OPENEHR_PASSWORD="your-password"
+#    export ATLAS_COSMOS_KEY="your-cosmos-key"
+#    export ATLAS_APP_INSIGHTS_KEY="your-insights-key"
+#
+# 2. Initial setup (first run):
+#    atlas validate-config -c examples/incremental-sync.toml
+#    atlas export -c examples/incremental-sync.toml --mode full  # Initial full export
+#
+# 3. Schedule daily sync (cron example):
+#    # Add to crontab: Run daily at 2 AM
+#    0 2 * * * source /etc/atlas/atlas.env && /usr/local/bin/atlas export -c /etc/atlas/incremental-sync.toml >> /var/log/atlas/cron.log 2>&1
+#
+# 4. Or use systemd timer (Linux):
+#    sudo systemctl enable atlas.timer
+#    sudo systemctl start atlas.timer
+#
+# 5. Or use Kubernetes CronJob:
+#    kubectl apply -f manifests/cronjob-incremental-sync.yaml
+#
+# 6. Monitor status:
+#    atlas status -c examples/incremental-sync.toml
+#
+# ============================================================================
+# Expected Behavior
+# ============================================================================
+#
+# First Run:
+# - Exports all compositions (full export)
+# - Creates watermarks for each {template_id, ehr_id} combination
+# - Stores watermarks in Cosmos DB control container
+#
+# Subsequent Runs:
+# - Loads watermarks from control container
+# - Queries OpenEHR for compositions since last watermark timestamp
+# - Only exports new/updated compositions
+# - Updates watermarks after successful export
+#
+# Fault Tolerance:
+# - If export fails mid-batch, watermarks are saved at last checkpoint
+# - Next run resumes from last checkpoint, avoiding duplicate exports
+# - Partial batch failures are logged but don't stop the export
+#
+# ============================================================================
+# Performance Expectations
+# ============================================================================
+#
+# Daily Volume: 1,000 new compositions
+# - Throughput: ~1000-2000 compositions/minute
+# - Duration: ~1-2 minutes
+# - Memory: ~2-3 GB RAM
+# - Cosmos DB RUs: ~10,000 RUs (~$0.05 at $5/million RUs)
+#
+# Daily Volume: 5,000 new compositions
+# - Duration: ~3-5 minutes
+# - Memory: ~3-4 GB RAM
+# - Cosmos DB RUs: ~50,000 RUs (~$0.25)
+#
+# ============================================================================
+# Monitoring and Alerting
+# ============================================================================
+#
+# Key Metrics to Monitor:
+# - Export duration (should be consistent day-to-day)
+# - Number of compositions exported (track trends)
+# - Error rate (should be near zero)
+# - Cosmos DB RU consumption (should be predictable)
+#
+# Alerts to Configure:
+# - Export failure (exit code != 0)
+# - Export duration > 10 minutes (may indicate issues)
+# - Error rate > 1% (investigate data quality issues)
+# - No new compositions for 7 days (may indicate upstream issues)
+#
+# Example monitoring script:
+#   #!/bin/bash
+#   if ! atlas export -c /etc/atlas/incremental-sync.toml; then
+#       echo "Atlas export failed" | mail -s "Atlas Alert" admin@example.com
+#   fi
+#
+# ============================================================================
+# Troubleshooting
+# ============================================================================
+#
+# Issue: No new compositions exported
+# - Check OpenEHR server for new data
+# - Verify watermark timestamps: atlas status -c incremental-sync.toml
+# - Check time_committed field in OpenEHR compositions
+#
+# Issue: Duplicate compositions
+# - Atlas automatically detects and skips duplicates
+# - Check logs for "Skipped X duplicate compositions"
+# - This is normal behavior, no action needed
+#
+# Issue: Export takes too long
+# - Increase parallel_ehrs (try 24-32)
+# - Increase batch_size (try 2000-3000)
+# - Increase max_concurrency (try 30-50)
+# - Check network latency to OpenEHR and Cosmos DB
+#
+# Issue: Watermarks not updating
+# - Check checkpoint_interval_seconds (should be 30-60)
+# - Verify Cosmos DB control container exists
+# - Check logs for checkpoint errors
+#
+# ============================================================================

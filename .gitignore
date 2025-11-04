@@ -1,0 +1,34 @@
+# Rust
+/target/
+**/*.rs.bk
+*.pdb
+Cargo.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+/logs/
+
+# Configuration (may contain secrets)
+atlas.toml
+*.local.toml
+.env
+
+# Test artifacts
+/test-output/
+/coverage/
+
+# OS
+Thumbs.db
+
+# Agents
+.prd/
+.augmentignore
+.augment/*

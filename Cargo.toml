@@ -1,0 +1,68 @@
+[package]
+name = "atlas"
+version = "1.0.0"
+edition = "2021"
+authors = ["Erik Howard","Atlas Contributors"]
+description = "ETL tool for exporting OpenEHR compositions to Azure Cosmos DB"
+license = "MIT"
+repository = "https://github.com/your-org/atlas"
+readme = "README.md"
+keywords = ["openehr", "azure", "cosmosdb", "etl", "healthcare"]
+categories = ["command-line-utilities", "database", "healthcare"]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+
+[dependencies]
+# Async runtime (TR-3.1)
+tokio = { version = "1", features = ["full"] }
+
+# Serialization (TR-3.3)
+rkyv = { version = "0.7", features = ["validation"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Error handling (TR-6.5, TR-6.6)
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Configuration (TR-4.1, TR-4.2)
+toml = "0.8"
+config = "0.14"
+
+# CLI (FR-4.1 - FR-4.5)
+clap = { version = "4", features = ["derive", "env"] }
+
+# HTTP client (TR-1.1)
+reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+
+# Logging (TR-5.1)
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
+
+# Azure Cosmos DB (TR-2.1)
+azure_data_cosmos = { version = "0.28.0", features = ["key_auth"] }
+azure_core = "0.29.1"
+azure_identity = "0.29"
+
+# Azure Monitor Logs Ingestion API
+# Note: No dedicated crate yet, using azure_identity + reqwest for REST API calls
+# azure_identity provides Azure AD authentication (ClientSecretCredential)
+
+# Utilities
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.0", features = ["v4", "serde"] }
+base64 = "0.22"
+sha2 = "0.10"
+regex = "1.12.2"
+tracing-appender = "0.2.3"
+async-trait = "0.1.89"
+futures = "0.3.31"
+url = "2.5"
+
+[dev-dependencies]
+mockito = "1.0"
+tempfile = "3.0"
+test-case = "3.0"
