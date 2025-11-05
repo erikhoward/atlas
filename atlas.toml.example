@@ -1,5 +1,20 @@
+# ============================================================================
 # Atlas Configuration Example
+# ============================================================================
 # Copy this file to atlas.toml and customize for your environment
+#
+# Atlas supports two database backends:
+#   - Azure Cosmos DB (NoSQL, globally distributed)
+#   - PostgreSQL 14+ (Relational, JSONB support)
+#
+# Choose your backend by setting export.database_target below.
+#
+# For detailed configuration options, see:
+#   - docs/configuration.md - Complete configuration reference
+#   - docs/postgresql-setup.md - PostgreSQL setup guide
+#   - examples/atlas.example.toml - CosmosDB example
+#   - examples/atlas.postgresql.example.toml - PostgreSQL example
+# ============================================================================
 
 [application]
 name = "atlas"
@@ -34,12 +49,21 @@ parallel_ehrs = 8  # Concurrent EHR processing
 
 [export]
 mode = "incremental"  # full | incremental
-cosmos_composition_format = "preserve"  # preserve | flatten
+export_composition_format = "preserve"  # preserve | flatten
+database_target = "cosmosdb"  # cosmosdb | postgresql
 
 # Retry settings
 max_retries = 3
 retry_backoff_ms = [1000, 2000, 4000]  # Exponential backoff
 
+# ============================================================================
+# DATABASE CONFIGURATION
+# Choose ONE database backend by setting database_target above
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Option 1: Azure Cosmos DB
+# ----------------------------------------------------------------------------
 [cosmosdb]
 # Connection
 endpoint = "https://myaccount.documents.azure.com:443/"
@@ -57,15 +81,46 @@ partition_key = "/ehr_id"
 max_concurrency = 10
 request_timeout_seconds = 60
 
+# ----------------------------------------------------------------------------
+# Option 2: PostgreSQL
+# ----------------------------------------------------------------------------
+# [postgresql]
+# # Connection string format: postgresql://[user[:password]@][host][:port][/dbname][?params]
+# connection_string = "postgresql://atlas_user:${ATLAS_PG_PASSWORD}@localhost:5432/openehr_data?sslmode=require"
+#
+# # Connection pool settings
+# max_connections = 20                # Maximum connections in pool (1-100)
+# connection_timeout_seconds = 30     # Timeout for acquiring connection
+# statement_timeout_seconds = 60      # Timeout for SQL statement execution
+#
+# # SSL/TLS mode: disable | allow | prefer | require | verify-ca | verify-full
+# ssl_mode = "require"                # Use 'require' or higher for production
+#
+# # Note: Before using PostgreSQL, run the schema migration:
+# #   psql -U atlas_user -d openehr_data -f migrations/001_initial_schema.sql
+# # See docs/postgresql-setup.md for detailed setup instructions
+
+# ============================================================================
+# STATE MANAGEMENT
+# ============================================================================
+
 [state]
-# State management
+# Watermark and checkpoint configuration for incremental exports
 enable_checkpointing = true
 checkpoint_interval_seconds = 30
 
+# ============================================================================
+# VERIFICATION
+# ============================================================================
+
 [verification]
-# Optional data verification
+# Optional data integrity verification using checksums
 enable_verification = false
-checksum_algorithm = "sha256"
+checksum_algorithm = "sha256"  # sha256 | sha512
+
+# ============================================================================
+# LOGGING
+# ============================================================================
 
 [logging]
 # Local logging
