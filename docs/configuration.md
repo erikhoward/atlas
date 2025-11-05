@@ -15,6 +15,7 @@ This guide provides comprehensive documentation for all Atlas configuration opti
       - [OpenEHR Query Configuration](#openehr-query-configuration)
     - [Export](#export)
     - [Cosmos DB](#cosmos-db)
+    - [PostgreSQL](#postgresql)
     - [State Management](#state-management)
     - [Verification](#verification)
     - [Logging](#logging)
@@ -167,6 +168,7 @@ Export behavior and data transformation settings.
 [export]
 mode = "incremental"
 export_composition_format = "preserve"
+database_target = "cosmosdb"  # or "postgresql"
 max_retries = 3
 retry_backoff_ms = [1000, 2000, 4000]
 ```
@@ -174,7 +176,8 @@ retry_backoff_ms = [1000, 2000, 4000]
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `mode` | string | "incremental" | Export mode: `full` (all data) or `incremental` (only new/changed data since last export) |
-| `export_composition_format` | string | "preserve" | Data format in Cosmos DB: `preserve` (exact FLAT JSON structure) or `flatten` (convert paths to field names) |
+| `export_composition_format` | string | "preserve" | Data format: `preserve` (exact FLAT JSON structure) or `flatten` (convert paths to field names) |
+| `database_target` | string | **required** | Database backend: `cosmosdb` or `postgresql` |
 | `max_retries` | integer | 3 | Maximum retry attempts for failed exports (0-10) |
 | `retry_backoff_ms` | array[integer] | [1000, 2000, 4000] | Retry delay intervals in milliseconds |
 
@@ -224,6 +227,62 @@ request_timeout_seconds = 60
 
 - Must be `/ehr_id` for optimal patient-based queries
 - Ensures all compositions for a patient are co-located
+
+### PostgreSQL
+
+PostgreSQL database connection and configuration (alternative to Cosmos DB).
+
+```toml
+[postgresql]
+connection_string = "postgresql://atlas_user:${ATLAS_PG_PASSWORD}@localhost:5432/openehr_data?sslmode=require"
+max_connections = 20
+connection_timeout_seconds = 30
+statement_timeout_seconds = 60
+ssl_mode = "require"
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `connection_string` | string | **required** | PostgreSQL connection string (supports environment variable substitution) |
+| `max_connections` | integer | 20 | Maximum connections in the connection pool (1-100) |
+| `connection_timeout_seconds` | integer | 30 | Timeout for acquiring a connection from the pool |
+| `statement_timeout_seconds` | integer | 60 | Timeout for executing SQL statements |
+| `ssl_mode` | string | "require" | SSL/TLS mode: `disable`, `allow`, `prefer`, `require`, `verify-ca`, `verify-full` |
+
+**Connection String Format:**
+
+```
+postgresql://[user[:password]@][host][:port][/dbname][?param1=value1&...]
+```
+
+**Examples:**
+
+```toml
+# Local development
+connection_string = "postgresql://atlas_user:password@localhost:5432/openehr_data"
+
+# Production with SSL
+connection_string = "postgresql://atlas_user:${ATLAS_PG_PASSWORD}@db.example.com:5432/openehr_data?sslmode=require"
+
+# Azure Database for PostgreSQL
+connection_string = "postgresql://atlas_user@myserver:${ATLAS_PG_PASSWORD}@myserver.postgres.database.azure.com:5432/openehr_data?sslmode=require"
+```
+
+**SSL Modes:**
+
+- `disable`: No SSL (development only)
+- `require`: Require SSL without certificate verification (minimum for production)
+- `verify-ca`: Require SSL and verify CA certificate (recommended for production)
+- `verify-full`: Require SSL, verify CA, and verify hostname (most secure)
+
+**Database Setup:**
+
+Before using PostgreSQL, you must create the database schema. See the [PostgreSQL Setup Guide](postgresql-setup.md) for detailed instructions.
+
+```bash
+# Run the migration script
+psql -U atlas_user -d openehr_data -f migrations/001_initial_schema.sql
+```
 
 ### State Management
 

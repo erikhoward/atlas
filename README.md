@@ -5,11 +5,11 @@
 [![Rust Version](https://img.shields.io/badge/rust-1.70%2B-orange.svg)](https://www.rust-lang.org/)
 [![Documentation](https://img.shields.io/badge/docs-latest-brightgreen.svg)](docs/)
 
-**Atlas** is a high-performance, open-source ETL tool built in Rust that bridges OpenEHR clinical data repositories with Microsoft Azure analytics platforms. It enables healthcare organizations to seamlessly export OpenEHR compositions to Azure Cosmos DB for advanced analytics, machine learning, and research.
+**Atlas** is a high-performance, open-source ETL tool built in Rust that bridges OpenEHR clinical data repositories with modern analytics platforms. It enables healthcare organizations to seamlessly export OpenEHR compositions to Azure Cosmos DB or PostgreSQL for advanced analytics, machine learning, and research.
 
 ## 🎯 Overview
 
-Atlas solves the challenge of making OpenEHR clinical data accessible for modern analytics workflows. By exporting compositions from EHRBase servers to Azure Cosmos DB, Atlas enables:
+Atlas solves the challenge of making OpenEHR clinical data accessible for modern analytics workflows. By exporting compositions from EHRBase servers to your choice of database backend (Azure Cosmos DB or PostgreSQL), Atlas enables:
 
 - **Clinical Research**: Query patient data using familiar SQL instead of AQL
 - **Machine Learning**: Build ML models on flattened, analytics-ready data
@@ -46,8 +46,9 @@ Atlas solves the challenge of making OpenEHR clinical data accessible for modern
   - Duplicate detection and skipping
   - Optional SHA-256 checksum verification
 
-- **📊 Azure-Native**: Deep integration with Azure services
-  - Azure Cosmos DB Core (SQL) API
+- **📊 Database Flexibility**: Multiple backend options
+  - **Azure Cosmos DB**: Core (SQL) API with automatic partitioning
+  - **PostgreSQL**: 14+ with JSONB support for flexible querying
   - Azure Log Analytics integration (Logs Ingestion API)
   - Kubernetes/AKS deployment support
 
@@ -65,8 +66,10 @@ Atlas solves the challenge of making OpenEHR clinical data accessible for modern
 
 - **Rust 1.70+** (for building from source)
 - **OpenEHR Server**: EHRBase 0.30+ with REST API v1.1.x
-- **Azure Cosmos DB**: Core (SQL) API account with database created
-- **Network Access**: Outbound HTTPS to OpenEHR server and Azure
+- **Database Backend** (choose one):
+  - **Azure Cosmos DB**: Core (SQL) API account with database created
+  - **PostgreSQL**: Version 14+ with database created
+- **Network Access**: Outbound HTTPS to OpenEHR server and database
 
 ### Installation
 
@@ -144,33 +147,63 @@ vi atlas.toml
 # Set environment variables for credentials
 export ATLAS_OPENEHR_USERNAME="your-openehr-username"
 export ATLAS_OPENEHR_PASSWORD="your-openehr-password"
+
+# For CosmosDB
 export ATLAS_COSMOSDB_KEY="your-cosmos-db-key"
+
+# For PostgreSQL
+export ATLAS_PG_PASSWORD="your-postgres-password"
 
 # Validate configuration
 atlas validate-config -c atlas.toml
 ```
 
-**Minimal Configuration Example**:
+**Minimal Configuration Example (CosmosDB)**:
 
 ```toml
 [openehr]
 base_url = "https://your-ehrbase-server.com/ehrbase"
 username = "${ATLAS_OPENEHR_USERNAME}"
 password = "${ATLAS_OPENEHR_PASSWORD}"
-tls_verify = true  # Set to false for self-signed certificates in dev
+tls_verify = true
 
 [openehr.query]
 template_ids = ["IDCR - Vital Signs.v1"]
+
+[export]
+mode = "incremental"
+export_composition_format = "preserve"
+database_target = "cosmosdb"
 
 [cosmosdb]
 endpoint = "https://your-account.documents.azure.com:443/"
 key = "${ATLAS_COSMOSDB_KEY}"
 database_name = "openehr_data"
+```
+
+**Minimal Configuration Example (PostgreSQL)**:
+
+```toml
+[openehr]
+base_url = "https://your-ehrbase-server.com/ehrbase"
+username = "${ATLAS_OPENEHR_USERNAME}"
+password = "${ATLAS_OPENEHR_PASSWORD}"
+tls_verify = true
+
+[openehr.query]
+template_ids = ["IDCR - Vital Signs.v1"]
 
 [export]
 mode = "incremental"
 export_composition_format = "preserve"
+database_target = "postgresql"
+
+[postgresql]
+connection_string = "postgresql://atlas_user:${ATLAS_PG_PASSWORD}@localhost:5432/openehr_data?sslmode=require"
+max_connections = 20
 ```
+
+See `examples/atlas.example.toml` for CosmosDB configuration and `examples/atlas.postgresql.example.toml` for PostgreSQL configuration.
 
 ### Basic Usage
 
@@ -432,6 +465,8 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 ### Documentation
 
 - [User Guide](docs/user-guide.md) - Usage instructions and troubleshooting
+- [PostgreSQL Setup Guide](docs/postgresql-setup.md) - PostgreSQL backend configuration
+- [Docker Setup Guide](docs/docker-setup.md) - Docker deployment instructions
 - [FAQ](docs/user-guide.md#faq) - Frequently asked questions
 
 ### Community
@@ -453,6 +488,8 @@ Atlas is built with these excellent open-source projects:
 - [Serde](https://serde.rs/) - Serialization framework
 - [Tracing](https://tracing.rs/) - Structured logging
 - [Azure SDK for Rust](https://github.com/Azure/azure-sdk-for-rust) - Azure integration
+- [tokio-postgres](https://github.com/sfackler/rust-postgres) - PostgreSQL async driver
+- [deadpool-postgres](https://github.com/bikeshedder/deadpool) - PostgreSQL connection pooling
 
 ## 🗺️ Roadmap
 
