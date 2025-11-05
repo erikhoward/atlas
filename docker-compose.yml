@@ -1,0 +1,105 @@
+version: '3.8'
+
+services:
+  atlas:
+    # Use the official Atlas image from Docker Hub
+    image: erikhoward/atlas:latest
+    
+    # Alternatively, build from local Dockerfile
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+    
+    # Container name
+    container_name: atlas-etl
+    
+    # Volume mounts
+    volumes:
+      # Mount your configuration file
+      - ./atlas.toml:/app/config/atlas.toml:ro
+      
+      # Mount logs directory (optional)
+      - ./logs:/app/logs
+      
+      # Mount additional config files if needed
+      # - ./custom-config.toml:/app/config/custom.toml:ro
+    
+    # Environment variables
+    # These override values in the configuration file
+    environment:
+      # OpenEHR credentials
+      - ATLAS_OPENEHR_USERNAME=${ATLAS_OPENEHR_USERNAME}
+      - ATLAS_OPENEHR_PASSWORD=${ATLAS_OPENEHR_PASSWORD}
+      
+      # Azure Cosmos DB credentials
+      - ATLAS_COSMOSDB_KEY=${ATLAS_COSMOSDB_KEY}
+      
+      # Logging level (trace, debug, info, warn, error)
+      - RUST_LOG=${RUST_LOG:-info}
+      
+      # Azure Application Insights (optional)
+      # - ATLAS_AZURE_TENANT_ID=${ATLAS_AZURE_TENANT_ID}
+      # - ATLAS_AZURE_CLIENT_ID=${ATLAS_AZURE_CLIENT_ID}
+      # - ATLAS_AZURE_CLIENT_SECRET=${ATLAS_AZURE_CLIENT_SECRET}
+    
+    # Command to run
+    # Options:
+    #   export - Run the export process
+    #   status - Check export status
+    #   --help - Show help
+    command: export --config /app/config/atlas.toml
+    
+    # Restart policy
+    # Options: no, always, on-failure, unless-stopped
+    restart: "no"
+    
+    # Resource limits (optional but recommended for production)
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '2.0'
+    #       memory: 4G
+    #     reservations:
+    #       cpus: '1.0'
+    #       memory: 2G
+    
+    # Network mode (optional)
+    # network_mode: bridge
+    
+    # Logging configuration (optional)
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# Example: Running multiple Atlas instances for different templates
+# Uncomment and modify as needed
+#
+# services:
+#   atlas-template1:
+#     image: erikhoward/atlas:latest
+#     container_name: atlas-template1
+#     volumes:
+#       - ./config/template1.toml:/app/config/atlas.toml:ro
+#       - ./logs/template1:/app/logs
+#     environment:
+#       - ATLAS_OPENEHR_USERNAME=${ATLAS_OPENEHR_USERNAME}
+#       - ATLAS_OPENEHR_PASSWORD=${ATLAS_OPENEHR_PASSWORD}
+#       - ATLAS_COSMOSDB_KEY=${ATLAS_COSMOSDB_KEY}
+#     command: export --config /app/config/atlas.toml
+#     restart: "no"
+#
+#   atlas-template2:
+#     image: erikhoward/atlas:latest
+#     container_name: atlas-template2
+#     volumes:
+#       - ./config/template2.toml:/app/config/atlas.toml:ro
+#       - ./logs/template2:/app/logs
+#     environment:
+#       - ATLAS_OPENEHR_USERNAME=${ATLAS_OPENEHR_USERNAME}
+#       - ATLAS_OPENEHR_PASSWORD=${ATLAS_OPENEHR_PASSWORD}
+#       - ATLAS_COSMOSDB_KEY=${ATLAS_COSMOSDB_KEY}
+#     command: export --config /app/config/atlas.toml
+#     restart: "no"
+

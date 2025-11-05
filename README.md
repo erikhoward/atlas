@@ -105,15 +105,32 @@ sudo cp target/release/atlas /usr/local/bin/
 atlas --version
 ```
 
-#### Option 3: Docker
+#### Option 3: Docker (Recommended for Production)
 
 ```bash
-# Pull Docker image
+# Pull the latest Docker image
 docker pull erikhoward/atlas:latest
 
-# Run Atlas
-docker run --rm -v $(pwd)/atlas.toml:/app/atlas.toml erikhoward/atlas:latest export
+# Run Atlas with configuration file
+docker run --rm \
+  -v $(pwd)/atlas.toml:/app/config/atlas.toml \
+  -e ATLAS_OPENEHR_USERNAME=your_username \
+  -e ATLAS_OPENEHR_PASSWORD=your_password \
+  -e ATLAS_COSMOSDB_KEY=your_cosmos_key \
+  erikhoward/atlas:latest \
+  export --config /app/config/atlas.toml
+
+# Or use docker-compose (see docker-compose.yml example)
+docker-compose up
 ```
+
+**Docker Benefits:**
+- ✅ No Rust installation required
+- ✅ Consistent environment across deployments
+- ✅ Easy integration with Kubernetes/AKS
+- ✅ Multi-platform support (amd64, arm64)
+
+See [Docker Setup Guide](docs/docker-setup.md) for detailed instructions.
 
 ### Configuration
 
@@ -178,6 +195,78 @@ See the [`examples/`](examples/) directory for complete configurations:
 - **[Clinical Research](examples/research-export.toml)**: Full export with data verification
 - **[Daily Sync](examples/incremental-sync.toml)**: Incremental sync for production
 - **[ML Features](examples/ml-features.toml)**: Flattened data for machine learning
+
+## 🐳 Docker Deployment
+
+Atlas provides official Docker images for easy deployment and integration with container orchestration platforms.
+
+### Quick Start with Docker
+
+```bash
+# Pull the latest image
+docker pull erikhoward/atlas:latest
+
+# Run with configuration file and environment variables
+docker run --rm \
+  -v $(pwd)/atlas.toml:/app/config/atlas.toml \
+  -v $(pwd)/logs:/app/logs \
+  -e ATLAS_OPENEHR_USERNAME=${OPENEHR_USER} \
+  -e ATLAS_OPENEHR_PASSWORD=${OPENEHR_PASS} \
+  -e ATLAS_COSMOSDB_KEY=${COSMOS_KEY} \
+  erikhoward/atlas:latest \
+  export --config /app/config/atlas.toml
+```
+
+### Using Docker Compose
+
+Create a `docker-compose.yml` file:
+
+```yaml
+version: '3.8'
+
+services:
+  atlas:
+    image: erikhoward/atlas:latest
+    volumes:
+      - ./atlas.toml:/app/config/atlas.toml
+      - ./logs:/app/logs
+    environment:
+      - ATLAS_OPENEHR_USERNAME=${OPENEHR_USER}
+      - ATLAS_OPENEHR_PASSWORD=${OPENEHR_PASS}
+      - ATLAS_COSMOSDB_KEY=${COSMOS_KEY}
+      - RUST_LOG=info
+    command: export --config /app/config/atlas.toml
+```
+
+Run with:
+
+```bash
+docker-compose up
+```
+
+### Available Tags
+
+- `latest` - Latest stable release from main branch
+- `1.0.0`, `1.0`, `1` - Semantic version tags
+- `main-<sha>` - Specific commit from main branch
+
+### Multi-Platform Support
+
+Images are built for multiple architectures:
+- `linux/amd64` - Standard x86_64 servers
+- `linux/arm64` - ARM64 (Apple Silicon, AWS Graviton, etc.)
+
+### Building Custom Images
+
+```bash
+# Build locally
+docker build -t atlas:custom .
+
+# Build for specific platform
+docker build --platform linux/amd64 -t atlas:custom .
+```
+
+For detailed Docker setup, configuration, and troubleshooting, see the **[Docker Setup Guide](docs/docker-setup.md)**.
 
 ## 📖 Documentation
 

@@ -1,0 +1,62 @@
+# Rust build artifacts
+target/
+**/*.rs.bk
+*.pdb
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# GitHub
+.github/
+
+# Documentation
+*.md
+docs/
+CHANGELOG.md
+CONTRIBUTING.md
+README.md
+LICENSE
+
+# Examples and tests (not needed in production image)
+examples/
+tests/
+
+# Configuration files (users will mount their own)
+atlas.toml
+atlas.toml.example
+*.example.toml
+.env
+.env.example
+
+# Logs
+*.log
+atlas_logs/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# CI/CD
+.travis.yml
+.gitlab-ci.yml
+azure-pipelines.yml
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Augment
+.augment/
+
