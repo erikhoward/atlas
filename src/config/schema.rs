@@ -4,6 +4,16 @@
 
 use serde::{Deserialize, Serialize};
 
+/// Database target selection
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum DatabaseTarget {
+    /// PostgreSQL database
+    PostgreSQL,
+    /// Azure Cosmos DB
+    CosmosDB,
+}
+
 /// Main Atlas configuration
 ///
 /// This is the root configuration structure that maps to the TOML file.
@@ -18,8 +28,16 @@ pub struct AtlasConfig {
     /// Export settings
     pub export: ExportConfig,
 
-    /// Azure Cosmos DB configuration
-    pub cosmosdb: CosmosDbConfig,
+    /// Database target (postgresql or cosmosdb)
+    pub database_target: DatabaseTarget,
+
+    /// Azure Cosmos DB configuration (required if database_target = cosmosdb)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cosmosdb: Option<CosmosDbConfig>,
+
+    /// PostgreSQL configuration (required if database_target = postgresql)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub postgresql: Option<PostgreSQLConfig>,
 
     /// State management configuration
     pub state: StateConfig,
@@ -43,7 +61,37 @@ impl AtlasConfig {
         self.application.validate()?;
         self.openehr.validate()?;
         self.export.validate()?;
-        self.cosmosdb.validate()?;
+
+        // Validate that the correct database config is present
+        match self.database_target {
+            DatabaseTarget::CosmosDB => {
+                if let Some(ref config) = self.cosmosdb {
+                    config.validate()?;
+                } else {
+                    return Err(
+                        "cosmosdb configuration is required when database_target = 'cosmosdb'"
+                            .to_string(),
+                    );
+                }
+                if self.postgresql.is_some() {
+                    return Err("postgresql configuration should not be present when database_target = 'cosmosdb'".to_string());
+                }
+            }
+            DatabaseTarget::PostgreSQL => {
+                if let Some(ref config) = self.postgresql {
+                    config.validate()?;
+                } else {
+                    return Err(
+                        "postgresql configuration is required when database_target = 'postgresql'"
+                            .to_string(),
+                    );
+                }
+                if self.cosmosdb.is_some() {
+                    return Err("cosmosdb configuration should not be present when database_target = 'postgresql'".to_string());
+                }
+            }
+        }
+
         self.state.validate()?;
         self.verification.validate()?;
         self.logging.validate()?;
@@ -403,6 +451,72 @@ impl CosmosDbConfig {
     }
 }
 
+/// PostgreSQL database configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PostgreSQLConfig {
+    /// PostgreSQL connection string
+    /// Format: postgresql://user:password@host:port/database
+    pub connection_string: String,
+
+    /// Maximum number of connections in the pool
+    #[serde(default = "default_pg_max_connections")]
+    pub max_connections: usize,
+
+    /// Connection timeout in seconds
+    #[serde(default = "default_pg_connection_timeout_seconds")]
+    pub connection_timeout_seconds: u64,
+
+    /// Statement timeout in seconds
+    #[serde(default = "default_pg_statement_timeout_seconds")]
+    pub statement_timeout_seconds: u64,
+
+    /// Enable SSL/TLS for connections
+    #[serde(default = "default_pg_ssl_mode")]
+    pub ssl_mode: String,
+}
+
+impl PostgreSQLConfig {
+    fn validate(&self) -> Result<(), String> {
+        if self.connection_string.is_empty() {
+            return Err("postgresql.connection_string cannot be empty".to_string());
+        }
+
+        if !self.connection_string.starts_with("postgresql://")
+            && !self.connection_string.starts_with("postgres://")
+        {
+            return Err(
+                "postgresql.connection_string must start with postgresql:// or postgres://"
+                    .to_string(),
+            );
+        }
+
+        if self.max_connections == 0 || self.max_connections > 100 {
+            return Err(format!(
+                "postgresql.max_connections must be between 1 and 100, got {}",
+                self.max_connections
+            ));
+        }
+
+        let valid_ssl_modes = [
+            "disable",
+            "allow",
+            "prefer",
+            "require",
+            "verify-ca",
+            "verify-full",
+        ];
+        if !valid_ssl_modes.contains(&self.ssl_mode.as_str()) {
+            return Err(format!(
+                "postgresql.ssl_mode must be one of: {}, got '{}'",
+                valid_ssl_modes.join(", "),
+                self.ssl_mode
+            ));
+        }
+
+        Ok(())
+    }
+}
+
 /// State management configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StateConfig {
@@ -678,6 +792,22 @@ fn default_local_rotation() -> String {
 
 fn default_local_max_size_mb() -> usize {
     100
+}
+
+fn default_pg_max_connections() -> usize {
+    10
+}
+
+fn default_pg_connection_timeout_seconds() -> u64 {
+    30
+}
+
+fn default_pg_statement_timeout_seconds() -> u64 {
+    60
+}
+
+fn default_pg_ssl_mode() -> String {
+    "prefer".to_string()
 }
 
 #[cfg(test)]
