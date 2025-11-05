@@ -23,6 +23,10 @@ pub enum AtlasError {
     #[error("Cosmos DB error: {0}")]
     CosmosDb(#[from] CosmosDbError),
 
+    /// Database-related errors (generic)
+    #[error("Database error: {0}")]
+    Database(String),
+
     /// Export process errors
     #[error("Export error: {0}")]
     Export(String),

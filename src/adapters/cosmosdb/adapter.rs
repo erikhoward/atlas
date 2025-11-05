@@ -174,7 +174,7 @@ impl StateStorage for CosmosDbAdapter {
             .await
         {
             Ok(response) => {
-                let watermark = response.into_body().await.map_err(|e| {
+                let watermark = response.into_body().map_err(|e| {
                     AtlasError::CosmosDb(CosmosDbError::DeserializationFailed(format!(
                         "Failed to deserialize watermark: {}",
                         e

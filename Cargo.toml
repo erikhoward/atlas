@@ -61,6 +61,8 @@ tracing-appender = "0.2.3"
 async-trait = "0.1.89"
 futures = "0.3.31"
 url = "2.5"
+tokio-postgres = { version = "0.7.15", features = ["with-chrono-0_4", "with-serde_json-1", "with-uuid-1"] }
+deadpool-postgres = "0.14.1"
 
 [dev-dependencies]
 mockito = "1.0"

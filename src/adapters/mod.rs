@@ -71,3 +71,4 @@
 pub mod cosmosdb;
 pub mod database;
 pub mod openehr;
+pub mod postgresql;
