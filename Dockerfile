@@ -4,7 +4,7 @@
 # ============================================================================
 # Stage 1: Builder - Compile the Rust application
 # ============================================================================
-FROM rust:1.70 as builder
+FROM rust:1.70 AS builder
 
 # Set working directory
 WORKDIR /usr/src/atlas
@@ -12,14 +12,13 @@ WORKDIR /usr/src/atlas
 # Copy manifests
 COPY Cargo.toml Cargo.lock ./
 
-# Copy source code
+# Copy source code (only src is needed for building the binary)
 COPY src ./src
-COPY tests ./tests
-COPY examples ./examples
 
 # Build the application in release mode
 # This produces an optimized binary with LTO and other optimizations
-RUN cargo build --release
+# Note: We only build the main binary, not tests or examples
+RUN cargo build --release --bin atlas
 
 # ============================================================================
 # Stage 2: Runtime - Minimal image with only the binary
