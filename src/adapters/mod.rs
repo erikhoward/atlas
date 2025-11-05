@@ -3,12 +3,15 @@
 //! This module provides adapters for integrating with external systems:
 //!
 //! - [`openehr`] - OpenEHR server integration (EHRBase, Better Platform, etc.)
-//! - [`cosmosdb`] - Azure Cosmos DB integration
+//! - [`database`] - Database abstraction layer (trait-based)
+//! - [`cosmosdb`] - Azure Cosmos DB implementation
+//! - [`postgresql`] - PostgreSQL implementation (coming soon)
 //!
 //! # Design Pattern
 //!
 //! Adapters follow the **Adapter Pattern** to isolate external dependencies and
-//! enable testing with mock implementations.
+//! enable testing with mock implementations. The database layer uses trait-based
+//! abstraction to support multiple database backends.
 //!
 //! # OpenEHR Adapter
 //!
@@ -66,4 +69,5 @@
 //! ```
 
 pub mod cosmosdb;
+pub mod database;
 pub mod openehr;
