@@ -297,9 +297,9 @@ pub struct ExportConfig {
     #[serde(default = "default_export_mode")]
     pub mode: String,
 
-    /// Composition format in Cosmos DB (preserve or flatten)
+    /// Composition format for export (preserve or flatten)
     #[serde(default = "default_composition_format")]
-    pub cosmos_composition_format: String,
+    pub export_composition_format: String,
 
     /// Maximum retry attempts
     #[serde(default = "default_max_retries")]
@@ -322,10 +322,10 @@ impl ExportConfig {
         }
 
         let valid_formats = ["preserve", "flatten"];
-        if !valid_formats.contains(&self.cosmos_composition_format.as_str()) {
+        if !valid_formats.contains(&self.export_composition_format.as_str()) {
             return Err(format!(
-                "Invalid export.cosmos_composition_format '{}'. Must be one of: {}",
-                self.cosmos_composition_format,
+                "Invalid export.export_composition_format '{}'. Must be one of: {}",
+                self.export_composition_format,
                 valid_formats.join(", ")
             ));
         }
@@ -764,7 +764,7 @@ mod tests {
     fn test_export_config_validation() {
         let mut config = ExportConfig {
             mode: "incremental".to_string(),
-            cosmos_composition_format: "preserve".to_string(),
+            export_composition_format: "preserve".to_string(),
             max_retries: 3,
             retry_backoff_ms: vec![1000, 2000, 4000],
         };
@@ -775,10 +775,10 @@ mod tests {
         assert!(config.validate().is_err());
 
         config.mode = "full".to_string();
-        config.cosmos_composition_format = "invalid".to_string();
+        config.export_composition_format = "invalid".to_string();
         assert!(config.validate().is_err());
 
-        config.cosmos_composition_format = "flatten".to_string();
+        config.export_composition_format = "flatten".to_string();
         config.max_retries = 11;
         assert!(config.validate().is_err());
     }

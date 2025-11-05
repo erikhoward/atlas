@@ -47,7 +47,7 @@ impl ValidateArgs {
                 println!("  Export Mode: {}", config.export.mode);
                 println!(
                     "  Composition Format: {}",
-                    config.export.cosmos_composition_format
+                    config.export.export_composition_format
                 );
                 println!("  Batch Size: {}", config.openehr.query.batch_size);
                 println!("  Parallel EHRs: {}", config.openehr.query.parallel_ehrs);

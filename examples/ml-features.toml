@@ -83,7 +83,7 @@ mode = "full"
 # - Query specific features in Cosmos DB
 # - Export to CSV/Parquet for ML frameworks
 # - Build feature vectors for models
-cosmos_composition_format = "flatten"
+export_composition_format = "flatten"
 
 # Retry configuration
 max_retries = 3

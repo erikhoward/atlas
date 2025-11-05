@@ -49,7 +49,7 @@ parallel_ehrs = 4
 
 [export]
 mode = "full"
-cosmos_composition_format = "flatten"
+export_composition_format = "flatten"
 max_retries = 5
 retry_backoff_ms = [500, 1000, 2000]
 
@@ -108,7 +108,7 @@ azure_enabled = false
 
     // Verify export config
     assert_eq!(config.export.mode, "full");
-    assert_eq!(config.export.cosmos_composition_format, "flatten");
+    assert_eq!(config.export.export_composition_format, "flatten");
     assert_eq!(config.export.max_retries, 5);
 
     // Verify Cosmos DB config
@@ -174,7 +174,7 @@ database_name = "test_db"
     assert_eq!(config.openehr.query.batch_size, 1000);
     assert_eq!(config.openehr.query.parallel_ehrs, 8);
     assert_eq!(config.export.mode, "incremental");
-    assert_eq!(config.export.cosmos_composition_format, "preserve");
+    assert_eq!(config.export.export_composition_format, "preserve");
     assert_eq!(config.export.max_retries, 3);
     assert_eq!(config.cosmosdb.control_container, "atlas_control");
     assert_eq!(config.cosmosdb.data_container_prefix, "compositions");

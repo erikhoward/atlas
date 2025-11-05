@@ -64,7 +64,7 @@
 //!
 //! [export]
 //! mode = "incremental"
-//! cosmos_composition_format = "preserve"
+//! export_composition_format = "preserve"
 //! ```
 //!
 //! # Environment Variables

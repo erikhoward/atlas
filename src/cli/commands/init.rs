@@ -94,7 +94,7 @@ parallel_ehrs = 8
 
 [export]
 mode = "incremental"
-cosmos_composition_format = "preserve"
+export_composition_format = "preserve"
 
 [cosmosdb]
 endpoint = "https://your-account.documents.azure.com:443/"
@@ -182,10 +182,10 @@ parallel_ehrs = 8
 # - incremental: Only export new compositions since last run
 mode = "incremental"
 
-# Composition format in Cosmos DB: "preserve" or "flatten"
+# Composition format for export: "preserve" or "flatten"
 # - preserve: Keep original FLAT JSON structure
 # - flatten: Convert paths to simple field names
-cosmos_composition_format = "preserve"
+export_composition_format = "preserve"
 
 # Maximum retry attempts for transient failures
 max_retries = 3

@@ -166,7 +166,7 @@ Export behavior and data transformation settings.
 ```toml
 [export]
 mode = "incremental"
-cosmos_composition_format = "preserve"
+export_composition_format = "preserve"
 max_retries = 3
 retry_backoff_ms = [1000, 2000, 4000]
 ```
@@ -174,7 +174,7 @@ retry_backoff_ms = [1000, 2000, 4000]
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `mode` | string | "incremental" | Export mode: `full` (all data) or `incremental` (only new/changed data since last export) |
-| `cosmos_composition_format` | string | "preserve" | Data format in Cosmos DB: `preserve` (exact FLAT JSON structure) or `flatten` (convert paths to field names) |
+| `export_composition_format` | string | "preserve" | Data format in Cosmos DB: `preserve` (exact FLAT JSON structure) or `flatten` (convert paths to field names) |
 | `max_retries` | integer | 3 | Maximum retry attempts for failed exports (0-10) |
 | `retry_backoff_ms` | array[integer] | [1000, 2000, 4000] | Retry delay intervals in milliseconds |
 
@@ -318,7 +318,7 @@ Export all compositions for specific templates to support research analytics:
 ```toml
 [export]
 mode = "full"
-cosmos_composition_format = "preserve"
+export_composition_format = "preserve"
 
 [openehr.query]
 template_ids = ["IDCR - Adverse Reaction List.v1", "IDCR - Problem List.v1", "IDCR - Vital Signs.v1"]
@@ -333,7 +333,7 @@ Nightly incremental sync for operational dashboards:
 ```toml
 [export]
 mode = "incremental"
-cosmos_composition_format = "flatten"
+export_composition_format = "flatten"
 
 [openehr.query]
 template_ids = ["IDCR - Vital Signs.v1"]
@@ -352,7 +352,7 @@ High-throughput export for machine learning pipelines:
 ```toml
 [export]
 mode = "full"
-cosmos_composition_format = "flatten"
+export_composition_format = "flatten"
 
 [openehr.query]
 template_ids = ["IDCR - Lab Results.v1"]

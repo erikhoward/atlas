@@ -138,7 +138,7 @@ database_name = "openehr_data"
 
 [export]
 mode = "incremental"
-cosmos_composition_format = "preserve"
+export_composition_format = "preserve"
 ```
 
 ### Step 3: Set Environment Variables
@@ -251,7 +251,7 @@ Export all compositions for specific templates to populate Cosmos DB:
 ```toml
 [export]
 mode = "full"  # Export all data
-cosmos_composition_format = "preserve"
+export_composition_format = "preserve"
 
 [openehr.query]
 template_ids = [
@@ -284,7 +284,7 @@ Set up a nightly cron job for incremental exports:
 ```toml
 [export]
 mode = "incremental"  # Only new/changed data
-cosmos_composition_format = "flatten"
+export_composition_format = "flatten"
 
 [openehr.query]
 template_ids = ["IDCR - Vital Signs.v1"]
@@ -342,7 +342,7 @@ Optimize for maximum throughput when exporting large datasets:
 ```toml
 [export]
 mode = "full"
-cosmos_composition_format = "flatten"
+export_composition_format = "flatten"
 
 [openehr.query]
 batch_size = 5000  # Maximum batch size

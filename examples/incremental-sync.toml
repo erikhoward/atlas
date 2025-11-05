@@ -70,7 +70,7 @@ mode = "incremental"
 
 # Composition format: "flatten" for easier querying in Cosmos DB
 # Converts nested paths like "vital_signs/blood_pressure/systolic" to "vital_signs_blood_pressure_systolic"
-cosmos_composition_format = "flatten"
+export_composition_format = "flatten"
 
 # Retry configuration
 max_retries = 3

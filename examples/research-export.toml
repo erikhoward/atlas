@@ -79,7 +79,7 @@ mode = "full"
 
 # Composition format: "preserve" to maintain exact FLAT JSON structure
 # This is important for research to preserve all original data
-cosmos_composition_format = "preserve"
+export_composition_format = "preserve"
 
 # Retry configuration
 max_retries = 3

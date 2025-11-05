@@ -33,7 +33,7 @@ batch_size = 1000 # 100-5000
 parallel_ehrs = 8 # Concurrent EHR processing
 [export]
 mode = "incremental"                   # full | incremental
-cosmos_composition_format = "preserve" # preserve | flatten
+export_composition_format = "preserve" # preserve | flatten
 
 # Retry settings
 max_retries = 3

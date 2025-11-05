@@ -169,7 +169,7 @@ database_name = "openehr_data"
 
 [export]
 mode = "incremental"
-cosmos_composition_format = "preserve"
+export_composition_format = "preserve"
 ```
 
 ### Basic Usage

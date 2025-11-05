@@ -160,7 +160,7 @@ data:
 
     [export]
     mode = "incremental"
-    cosmos_composition_format = "preserve"
+    export_composition_format = "preserve"
     max_retries = 3
     retry_backoff_ms = 1000
 

@@ -184,8 +184,8 @@ fn apply_env_overrides(config: &mut AtlasConfig) -> Result<()> {
     if let Ok(val) = std::env::var("ATLAS_EXPORT_MODE") {
         config.export.mode = val;
     }
-    if let Ok(val) = std::env::var("ATLAS_EXPORT_COSMOS_COMPOSITION_FORMAT") {
-        config.export.cosmos_composition_format = val;
+    if let Ok(val) = std::env::var("ATLAS_EXPORT_COMPOSITION_FORMAT") {
+        config.export.export_composition_format = val;
     }
     if let Ok(val) = std::env::var("ATLAS_EXPORT_MAX_RETRIES") {
         if let Ok(retries) = val.parse() {

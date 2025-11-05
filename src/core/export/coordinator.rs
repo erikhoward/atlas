@@ -50,7 +50,7 @@ impl ExportCoordinator {
         // Create batch configuration
         let batch_config = BatchConfig::from_config(
             config.openehr.query.batch_size,
-            &config.export.cosmos_composition_format,
+            &config.export.export_composition_format,
             config.export.mode.clone(),
             config.verification.enable_verification,
         )?;
