@@ -188,6 +188,14 @@ pub enum CosmosDbError {
     /// Timeout
     #[error("Request timeout: {0}")]
     Timeout(String),
+
+    /// Failed to write document
+    #[error("Failed to write document: {0}")]
+    WriteFailed(String),
+
+    /// Failed to deserialize response
+    #[error("Failed to deserialize response: {0}")]
+    DeserializationFailed(String),
 }
 
 /// Export-specific error details
