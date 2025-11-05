@@ -4,7 +4,7 @@
 # ============================================================================
 # Stage 1: Builder - Compile the Rust application
 # ============================================================================
-FROM rust:1.70 AS builder
+FROM rust:latest AS builder
 
 # Set working directory
 WORKDIR /usr/src/atlas
