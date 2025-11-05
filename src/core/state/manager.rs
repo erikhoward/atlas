@@ -1,69 +1,34 @@
 //! State manager for watermark persistence
 //!
 //! This module provides the StateManager for loading and saving watermarks
-//! to the Cosmos DB control container.
+//! to the database backend.
 
-use crate::adapters::cosmosdb::CosmosDbClient;
+use crate::adapters::database::traits::StateStorage;
 use crate::core::state::watermark::Watermark;
 use crate::domain::ids::{EhrId, TemplateId};
-use crate::domain::{AtlasError, CosmosDbError, Result};
-use azure_data_cosmos::PartitionKey;
+use crate::domain::Result;
 use std::sync::Arc;
 
 /// State manager for watermark persistence
 ///
-/// Manages the loading and saving of watermarks to the Cosmos DB control container.
+/// Manages the loading and saving of watermarks to the database backend.
 /// Watermarks track the state of incremental exports per {template_id, ehr_id}.
-///
-/// # Examples
-///
-/// ```no_run
-/// use atlas::adapters::cosmosdb::CosmosDbClient;
-/// use atlas::core::state::manager::StateManager;
-/// use atlas::config::CosmosDbConfig;
-/// use atlas::domain::ids::{TemplateId, EhrId};
-/// use std::str::FromStr;
-///
-/// # async fn example() -> atlas::domain::Result<()> {
-/// let config = CosmosDbConfig::default();
-/// let client = CosmosDbClient::new(config).await?;
-/// let manager = StateManager::new(client);
-///
-/// let template_id = TemplateId::from_str("vital_signs.v1")?;
-/// let ehr_id = EhrId::from_str("7d44b88c-4199-4bad-97dc-d78268e01398")?;
-///
-/// // Load watermark (returns None if not found)
-/// let watermark = manager.load_watermark(&template_id, &ehr_id).await?;
-/// # Ok(())
-/// # }
-/// ```
 pub struct StateManager {
-    /// Cosmos DB client
-    client: Arc<CosmosDbClient>,
+    /// State storage backend
+    storage: Arc<dyn StateStorage + Send + Sync>,
 }
 
 impl StateManager {
-    /// Create a new StateManager
+    /// Create a new StateManager with a state storage backend
     ///
     /// # Arguments
     ///
-    /// * `client` - Cosmos DB client
-    pub fn new(client: CosmosDbClient) -> Self {
-        Self {
-            client: Arc::new(client),
-        }
+    /// * `storage` - State storage implementation
+    pub fn new_with_storage(storage: Arc<dyn StateStorage + Send + Sync>) -> Self {
+        Self { storage }
     }
 
-    /// Create a new StateManager with an Arc-wrapped client
-    ///
-    /// # Arguments
-    ///
-    /// * `client` - Arc-wrapped Cosmos DB client
-    pub fn new_with_arc(client: Arc<CosmosDbClient>) -> Self {
-        Self { client }
-    }
-
-    /// Load a watermark from the control container
+    /// Load a watermark from the database
     ///
     /// # Arguments
     ///
@@ -82,62 +47,10 @@ impl StateManager {
         template_id: &TemplateId,
         ehr_id: &EhrId,
     ) -> Result<Option<Watermark>> {
-        let container = self.client.get_control_container_client();
-        let watermark_id = Watermark::generate_id(template_id, ehr_id);
-
-        // Use the watermark ID as the partition key (control container uses /id)
-        let partition_key = PartitionKey::from(watermark_id.clone());
-
-        tracing::debug!(
-            template_id = %template_id.as_str(),
-            ehr_id = %ehr_id.as_str(),
-            watermark_id = %watermark_id,
-            "Loading watermark"
-        );
-
-        match container
-            .read_item::<Watermark>(partition_key, &watermark_id, None)
-            .await
-        {
-            Ok(response) => {
-                // The response body is the watermark itself
-                let watermark = response.into_body().map_err(|e| {
-                    AtlasError::CosmosDb(CosmosDbError::QueryFailed(format!(
-                        "Failed to deserialize watermark: {}",
-                        e
-                    )))
-                })?;
-
-                tracing::info!(
-                    template_id = %template_id.as_str(),
-                    ehr_id = %ehr_id.as_str(),
-                    compositions_count = watermark.compositions_exported_count,
-                    "Watermark loaded"
-                );
-
-                Ok(Some(watermark))
-            }
-            Err(e) => {
-                let error_str = e.to_string();
-                // Check if it's a 404 (not found) error
-                if error_str.contains("404") || error_str.contains("NotFound") {
-                    tracing::debug!(
-                        template_id = %template_id.as_str(),
-                        ehr_id = %ehr_id.as_str(),
-                        "Watermark not found (will perform full export)"
-                    );
-                    Ok(None)
-                } else {
-                    Err(AtlasError::CosmosDb(CosmosDbError::QueryFailed(format!(
-                        "Failed to load watermark: {}",
-                        e
-                    ))))
-                }
-            }
-        }
+        self.storage.load_watermark(template_id, ehr_id).await
     }
 
-    /// Save a watermark to the control container
+    /// Save a watermark to the database
     ///
     /// Uses upsert to create or update the watermark atomically.
     ///
@@ -149,60 +62,20 @@ impl StateManager {
     ///
     /// Returns an error if the upsert operation fails.
     pub async fn save_watermark(&self, watermark: &Watermark) -> Result<()> {
-        let container = self.client.get_control_container_client();
-
-        // Use the watermark ID as the partition key (control container uses /id)
-        let partition_key = PartitionKey::from(watermark.id.clone());
-
-        tracing::debug!(
-            template_id = %watermark.template_id.as_str(),
-            ehr_id = %watermark.ehr_id.as_str(),
-            watermark_id = %watermark.id,
-            compositions_count = watermark.compositions_exported_count,
-            "Saving watermark"
-        );
-
-        container
-            .upsert_item(partition_key, watermark, None)
-            .await
-            .map_err(|e| {
-                AtlasError::CosmosDb(CosmosDbError::UpdateFailed(format!(
-                    "Failed to save watermark: {}",
-                    e
-                )))
-            })?;
-
-        tracing::info!(
-            template_id = %watermark.template_id.as_str(),
-            ehr_id = %watermark.ehr_id.as_str(),
-            compositions_count = watermark.compositions_exported_count,
-            status = ?watermark.last_export_status,
-            "Watermark saved"
-        );
-
-        Ok(())
+        self.storage.save_watermark(watermark).await
     }
 
-    /// Get all watermarks from the control container
+    /// Get all watermarks from the database
     ///
     /// # Returns
     ///
-    /// Returns a vector of all watermarks in the control container.
+    /// Returns a vector of all watermarks in the database.
     ///
     /// # Errors
     ///
     /// Returns an error if the query fails.
     pub async fn get_all_watermarks(&self) -> Result<Vec<Watermark>> {
-        let _container = self.client.get_control_container_client();
-
-        tracing::debug!("Querying all watermarks");
-
-        // For now, return an empty vector
-        // TODO: Implement cross-partition query when SDK supports it better
-        // This functionality is not critical for Phase 6 checkpoint
-        tracing::warn!("get_all_watermarks not yet implemented - returning empty list");
-
-        Ok(Vec::new())
+        self.storage.get_all_watermarks().await
     }
 
     /// Checkpoint a batch by saving the watermark

@@ -1,9 +1,10 @@
 //! Export coordinator - main orchestrator for the export process
 //!
 //! This module coordinates the entire export workflow, managing the interaction
-//! between OpenEHR, Cosmos DB, state management, and batch processing.
+//! between OpenEHR, database backends, state management, and batch processing.
 
-use crate::adapters::cosmosdb::CosmosDbClient;
+use crate::adapters::database::create_database_and_state;
+use crate::adapters::database::traits::DatabaseClient;
 use crate::adapters::openehr::OpenEhrClient;
 use crate::config::AtlasConfig;
 use crate::core::export::batch::{BatchConfig, BatchProcessor};
@@ -20,7 +21,7 @@ pub struct ExportCoordinator {
     config: AtlasConfig,
     #[allow(dead_code)] // Will be used in future phases
     openehr_client: Arc<OpenEhrClient>,
-    cosmos_client: Arc<CosmosDbClient>,
+    database_client: Arc<dyn DatabaseClient + Send + Sync>,
     state_manager: Arc<StateManager>,
     #[allow(dead_code)] // Will be used in future phases
     batch_processor: Arc<BatchProcessor>,
@@ -32,20 +33,17 @@ impl ExportCoordinator {
         // Create OpenEHR client
         let openehr_client = Arc::new(OpenEhrClient::new(config.openehr.clone()).await?);
 
-        // Create Cosmos DB client
-        let cosmos_client = Arc::new(CosmosDbClient::new(config.cosmosdb.clone()).await?);
+        // Create database client and state storage using factory
+        let (database_client, state_storage) = create_database_and_state(&config).await?;
 
         // Ensure database exists
-        cosmos_client.ensure_database_exists().await?;
+        database_client.ensure_database_exists().await?;
 
         // Ensure control container exists for state management
-        cosmos_client.ensure_control_container_exists().await?;
+        database_client.ensure_control_container_exists().await?;
 
-        // Create a second Arc for the state manager
-        let cosmos_client_for_state = cosmos_client.clone();
-
-        // Create state manager
-        let state_manager = Arc::new(StateManager::new_with_arc(cosmos_client_for_state));
+        // Create state manager with state storage
+        let state_manager = Arc::new(StateManager::new_with_storage(state_storage));
 
         // Create batch configuration
         let batch_config = BatchConfig::from_config(
@@ -57,7 +55,7 @@ impl ExportCoordinator {
 
         // Create batch processor
         let batch_processor = Arc::new(BatchProcessor::new(
-            cosmos_client.clone(),
+            database_client.clone(),
             state_manager.clone(),
             batch_config,
         ));
@@ -65,7 +63,7 @@ impl ExportCoordinator {
         Ok(Self {
             config,
             openehr_client,
-            cosmos_client,
+            database_client,
             state_manager,
             batch_processor,
         })
@@ -132,7 +130,7 @@ impl ExportCoordinator {
 
             // Ensure container exists for this template
             if let Err(e) = self
-                .cosmos_client
+                .database_client
                 .ensure_container_exists(template_id)
                 .await
             {

@@ -193,25 +193,27 @@ fn apply_env_overrides(config: &mut AtlasConfig) -> Result<()> {
         }
     }
 
-    // Cosmos DB overrides
-    if let Ok(val) = std::env::var("ATLAS_COSMOSDB_ENDPOINT") {
-        config.cosmosdb.endpoint = val;
-    }
-    if let Ok(val) = std::env::var("ATLAS_COSMOSDB_KEY") {
-        config.cosmosdb.key = val;
-    }
-    if let Ok(val) = std::env::var("ATLAS_COSMOSDB_DATABASE_NAME") {
-        config.cosmosdb.database_name = val;
-    }
-    if let Ok(val) = std::env::var("ATLAS_COSMOSDB_CONTROL_CONTAINER") {
-        config.cosmosdb.control_container = val;
-    }
-    if let Ok(val) = std::env::var("ATLAS_COSMOSDB_DATA_CONTAINER_PREFIX") {
-        config.cosmosdb.data_container_prefix = val;
-    }
-    if let Ok(val) = std::env::var("ATLAS_COSMOSDB_MAX_CONCURRENCY") {
-        if let Ok(concurrency) = val.parse() {
-            config.cosmosdb.max_concurrency = concurrency;
+    // Cosmos DB overrides (only if CosmosDB is configured)
+    if let Some(ref mut cosmos_config) = config.cosmosdb {
+        if let Ok(val) = std::env::var("ATLAS_COSMOSDB_ENDPOINT") {
+            cosmos_config.endpoint = val;
+        }
+        if let Ok(val) = std::env::var("ATLAS_COSMOSDB_KEY") {
+            cosmos_config.key = val;
+        }
+        if let Ok(val) = std::env::var("ATLAS_COSMOSDB_DATABASE_NAME") {
+            cosmos_config.database_name = val;
+        }
+        if let Ok(val) = std::env::var("ATLAS_COSMOSDB_CONTROL_CONTAINER") {
+            cosmos_config.control_container = val;
+        }
+        if let Ok(val) = std::env::var("ATLAS_COSMOSDB_DATA_CONTAINER_PREFIX") {
+            cosmos_config.data_container_prefix = val;
+        }
+        if let Ok(val) = std::env::var("ATLAS_COSMOSDB_MAX_CONCURRENCY") {
+            if let Ok(concurrency) = val.parse() {
+                cosmos_config.max_concurrency = concurrency;
+            }
         }
     }
 

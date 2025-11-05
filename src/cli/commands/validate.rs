@@ -4,6 +4,7 @@
 //! the Atlas configuration file.
 
 use crate::config::load_config;
+use crate::config::schema::DatabaseTarget;
 use clap::Args;
 
 /// Arguments for the validate-config command
@@ -42,8 +43,32 @@ impl ValidateArgs {
                 println!("  Log Level: {}", config.application.log_level);
                 println!("  OpenEHR Server: {}", config.openehr.base_url);
                 println!("  OpenEHR Vendor: {}", config.openehr.vendor);
-                println!("  Cosmos DB Endpoint: {}", config.cosmosdb.endpoint);
-                println!("  Cosmos DB Database: {}", config.cosmosdb.database_name);
+
+                // Display database-specific configuration
+                match config.database_target {
+                    DatabaseTarget::CosmosDB => {
+                        if let Some(ref cosmos_config) = config.cosmosdb {
+                            println!("  Database Target: CosmosDB");
+                            println!("  Cosmos DB Endpoint: {}", cosmos_config.endpoint);
+                            println!("  Cosmos DB Database: {}", cosmos_config.database_name);
+                        }
+                    }
+                    DatabaseTarget::PostgreSQL => {
+                        if let Some(ref pg_config) = config.postgresql {
+                            println!("  Database Target: PostgreSQL");
+                            println!(
+                                "  PostgreSQL Connection: {}",
+                                pg_config
+                                    .connection_string
+                                    .split('@')
+                                    .last()
+                                    .unwrap_or("***")
+                            );
+                            println!("  Max Connections: {}", pg_config.max_connections);
+                        }
+                    }
+                }
+
                 println!("  Export Mode: {}", config.export.mode);
                 println!(
                     "  Composition Format: {}",

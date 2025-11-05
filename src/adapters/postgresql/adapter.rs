@@ -62,7 +62,7 @@ impl DatabaseClient for PostgreSQLAdapter {
 
     async fn bulk_insert_compositions(
         &self,
-        template_id: &TemplateId,
+        _template_id: &TemplateId,
         compositions: Vec<Composition>,
         export_mode: String,
         _max_retries: usize,
@@ -147,7 +147,7 @@ impl DatabaseClient for PostgreSQLAdapter {
 
     async fn bulk_insert_compositions_flattened(
         &self,
-        template_id: &TemplateId,
+        _template_id: &TemplateId,
         compositions: Vec<Composition>,
         export_mode: String,
         _max_retries: usize,

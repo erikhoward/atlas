@@ -1,15 +1,14 @@
 //! Batch processing for composition exports
 //!
 //! This module handles the transformation and bulk insertion of compositions
-//! to Cosmos DB in batches.
+//! to database backends in batches.
 
-use crate::adapters::cosmosdb::CosmosDbClient;
+use crate::adapters::database::traits::DatabaseClient;
 use crate::core::state::{StateManager, Watermark};
-use crate::core::transform::{transform_composition, CompositionFormat};
+use crate::core::transform::CompositionFormat;
 use crate::domain::composition::Composition;
 use crate::domain::ids::{EhrId, TemplateId};
-use crate::domain::{AtlasError, Result};
-use serde_json::Value;
+use crate::domain::Result;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -116,7 +115,7 @@ impl Default for BatchResult {
 
 /// Batch processor for compositions
 pub struct BatchProcessor {
-    cosmos_client: Arc<CosmosDbClient>,
+    database_client: Arc<dyn DatabaseClient + Send + Sync>,
     state_manager: Arc<StateManager>,
     config: BatchConfig,
 }
@@ -124,12 +123,12 @@ pub struct BatchProcessor {
 impl BatchProcessor {
     /// Create a new batch processor
     pub fn new(
-        cosmos_client: Arc<CosmosDbClient>,
+        database_client: Arc<dyn DatabaseClient + Send + Sync>,
         state_manager: Arc<StateManager>,
         config: BatchConfig,
     ) -> Self {
         Self {
-            cosmos_client,
+            database_client,
             state_manager,
             config,
         }
@@ -165,54 +164,43 @@ impl BatchProcessor {
             "Processing batch of compositions"
         );
 
-        // Transform compositions
-        let mut transformed_docs = Vec::new();
-        for composition in &compositions {
-            match transform_composition(
-                composition.clone(),
-                self.config.composition_format,
-                self.config.export_mode.clone(),
-                self.config.enable_checksum,
-            ) {
-                Ok(doc) => transformed_docs.push(doc),
-                Err(e) => {
-                    tracing::warn!(
-                        composition_uid = %composition.uid.as_str(),
-                        error = %e,
-                        "Failed to transform composition"
-                    );
-                    result.add_failure(format!(
-                        "Transform failed for {}: {}",
-                        composition.uid.as_str(),
-                        e
-                    ));
-                }
+        // Bulk insert to database using the appropriate method based on format
+        let bulk_result = match self.config.composition_format {
+            CompositionFormat::Preserve => {
+                self.database_client
+                    .bulk_insert_compositions(
+                        template_id,
+                        compositions.clone(),
+                        self.config.export_mode.clone(),
+                        3, // max_retries
+                    )
+                    .await?
             }
+            CompositionFormat::Flatten => {
+                self.database_client
+                    .bulk_insert_compositions_flattened(
+                        template_id,
+                        compositions.clone(),
+                        self.config.export_mode.clone(),
+                        3, // max_retries
+                    )
+                    .await?
+            }
+        };
+
+        result.successful = bulk_result.success_count;
+        result.failed = bulk_result.failure_count;
+
+        // Add failure details
+        for failure in bulk_result.failures {
+            result.add_failure(format!("{}: {}", failure.document_id, failure.error));
         }
 
-        if transformed_docs.is_empty() {
-            tracing::warn!("All compositions failed transformation");
-            return Ok(result);
-        }
-
-        // Bulk insert to Cosmos DB
-        match self
-            .bulk_insert_compositions(template_id, transformed_docs)
-            .await
-        {
-            Ok(inserted_count) => {
-                result.successful = inserted_count;
-                tracing::info!(
-                    inserted = inserted_count,
-                    "Successfully inserted compositions to Cosmos DB"
-                );
-            }
-            Err(e) => {
-                tracing::error!(error = %e, "Bulk insert failed");
-                result.add_failure(format!("Bulk insert failed: {}", e));
-                return Ok(result);
-            }
-        }
+        tracing::info!(
+            inserted = bulk_result.success_count,
+            failed = bulk_result.failure_count,
+            "Bulk insert completed"
+        );
 
         // Update watermark with last composition
         if let Some(last_composition) = compositions.last() {
@@ -229,49 +217,6 @@ impl BatchProcessor {
         }
 
         Ok(result)
-    }
-
-    /// Bulk insert compositions to Cosmos DB
-    async fn bulk_insert_compositions(
-        &self,
-        template_id: &TemplateId,
-        documents: Vec<Value>,
-    ) -> Result<usize> {
-        // Ensure container exists
-        self.cosmos_client
-            .ensure_container_exists(template_id)
-            .await?;
-
-        // Get container client
-        let container = self.cosmos_client.get_container_client(template_id);
-
-        // Insert documents one by one (Azure SDK doesn't have true bulk insert)
-        let mut inserted = 0;
-        for doc in documents {
-            // Extract partition key (ehr_id) from document
-            let ehr_id = doc["ehr_id"].as_str().ok_or_else(|| {
-                AtlasError::Serialization("Missing ehr_id in document".to_string())
-            })?;
-
-            let partition_key = azure_data_cosmos::PartitionKey::from(ehr_id.to_string());
-
-            // Upsert the document
-            match container.upsert_item(partition_key, &doc, None).await {
-                Ok(_) => {
-                    inserted += 1;
-                }
-                Err(e) => {
-                    tracing::warn!(
-                        error = %e,
-                        ehr_id = ehr_id,
-                        "Failed to insert document"
-                    );
-                    // Continue with other documents (partial failure handling)
-                }
-            }
-        }
-
-        Ok(inserted)
     }
 }
 

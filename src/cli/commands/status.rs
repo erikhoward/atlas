@@ -3,7 +3,7 @@
 //! This module implements the `status` command for displaying export
 //! status and watermarks.
 
-use crate::adapters::cosmosdb::CosmosDbClient;
+use crate::adapters::database::create_state_storage;
 use crate::config::load_config;
 use crate::core::state::StateManager;
 use clap::Args;
@@ -38,18 +38,18 @@ impl StatusArgs {
             }
         };
 
-        // Create Cosmos DB client
-        let cosmos_client = match CosmosDbClient::new(config.cosmosdb.clone()).await {
-            Ok(c) => c,
+        // Create state storage client
+        let state_storage = match create_state_storage(&config).await {
+            Ok(s) => s,
             Err(e) => {
-                println!("❌ Failed to connect to Cosmos DB");
+                println!("❌ Failed to connect to database");
                 println!("   Error: {}", e);
                 return Ok(4); // Connection error exit code
             }
         };
 
         // Create state manager
-        let state_manager = StateManager::new(cosmos_client);
+        let state_manager = StateManager::new_with_storage(state_storage);
 
         // Load all watermarks
         let watermarks = match state_manager.get_all_watermarks().await {
