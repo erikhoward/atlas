@@ -2,7 +2,8 @@
 /target/
 **/*.rs.bk
 *.pdb
-Cargo.lock
+# Note: Cargo.lock should be committed for binary/application projects
+# to ensure reproducible builds. Only libraries should ignore Cargo.lock.
 
 # IDE
 .vscode/
