@@ -17,15 +17,21 @@ use std::time::Duration;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create a logging configuration
+    // Note: Azure logging is disabled in this example. To enable it, set azure_enabled to true
+    // and provide the required Azure AD and Log Analytics configuration.
     let config = LoggingConfig {
         local_enabled: true,
         local_path: "/tmp/atlas_example".to_string(),
         local_rotation: "daily".to_string(),
         local_max_size_mb: 100,
         azure_enabled: false,
-        azure_application_insights_key: None,
+        azure_tenant_id: None,
+        azure_client_id: None,
+        azure_client_secret: None,
         azure_log_analytics_workspace_id: None,
-        azure_log_analytics_shared_key: None,
+        azure_dcr_immutable_id: None,
+        azure_dce_endpoint: None,
+        azure_stream_name: None,
     };
 
     // Initialize logging (keep the guard alive for the duration of the program)
