@@ -52,12 +52,12 @@ impl InitArgs {
                 println!();
                 println!("Next steps:");
                 println!("  1. Edit {} with your settings", self.output);
-                println!("  2. Choose your database backend (cosmosdb or postgresql)");
-                println!("  3. Set required environment variables:");
-                println!("     - ATLAS_OPENEHR_USERNAME");
-                println!("     - ATLAS_OPENEHR_PASSWORD");
-                println!("     - ATLAS_COSMOSDB_KEY (if using CosmosDB)");
-                println!("     - ATLAS_PG_PASSWORD (if using PostgreSQL)");
+                println!("  2. Set database_target to 'cosmosdb' or 'postgresql'");
+                println!("  3. Create a .env file with your credentials:");
+                println!("     - Copy .env.example to .env");
+                println!("     - Set ATLAS_OPENEHR_USERNAME and ATLAS_OPENEHR_PASSWORD");
+                println!("     - Set ATLAS_COSMOSDB_KEY (if using CosmosDB)");
+                println!("     - Set ATLAS_PG_PASSWORD (if using PostgreSQL)");
                 println!(
                     "  4. For PostgreSQL: Run schema migration (see docs/postgresql-setup.md)"
                 );
@@ -80,18 +80,26 @@ impl InitArgs {
 # OpenEHR to Database ETL Tool
 # Supports: Azure Cosmos DB or PostgreSQL
 
+# Database target (postgresql or cosmosdb)
+database_target = "cosmosdb"  # cosmosdb | postgresql
+
 [application]
 name = "atlas"
 version = "1.0.0"
 log_level = "info"
+dry_run = false
 
 [openehr]
-base_url = "https://ehrbase.example.com"
+base_url = "https://ehrbase.example.com/ehrbase/rest/openehr/v1"
 vendor = "ehrbase"
 
-[openehr.auth]
+# Authentication
+auth_type = "basic"
 username = "${ATLAS_OPENEHR_USERNAME}"
 password = "${ATLAS_OPENEHR_PASSWORD}"
+
+# TLS settings
+tls_verify = true
 
 [openehr.query]
 template_ids = ["vital_signs.v1"]
@@ -101,7 +109,8 @@ parallel_ehrs = 8
 [export]
 mode = "incremental"
 export_composition_format = "preserve"
-database_target = "cosmosdb"  # cosmosdb | postgresql
+max_retries = 3
+retry_backoff_ms = [1000, 2000, 4000]
 
 # Choose ONE database backend based on database_target above
 
@@ -109,20 +118,32 @@ database_target = "cosmosdb"  # cosmosdb | postgresql
 endpoint = "https://your-account.documents.azure.com:443/"
 key = "${ATLAS_COSMOSDB_KEY}"
 database_name = "openehr_data"
+control_container = "atlas_control"
+data_container_prefix = "compositions"
+partition_key = "/ehr_id"
+max_concurrency = 10
+request_timeout_seconds = 60
 
 # [postgresql]
 # connection_string = "postgresql://atlas_user:${ATLAS_PG_PASSWORD}@localhost:5432/openehr_data?sslmode=require"
 # max_connections = 20
+# connection_timeout_seconds = 30
+# statement_timeout_seconds = 60
+# ssl_mode = "require"
 
 [state]
-enable_state_management = true
+enable_checkpointing = true
+checkpoint_interval_seconds = 30
 
 [verification]
 enable_verification = false
+checksum_algorithm = "sha256"
 
 [logging]
 local_enabled = true
 local_path = "/var/log/atlas"
+local_rotation = "daily"
+local_max_size_mb = 100
 azure_enabled = false
 "#
         .to_string()
@@ -139,7 +160,13 @@ azure_enabled = false
 #   - Azure Cosmos DB (NoSQL, globally distributed)
 #   - PostgreSQL 14+ (Relational, JSONB support)
 #
-# Choose your backend by setting export.database_target below.
+# Choose your backend by setting database_target below.
+
+# ============================================================================
+# Database Target Selection
+# ============================================================================
+# Database target (postgresql or cosmosdb)
+database_target = "cosmosdb"  # cosmosdb | postgresql
 
 # ============================================================================
 # Application Settings
@@ -154,7 +181,7 @@ version = "1.0.0"
 # Log level (trace, debug, info, warn, error)
 log_level = "info"
 
-# Dry run mode (don't write to Cosmos DB)
+# Dry run mode (don't write to database)
 dry_run = false
 
 # ============================================================================
@@ -162,18 +189,25 @@ dry_run = false
 # ============================================================================
 [openehr]
 # Base URL of the OpenEHR server
-base_url = "https://ehrbase.example.com"
+base_url = "https://ehrbase.example.com/ehrbase/rest/openehr/v1"
 
 # Vendor type (currently only "ehrbase" is supported)
 vendor = "ehrbase"
 
-# Authentication configuration
-[openehr.auth]
+# Authentication type (currently only "basic" is supported)
+auth_type = "basic"
+
 # Username for Basic Authentication (use environment variable)
 username = "${ATLAS_OPENEHR_USERNAME}"
 
 # Password for Basic Authentication (use environment variable)
 password = "${ATLAS_OPENEHR_PASSWORD}"
+
+# TLS/SSL verification
+tls_verify = true
+
+# Optional: Custom CA certificate path
+# tls_ca_cert = "/path/to/ca.crt"
 
 # Query configuration
 [openehr.query]
@@ -185,6 +219,10 @@ template_ids = [
 
 # EHR IDs to export (empty = all EHRs)
 ehr_ids = []
+
+# Optional: Time range filters (ISO 8601 format)
+# time_range_start = "2024-01-01T00:00:00Z"
+# time_range_end = null  # null = now
 
 # Batch size for processing (100-5000)
 batch_size = 1000
@@ -205,9 +243,6 @@ mode = "incremental"
 # - preserve: Keep original FLAT JSON structure
 # - flatten: Convert paths to simple field names
 export_composition_format = "preserve"
-
-# Database backend: "cosmosdb" or "postgresql"
-database_target = "cosmosdb"
 
 # Maximum retry attempts for transient failures
 max_retries = 3
@@ -273,8 +308,11 @@ request_timeout_seconds = 60
 # State Management Configuration
 # ============================================================================
 [state]
-# Enable state management for incremental exports
-enable_state_management = true
+# Enable checkpointing for incremental exports
+enable_checkpointing = true
+
+# Checkpoint interval in seconds
+checkpoint_interval_seconds = 30
 
 # ============================================================================
 # Data Verification Configuration
@@ -296,26 +334,22 @@ local_enabled = true
 # Local log file path
 local_path = "/var/log/atlas"
 
-# Log rotation (daily, hourly, never)
+# Log rotation (daily or size)
 local_rotation = "daily"
 
 # Maximum log file size in MB
 local_max_size_mb = 100
 
-# Enable Azure Application Insights logging
+# Azure Log Analytics (optional)
+# Requires Azure AD App Registration and Data Collection Rule (DCR)
 azure_enabled = false
-
-# Application Insights instrumentation key (if azure_enabled = true)
-# azure_instrumentation_key = "${AZURE_INSTRUMENTATION_KEY}"
-
-# Enable Azure Log Analytics logging
-# azure_log_analytics_enabled = false
-
-# Log Analytics workspace ID (if azure_log_analytics_enabled = true)
+# azure_tenant_id = "${AZURE_TENANT_ID}"
+# azure_client_id = "${AZURE_CLIENT_ID}"
+# azure_client_secret = "${AZURE_CLIENT_SECRET}"
 # azure_log_analytics_workspace_id = "${AZURE_LOG_ANALYTICS_WORKSPACE_ID}"
-
-# Log Analytics shared key (if azure_log_analytics_enabled = true)
-# azure_log_analytics_shared_key = "${AZURE_LOG_ANALYTICS_SHARED_KEY}"
+# azure_dcr_immutable_id = "${AZURE_DCR_IMMUTABLE_ID}"
+# azure_dce_endpoint = "${AZURE_DCE_ENDPOINT}"
+# azure_stream_name = "Custom-AtlasExport_CL"
 "#
         .to_string()
     }
