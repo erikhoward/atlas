@@ -19,8 +19,6 @@ pub struct BatchConfig {
     pub batch_size: usize,
     /// Composition format (preserve or flatten)
     pub composition_format: CompositionFormat,
-    /// Export mode (full or incremental)
-    pub export_mode: String,
     /// Enable checksum calculation
     pub enable_checksum: bool,
 }
@@ -30,13 +28,11 @@ impl BatchConfig {
     pub fn new(
         batch_size: usize,
         composition_format: CompositionFormat,
-        export_mode: String,
         enable_checksum: bool,
     ) -> Self {
         Self {
             batch_size,
             composition_format,
-            export_mode,
             enable_checksum,
         }
     }
@@ -45,16 +41,10 @@ impl BatchConfig {
     pub fn from_config(
         batch_size: usize,
         composition_format_str: &str,
-        export_mode: String,
         enable_checksum: bool,
     ) -> Result<Self> {
         let composition_format = CompositionFormat::from_str(composition_format_str)?;
-        Ok(Self::new(
-            batch_size,
-            composition_format,
-            export_mode,
-            enable_checksum,
-        ))
+        Ok(Self::new(batch_size, composition_format, enable_checksum))
     }
 }
 
@@ -171,7 +161,7 @@ impl BatchProcessor {
                     .bulk_insert_compositions(
                         template_id,
                         compositions.clone(),
-                        self.config.export_mode.clone(),
+                        "preserve".to_string(),
                         3, // max_retries
                     )
                     .await?
@@ -181,7 +171,7 @@ impl BatchProcessor {
                     .bulk_insert_compositions_flattened(
                         template_id,
                         compositions.clone(),
-                        self.config.export_mode.clone(),
+                        "flatten".to_string(),
                         3, // max_retries
                     )
                     .await?

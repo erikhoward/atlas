@@ -178,6 +178,8 @@ dependencies = [
  "deadpool-postgres",
  "futures",
  "mockito",
+ "native-tls",
+ "postgres-native-tls",
  "regex",
  "reqwest 0.11.27",
  "rkyv",
@@ -1764,6 +1766,18 @@ name = "pkg-config"
 version = "0.3.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7edddbd0b52d732b21ad9a5fab5c704c14cd949e5e9a1ec5929a24fded1b904c"
+
+[[package]]
+name = "postgres-native-tls"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ac73153d92e4bde922bd6f1dfba7f1ab8132266c031153b55e20a1521cd36d49"
+dependencies = [
+ "native-tls",
+ "tokio",
+ "tokio-native-tls",
+ "tokio-postgres",
+]
 
 [[package]]
 name = "postgres-protocol"

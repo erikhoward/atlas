@@ -129,6 +129,11 @@ impl DatabaseClient for PostgreSQLAdapter {
                     success_count += 1;
                 }
                 Err(e) => {
+                    tracing::error!(
+                        composition_id = %doc_id,
+                        error = %e,
+                        "Failed to insert composition into PostgreSQL"
+                    );
                     failures.push(BulkInsertFailure {
                         document_id: doc_id,
                         error: e.to_string(),
@@ -214,6 +219,11 @@ impl DatabaseClient for PostgreSQLAdapter {
                     success_count += 1;
                 }
                 Err(e) => {
+                    tracing::error!(
+                        composition_id = %doc_id,
+                        error = %e,
+                        "Failed to insert composition into PostgreSQL (flattened)"
+                    );
                     failures.push(BulkInsertFailure {
                         document_id: doc_id,
                         error: e.to_string(),

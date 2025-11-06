@@ -7,6 +7,9 @@ version = "1.0.0"
 log_level = "info" # trace, debug, info, warn, error
 dry_run = false
 
+# Database target (postgresql or cosmosdb)
+database_target = "cosmosdb"
+
 [openehr]
 # EHRBase server endpoint
 base_url = "https://ehrbase.example.com/ehrbase/rest/openehr/v1"
@@ -23,10 +26,9 @@ tls_verify = true
 
 [openehr.query]
 # Export filters
-template_ids = ["IDCR - Adverse Reaction List.v1", "IDCR - Problem List.v1"]
+time_range_end = null                                                        # null = nowtemplate_ids = ["IDCR - Adverse Reaction List.v1", "IDCR - Problem List.v1"]
 ehr_ids = []                                                                 # Empty = all EHRs
 time_range_start = "2024-01-01T00:00:00Z"                                    # ISO 8601 or null
-time_range_end = null                                                        # null = now
 
 # Batch processing
 batch_size = 1000 # 100-5000

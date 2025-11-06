@@ -263,6 +263,13 @@ impl OpenEhrVendor for EhrBaseVendor {
             ));
         }
 
+        tracing::debug!(
+            aql = %aql,
+            ehr_id = %ehr_id,
+            template_id = %template_id,
+            "Executing AQL query for compositions"
+        );
+
         // Execute AQL query
         let url = format!("{}/rest/openehr/v1/query/aql", self.base_url);
 
@@ -301,6 +308,13 @@ impl OpenEhrVendor for EhrBaseVendor {
 
         // Parse response into CompositionMetadata
         let mut metadata_list = Vec::new();
+
+        tracing::debug!(
+            row_count = response.rows.len(),
+            "AQL query returned {} rows",
+            response.rows.len()
+        );
+
         for row in response.rows {
             if row.len() >= 3 {
                 let uid_str = row[0].as_str().ok_or_else(|| {
@@ -343,8 +357,19 @@ impl OpenEhrVendor for EhrBaseVendor {
                 }
 
                 metadata_list.push(metadata);
+            } else {
+                tracing::warn!(
+                    row_length = row.len(),
+                    "Skipping AQL row with insufficient columns (expected >= 3)"
+                );
             }
         }
+
+        tracing::debug!(
+            metadata_count = metadata_list.len(),
+            "Parsed {} composition metadata entries",
+            metadata_list.len()
+        );
 
         Ok(metadata_list)
     }

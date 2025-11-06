@@ -329,6 +329,34 @@ psql -U postgres -c "\du atlas_user"
 psql -U postgres -c "ALTER USER atlas_user WITH PASSWORD 'new_password';"
 ```
 
+### Migration Issues
+
+**Problem:** "Failed to execute migration: Permission denied" or "must be owner of table"
+
+This occurs when the tables already exist but are owned by a different user (e.g., `postgres` instead of `atlas_user`).
+
+**Solution:**
+```bash
+# Check current table ownership
+psql -U atlas_user -d openehr_data -c "\dt"
+
+# If tables are owned by postgres, change ownership as superuser
+docker exec -it local-postgres psql -U postgres -d openehr_data -c \
+  "ALTER TABLE compositions OWNER TO atlas_user; \
+   ALTER TABLE watermarks OWNER TO atlas_user;"
+
+# Or if not using Docker:
+psql -U postgres -d openehr_data -c \
+  "ALTER TABLE compositions OWNER TO atlas_user; \
+   ALTER TABLE watermarks OWNER TO atlas_user;"
+```
+
+**Prevention:**
+Always run the initial migration as the `atlas_user` to ensure proper ownership:
+```bash
+psql -U atlas_user -d openehr_data -f migrations/001_initial_schema.sql
+```
+
 ### Performance Issues
 
 **Problem:** Slow inserts
