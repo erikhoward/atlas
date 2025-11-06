@@ -10,6 +10,10 @@ use std::process;
 
 #[tokio::main]
 async fn main() {
+    // Load environment variables from .env file if present
+    // This is optional - if .env doesn't exist, it's silently ignored
+    let _ = dotenvy::dotenv();
+
     // Parse CLI arguments
     let cli = Cli::parse();
 

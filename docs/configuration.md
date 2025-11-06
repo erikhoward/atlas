@@ -58,13 +58,40 @@ atlas validate-config -c atlas.toml
 
 Atlas supports environment variable substitution in configuration values using the `${VAR_NAME}` syntax. This is useful for sensitive values like passwords and API keys.
 
-Example:
+### Automatic .env File Loading
+
+Atlas automatically loads environment variables from a `.env` file in the project root directory when it starts. This makes it easy to manage credentials without setting them manually in your shell.
+
+**Example .env file:**
+
+```bash
+# .env
+ATLAS_OPENEHR_USERNAME=ehrbaseuser
+ATLAS_OPENEHR_PASSWORD=ehrbasepassword
+ATLAS_PG_PASSWORD=your_postgres_password
+```
+
+**Important Notes:**
+- The `.env` file is loaded automatically - no additional configuration needed
+- If a `.env` file doesn't exist, Atlas will use environment variables from your shell
+- Environment variables set in your shell take precedence over `.env` file values
+- **Never commit your `.env` file to version control** - add it to `.gitignore`
+- Use `.env.example` as a template (copy it to `.env` and fill in your values)
+
+### Configuration File Usage
+
+Example configuration using environment variables:
 
 ```toml
 username = "${ATLAS_OPENEHR_USERNAME}"
 password = "${ATLAS_OPENEHR_PASSWORD}"
 key = "${ATLAS_COSMOSDB_KEY}"
 ```
+
+**Database-Specific Variables:**
+- Only set environment variables for the database you're actually using
+- If `database_target = "postgresql"`, you don't need `ATLAS_COSMOSDB_KEY`
+- If `database_target = "cosmosdb"`, you don't need `ATLAS_PG_PASSWORD`
 
 ## Configuration Sections
 

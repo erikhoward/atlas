@@ -144,7 +144,17 @@ atlas init --with-examples --output atlas.toml
 # Edit configuration for your environment
 vi atlas.toml
 
-# Set environment variables for credentials
+# Option 1: Use .env file (recommended for development)
+# Create a .env file in the project root with your credentials
+cat > .env << EOF
+ATLAS_OPENEHR_USERNAME=your-openehr-username
+ATLAS_OPENEHR_PASSWORD=your-openehr-password
+ATLAS_PG_PASSWORD=your-postgres-password
+EOF
+
+# The .env file is automatically loaded when Atlas starts
+
+# Option 2: Set environment variables manually
 export ATLAS_OPENEHR_USERNAME="your-openehr-username"
 export ATLAS_OPENEHR_PASSWORD="your-openehr-password"
 

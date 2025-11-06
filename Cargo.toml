@@ -31,6 +31,7 @@ thiserror = "1.0"
 # Configuration (TR-4.1, TR-4.2)
 toml = "0.8"
 config = "0.14"
+dotenvy = "0.15"
 
 # CLI (FR-4.1 - FR-4.5)
 clap = { version = "4", features = ["derive", "env"] }
