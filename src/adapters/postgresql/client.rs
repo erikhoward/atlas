@@ -46,11 +46,11 @@ impl PostgreSQLClient {
         let manager = Manager::from_config(pg_config, NoTls, pool_config.manager.unwrap());
 
         // Create pool
+        // Note: Timeouts are not set during pool creation to avoid runtime detection issues.
+        // Connection timeouts are handled at the PostgreSQL connection string level via
+        // connect_timeout parameter, and statement timeouts via statement_timeout.
         let pool = Pool::builder(manager)
             .max_size(config.max_connections)
-            .wait_timeout(Some(Duration::from_secs(config.connection_timeout_seconds)))
-            .create_timeout(Some(Duration::from_secs(config.connection_timeout_seconds)))
-            .recycle_timeout(Some(Duration::from_secs(config.connection_timeout_seconds)))
             .build()
             .map_err(|e| {
                 AtlasError::Database(format!("Failed to create connection pool: {}", e))
