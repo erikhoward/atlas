@@ -18,7 +18,7 @@
 
 [application]
 name = "atlas"
-version = "1.0.0"
+version = "1.5.0"
 log_level = "info"  # trace, debug, info, warn, error
 dry_run = false
 

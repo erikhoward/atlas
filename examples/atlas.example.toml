@@ -3,7 +3,7 @@
 
 [application]
 name = "atlas"
-version = "1.0.0"
+version = "1.5.0"
 log_level = "info" # trace, debug, info, warn, error
 dry_run = false
 
@@ -25,10 +25,9 @@ tls_verify = true
 # tls_ca_cert = "/path/to/ca.crt"  # Optional
 
 [openehr.query]
-# Export filters
-time_range_end = null                                                        # null = nowtemplate_ids = ["IDCR - Adverse Reaction List.v1", "IDCR - Problem List.v1"]
-ehr_ids = []                                                                 # Empty = all EHRs
-time_range_start = "2024-01-01T00:00:00Z"                                    # ISO 8601 or null
+time_range_end = null                                                        # null = nowtemplate_ids = ["IDCR - Adverse Reaction List.v1", "IDCR - Problem List.v1"]# Export filters
+ehr_ids = []                              # Empty = all EHRs
+time_range_start = "2024-01-01T00:00:00Z" # ISO 8601 or null
 
 # Batch processing
 batch_size = 1000 # 100-5000
