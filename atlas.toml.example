@@ -7,7 +7,7 @@
 #   - Azure Cosmos DB (NoSQL, globally distributed)
 #   - PostgreSQL 14+ (Relational, JSONB support)
 #
-# Choose your backend by setting export.database_target below.
+# Choose your backend by setting database_target below.
 #
 # For detailed configuration options, see:
 #   - docs/configuration.md - Complete configuration reference
@@ -21,6 +21,9 @@ name = "atlas"
 version = "1.0.0"
 log_level = "info"  # trace, debug, info, warn, error
 dry_run = false
+
+# Database target (postgresql or cosmosdb)
+database_target = "cosmosdb"  # cosmosdb | postgresql
 
 [openehr]
 # EHRBase server endpoint
@@ -50,7 +53,6 @@ parallel_ehrs = 8  # Concurrent EHR processing
 [export]
 mode = "incremental"  # full | incremental
 export_composition_format = "preserve"  # preserve | flatten
-database_target = "cosmosdb"  # cosmosdb | postgresql
 
 # Retry settings
 max_retries = 3
