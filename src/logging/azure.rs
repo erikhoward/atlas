@@ -45,8 +45,6 @@ use tracing::{debug, error, info};
 pub struct AzureLogger {
     /// Azure AD credential for authentication
     credential: Arc<ClientSecretCredential>,
-    /// Log Analytics workspace ID
-    workspace_id: String,
     /// Data Collection Rule (DCR) immutable ID
     dcr_immutable_id: String,
     /// Data Collection Endpoint (DCE) URL
@@ -202,7 +200,6 @@ impl AzureLogger {
 
         Ok(Self {
             credential,
-            workspace_id,
             dcr_immutable_id,
             dce_endpoint,
             stream_name,
