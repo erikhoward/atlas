@@ -5,8 +5,9 @@
 use crate::config::schema::PostgreSQLConfig;
 use crate::domain::{AtlasError, Result};
 use deadpool_postgres::{Config as PoolConfig, Manager, ManagerConfig, Pool, RecyclingMethod};
-use std::time::Duration;
-use tokio_postgres::{NoTls, Row};
+use native_tls::TlsConnector;
+use postgres_native_tls::MakeTlsConnector;
+use tokio_postgres::Row;
 
 /// PostgreSQL client for Atlas
 ///
@@ -42,8 +43,20 @@ impl PostgreSQLClient {
             recycling_method: RecyclingMethod::Fast,
         });
 
+        // Create TLS connector
+        // Accept invalid certificates if ssl_mode is not verify-ca or verify-full
+        let accept_invalid_certs = !matches!(config.ssl_mode.as_str(), "verify-ca" | "verify-full");
+
+        let tls_connector = TlsConnector::builder()
+            .danger_accept_invalid_certs(accept_invalid_certs)
+            .build()
+            .map_err(|e| {
+                AtlasError::Configuration(format!("Failed to create TLS connector: {}", e))
+            })?;
+        let tls = MakeTlsConnector::new(tls_connector);
+
         // Create manager
-        let manager = Manager::from_config(pg_config, NoTls, pool_config.manager.unwrap());
+        let manager = Manager::from_config(pg_config, tls, pool_config.manager.unwrap());
 
         // Create pool
         // Note: Timeouts are not set during pool creation to avoid runtime detection issues.
