@@ -12,8 +12,9 @@ WORKDIR /usr/src/atlas
 # Copy manifests
 COPY Cargo.toml Cargo.lock ./
 
-# Copy source code (only src is needed for building the binary)
+# Copy source code and migrations (migrations are embedded at compile time via include_str!)
 COPY src ./src
+COPY migrations ./migrations
 
 # Build the application in release mode
 # This produces an optimized binary with LTO and other optimizations

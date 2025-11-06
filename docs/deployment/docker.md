@@ -58,8 +58,9 @@ RUN apt-get update && apt-get install -y \
 # Copy manifests
 COPY Cargo.toml Cargo.lock ./
 
-# Copy source code
+# Copy source code and migrations (migrations are embedded at compile time via include_str!)
 COPY src ./src
+COPY migrations ./migrations
 
 # Build release binary
 RUN cargo build --release
