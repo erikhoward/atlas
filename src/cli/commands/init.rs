@@ -85,7 +85,7 @@ database_target = "cosmosdb"  # cosmosdb | postgresql
 
 [application]
 name = "atlas"
-version = "1.0.0"
+version = "1.5.0"
 log_level = "info"
 dry_run = false
 
@@ -176,7 +176,7 @@ database_target = "cosmosdb"  # cosmosdb | postgresql
 name = "atlas"
 
 # Application version
-version = "1.0.0"
+version = "1.5.0"
 
 # Log level (trace, debug, info, warn, error)
 log_level = "info"
