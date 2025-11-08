@@ -10,7 +10,7 @@
 
 [application]
 name = "atlas-daily-sync"
-version = "1.5.0"
+version = "2.0.0"
 log_level = "info"
 dry_run = false
 

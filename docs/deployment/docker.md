@@ -101,7 +101,7 @@ CMD ["--help"]
 docker build -t atlas:latest .
 
 # Build with specific version tag
-docker build -t atlas:1.5.0 .
+docker build -t atlas:2.0.0 .
 
 # Verify image
 docker images | grep atlas
@@ -453,7 +453,7 @@ docker inspect atlas | jq '.[0].HostConfig.Memory'
 
 1. **Use specific version tags**:
    ```bash
-   docker run atlas:1.5.0  # Not atlas:latest
+   docker run atlas:2.0.0  # Not atlas:latest
    ```
 
 2. **Set resource limits**:
@@ -461,7 +461,7 @@ docker inspect atlas | jq '.[0].HostConfig.Memory'
    docker run --rm \
      --memory=4g \
      --cpus=2 \
-     atlas:1.5.0
+     atlas:2.0.0
    ```
 
 3. **Use read-only root filesystem**:
@@ -469,7 +469,7 @@ docker inspect atlas | jq '.[0].HostConfig.Memory'
    docker run --rm \
      --read-only \
      -v atlas-logs:/var/log/atlas \
-     atlas:1.5.0
+     atlas:2.0.0
    ```
 
 4. **Run as non-root user** (already configured in Dockerfile)
@@ -483,10 +483,10 @@ version: '3.8'
 
 services:
   atlas:
-    image: atlas:1.5.0
+    image: atlas:2.0.0
     container_name: atlas-prod
     restart: unless-stopped
-    
+
     volumes:
       - ./atlas.toml:/etc/atlas/atlas.toml:ro
       - atlas-logs:/var/log/atlas
@@ -537,16 +537,16 @@ Push to registry:
 
 ```bash
 # Tag image
-docker tag atlas:1.5.0 your-registry.azurecr.io/atlas:1.5.0
+docker tag atlas:2.0.0 your-registry.azurecr.io/atlas:2.0.0
 
 # Login to Azure Container Registry
 az acr login --name your-registry
 
 # Push image
-docker push your-registry.azurecr.io/atlas:1.5.0
+docker push your-registry.azurecr.io/atlas:2.0.0
 
 # Pull on production server
-docker pull your-registry.azurecr.io/atlas:1.5.0
+docker pull your-registry.azurecr.io/atlas:2.0.0
 ```
 
 ## Troubleshooting

@@ -3,17 +3,17 @@
 
 [application]
 name = "atlas"
-version = "1.5.0"
+version = "2.0.0"
 log_level = "info" # trace, debug, info, warn, error
 dry_run = false
 
 [openehr]
 # EHRBase server endpoint
 base_url = "https://ehrbase.example.com/ehrbase/rest/openehr/v1"
-vendor = "ehrbase" # Vendor-specific implementation
+vendor = "ehrbase"                                               # Vendor-specific implementation
 
 # Authentication
-auth_type = "basic" # basic | openid (future)
+auth_type = "basic"                    # basic | openid (future)
 username = "atlas_user"
 password = "${ATLAS_OPENEHR_PASSWORD}" # Env var substitution
 
@@ -23,17 +23,16 @@ tls_verify = true
 
 [openehr.query]
 # Export filters
-template_ids = ["IDCR - Adverse Reaction List.v1", "IDCR - Problem List.v1"]
-ehr_ids = [] # Empty = all EHRs
-time_range_start = "2024-01-01T00:00:00Z" # ISO 8601 or null
-time_range_end = null # null = now
+time_range_end = null # null = nowtemplate_ids = ["IDCR - Adverse Reaction List.v1", "IDCR - Problem List.v1"]
+ehr_ids = []                                                                 # Empty = all EHRs
+time_range_start = "2024-01-01T00:00:00Z"                                    # ISO 8601 or null
 
 # Batch processing
 batch_size = 1000 # 100-5000
 parallel_ehrs = 8 # Concurrent EHR processing
 
 [export]
-mode = "incremental" # full | incremental
+mode = "incremental"                   # full | incremental
 export_composition_format = "preserve" # preserve | flatten
 
 # Retry settings
@@ -49,9 +48,9 @@ database_target = "postgresql" # postgresql | cosmosdb
 connection_string = "postgresql://atlas_user:${ATLAS_PG_PASSWORD}@localhost:5432/openehr_data?sslmode=require"
 
 # Connection pool settings
-max_connections = 20 # Maximum number of connections in the pool
+max_connections = 20            # Maximum number of connections in the pool
 connection_timeout_seconds = 30 # Timeout for acquiring a connection
-statement_timeout_seconds = 60 # Timeout for executing a statement
+statement_timeout_seconds = 60  # Timeout for executing a statement
 
 # SSL/TLS mode
 # Options: disable, allow, prefer, require, verify-ca, verify-full
@@ -71,7 +70,7 @@ checksum_algorithm = "sha256"
 # Local logging
 local_enabled = true
 local_path = "/var/log/atlas"
-local_rotation = "daily" # daily | size
+local_rotation = "daily"      # daily | size
 local_max_size_mb = 100
 
 # Azure Log Analytics (optional)
@@ -83,4 +82,3 @@ azure_enabled = false
 # azure_dcr_immutable_id = "${AZURE_DCR_IMMUTABLE_ID}"
 # azure_dce_endpoint = "${AZURE_DCE_ENDPOINT}"
 # azure_stream_name = "Custom-AtlasExport_CL"
-

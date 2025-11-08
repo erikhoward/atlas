@@ -34,7 +34,7 @@ This creates a multi-stage Docker image that:
 ### Build with Version Tag
 
 ```bash
-docker build -t atlas:1.5.0 .
+docker build -t atlas:2.0.0 .
 ```
 
 ### Verify the Build
@@ -63,14 +63,14 @@ Enter your Docker Hub username and password when prompted.
 
 ```bash
 # Replace 'yourusername' with your Docker Hub username
-docker tag atlas:local yourusername/atlas:1.5.0
+docker tag atlas:local yourusername/atlas:2.0.0
 docker tag atlas:local yourusername/atlas:latest
 ```
 
 3. **Push to Docker Hub:**
 
 ```bash
-docker push yourusername/atlas:1.5.0
+docker push yourusername/atlas:2.0.0
 docker push yourusername/atlas:latest
 ```
 
@@ -86,7 +86,7 @@ chmod +x docker-push.sh
 export DOCKERHUB_USERNAME=yourusername
 
 # Build and push
-./docker-push.sh 1.5.0
+./docker-push.sh 2.0.0
 ```
 
 The script will:
@@ -130,7 +130,7 @@ You need to configure two secrets in your GitHub repository:
 The GitHub Actions workflow triggers on:
 
 - **Push to main branch**: Builds and pushes with `latest` tag
-- **Version tags** (e.g., `v1.5.0`): Builds and pushes with version tags
+- **Version tags** (e.g., `v2.0.0`): Builds and pushes with version tags
 - **Pull requests**: Builds only (doesn't push)
 - **Manual trigger**: Can be triggered manually from GitHub Actions UI
 

@@ -66,12 +66,12 @@ Download the latest release from the [GitHub Releases page](https://github.com/e
 
 ```bash
 # Linux
-wget https://github.com/erikhoward/atlas/releases/download/v1.5.0/atlas-linux-x86_64.tar.gz
+wget https://github.com/erikhoward/atlas/releases/download/v2.0.0/atlas-linux-x86_64.tar.gz
 tar -xzf atlas-linux-x86_64.tar.gz
 sudo mv atlas /usr/local/bin/
 
 # macOS
-wget https://github.com/erikhoward/atlas/releases/download/v1.5.0/atlas-macos-x86_64.tar.gz
+wget https://github.com/erikhoward/atlas/releases/download/v2.0.0/atlas-macos-x86_64.tar.gz
 tar -xzf atlas-macos-x86_64.tar.gz
 sudo mv atlas /usr/local/bin/
 ```
@@ -90,7 +90,7 @@ docker run --rm -v $(pwd)/atlas.toml:/app/atlas.toml erikhoward/atlas:latest exp
 
 ```bash
 atlas --version
-# Output: atlas 1.5.0
+# Output: atlas 2.0.0
 
 atlas --help
 # Shows available commands
