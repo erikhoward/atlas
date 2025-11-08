@@ -14,11 +14,11 @@
 //! # Quick Start
 //!
 //! ```rust,no_run
-//! use atlas::config::AtlasConfig;
+//! use atlas::config::load_config; // Changed from AtlasConfig
 //!
 //! # fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Load configuration from file
-//! let config = AtlasConfig::from_file("atlas.toml")?;
+//! let config = load_config("atlas.toml")?; // Updated to use load_config
 //!
 //! // Access configuration sections
 //! println!("OpenEHR URL: {}", config.openehr.base_url);
@@ -81,10 +81,10 @@
 //! Configuration is validated on load:
 //!
 //! ```rust,no_run
-//! use atlas::config::AtlasConfig;
+//! use atlas::config::load_config; // Changed from AtlasConfig
 //!
 //! # fn example() {
-//! match AtlasConfig::from_file("atlas.toml") {
+//! match load_config("atlas.toml") { // Updated to use load_config
 //!     Ok(config) => println!("Configuration valid"),
 //!     Err(e) => eprintln!("Configuration error: {}", e),
 //! }
