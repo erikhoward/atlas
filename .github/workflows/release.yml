@@ -45,6 +45,9 @@ jobs:
 
       - name: Build and upload binary
         uses: taiki-e/upload-rust-binary-action@v1
+        env:
+          OPENSSL_STATIC: 1
+          OPENSSL_VENDORED: 1
         with:
           bin: atlas
           target: ${{ matrix.target }}
