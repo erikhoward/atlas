@@ -229,7 +229,7 @@ impl ExportCoordinator {
                         if !verification_report.is_success() {
                             tracing::warn!(
                                 failed_count = verification_report.failed,
-                                "Verification found {} composition(s) with checksum mismatches",
+                                "Verification found {} composition(s) that could not be found in the database",
                                 verification_report.failed
                             );
                             for failure in &verification_report.failures {
@@ -237,8 +237,6 @@ impl ExportCoordinator {
                                     composition_uid = %failure.composition_uid.as_str(),
                                     ehr_id = %failure.ehr_id.as_str(),
                                     template_id = %failure.template_id.as_str(),
-                                    expected = %failure.expected_checksum,
-                                    actual = %failure.actual_checksum,
                                     reason = %failure.reason,
                                     "Verification failure"
                                 );

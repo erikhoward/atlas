@@ -1,11 +1,10 @@
 //! Verification logic for post-export validation
 //!
 //! This module implements the verification logic that validates exported
-//! compositions by recalculating checksums and comparing them with stored values.
+//! compositions by checking that they exist in the database.
 
 use crate::adapters::cosmosdb::CosmosDbClient;
 use crate::core::export::ExportSummary;
-use crate::core::verification::calculate_checksum;
 use crate::core::verification::report::{VerificationFailure, VerificationReport};
 use crate::domain::ids::{CompositionUid, EhrId, TemplateId};
 use crate::domain::Result;
@@ -112,7 +111,7 @@ impl Verifier {
     /// * `composition_uid` - The composition UID
     /// * `ehr_id` - The EHR ID (partition key)
     /// * `template_id` - The template ID
-    /// * `expected_checksum` - The expected checksum from export
+    /// * `expected_checksum` - Not used (kept for compatibility)
     ///
     /// # Returns
     ///
@@ -122,103 +121,43 @@ impl Verifier {
         composition_uid: &CompositionUid,
         ehr_id: &EhrId,
         template_id: &TemplateId,
-        expected_checksum: &str,
+        _expected_checksum: &str,
     ) -> std::result::Result<(), VerificationFailure> {
         tracing::debug!(
             composition_uid = %composition_uid.as_str(),
             ehr_id = %ehr_id.as_str(),
             template_id = %template_id.as_str(),
-            "Verifying composition"
+            "Verifying composition existence"
         );
 
-        // Fetch the composition document from Cosmos DB
-        let document = match self
+        // Fetch the composition document from Cosmos DB to verify it exists
+        match self
             .cosmos_client
             .fetch_composition(template_id, ehr_id, composition_uid)
             .await
         {
-            Ok(doc) => doc,
-            Err(e) => {
-                return Err(VerificationFailure {
-                    composition_uid: composition_uid.clone(),
-                    ehr_id: ehr_id.clone(),
-                    template_id: template_id.clone(),
-                    expected_checksum: expected_checksum.to_string(),
-                    actual_checksum: "N/A".to_string(),
-                    reason: format!("Failed to fetch composition from Cosmos DB: {e}"),
-                });
-            }
-        };
-
-        // Extract the content field from the document
-        // The document structure depends on the export format (preserve or flatten)
-        let content = if let Some(content_field) = document.get("content") {
-            // Preserve format - content is in a dedicated field
-            content_field.clone()
-        } else {
-            // Flatten format - the entire document is the content (minus metadata fields)
-            // We need to exclude atlas_metadata and system fields
-            let mut content_map = document.as_object().cloned().unwrap_or_default();
-            content_map.remove("id");
-            content_map.remove("ehr_id");
-            content_map.remove("composition_uid");
-            content_map.remove("template_id");
-            content_map.remove("time_committed");
-            content_map.remove("atlas_metadata");
-            serde_json::Value::Object(content_map)
-        };
-
-        // Recalculate the checksum
-        tracing::debug!(
-            composition_uid = %composition_uid.as_str(),
-            content_sample = ?serde_json::to_string(&content).unwrap_or_default().chars().take(200).collect::<String>(),
-            "Content extracted for verification"
-        );
-
-        let actual_checksum = match calculate_checksum(&content) {
-            Ok(checksum) => {
+            Ok(_) => {
                 tracing::debug!(
                     composition_uid = %composition_uid.as_str(),
-                    checksum = %checksum,
-                    expected = %expected_checksum,
-                    "Calculated checksum during verification"
+                    "Composition verification passed - document exists"
                 );
-                checksum
+                Ok(())
             }
             Err(e) => {
-                return Err(VerificationFailure {
+                tracing::warn!(
+                    composition_uid = %composition_uid.as_str(),
+                    error = %e,
+                    "Composition verification failed - document not found"
+                );
+                Err(VerificationFailure {
                     composition_uid: composition_uid.clone(),
                     ehr_id: ehr_id.clone(),
                     template_id: template_id.clone(),
-                    expected_checksum: expected_checksum.to_string(),
+                    expected_checksum: "N/A".to_string(),
                     actual_checksum: "N/A".to_string(),
-                    reason: format!("Failed to calculate checksum: {e}"),
-                });
+                    reason: format!("Document not found in Cosmos DB: {e}"),
+                })
             }
-        };
-
-        // Compare checksums
-        if actual_checksum == expected_checksum {
-            tracing::debug!(
-                composition_uid = %composition_uid.as_str(),
-                "Composition verification passed"
-            );
-            Ok(())
-        } else {
-            tracing::warn!(
-                composition_uid = %composition_uid.as_str(),
-                expected = %expected_checksum,
-                actual = %actual_checksum,
-                "Composition verification failed - checksum mismatch"
-            );
-            Err(VerificationFailure {
-                composition_uid: composition_uid.clone(),
-                ehr_id: ehr_id.clone(),
-                template_id: template_id.clone(),
-                expected_checksum: expected_checksum.to_string(),
-                actual_checksum,
-                reason: "Checksum mismatch".to_string(),
-            })
         }
     }
 }

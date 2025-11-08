@@ -167,8 +167,6 @@ impl ExportArgs {
                             failure.ehr_id.as_str(),
                             failure.template_id.as_str()
                         );
-                        println!("      Expected: {}", failure.expected_checksum);
-                        println!("      Actual: {}", failure.actual_checksum);
                         println!("      Reason: {}", failure.reason);
                     }
                 }
