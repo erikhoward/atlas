@@ -8,7 +8,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 /// Export status enumeration
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum ExportStatus {
     /// Export is in progress
@@ -18,13 +18,8 @@ pub enum ExportStatus {
     /// Export failed with an error
     Failed,
     /// Export was never started
+    #[default]
     NotStarted,
-}
-
-impl Default for ExportStatus {
-    fn default() -> Self {
-        Self::NotStarted
-    }
 }
 
 /// Watermark for tracking export state per {template_id, ehr_id}
