@@ -169,8 +169,22 @@ impl Verifier {
         };
 
         // Recalculate the checksum
+        tracing::debug!(
+            composition_uid = %composition_uid.as_str(),
+            content_sample = ?serde_json::to_string(&content).unwrap_or_default().chars().take(200).collect::<String>(),
+            "Content extracted for verification"
+        );
+
         let actual_checksum = match calculate_checksum(&content) {
-            Ok(checksum) => checksum,
+            Ok(checksum) => {
+                tracing::debug!(
+                    composition_uid = %composition_uid.as_str(),
+                    checksum = %checksum,
+                    expected = %expected_checksum,
+                    "Calculated checksum during verification"
+                );
+                checksum
+            }
             Err(e) => {
                 return Err(VerificationFailure {
                     composition_uid: composition_uid.clone(),

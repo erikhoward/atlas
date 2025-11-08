@@ -54,6 +54,12 @@ pub fn preserve_composition(
     // Calculate checksum if enabled
     if enable_checksum {
         let checksum = calculate_checksum(&cosmos_comp.content)?;
+        tracing::debug!(
+            composition_uid = %cosmos_comp.composition_uid,
+            checksum = %checksum,
+            content_sample = ?serde_json::to_string(&cosmos_comp.content).unwrap_or_default().chars().take(200).collect::<String>(),
+            "Calculated checksum during export"
+        );
         cosmos_comp.atlas_metadata = cosmos_comp.atlas_metadata.with_checksum(checksum);
     }
 

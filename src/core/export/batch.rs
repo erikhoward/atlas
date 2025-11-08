@@ -196,6 +196,7 @@ impl BatchProcessor {
                         template_id,
                         compositions.clone(),
                         "preserve".to_string(),
+                        self.config.enable_checksum,
                         3, // max_retries
                     )
                     .await?
@@ -206,6 +207,7 @@ impl BatchProcessor {
                         template_id,
                         compositions.clone(),
                         "flatten".to_string(),
+                        self.config.enable_checksum,
                         3, // max_retries
                     )
                     .await?

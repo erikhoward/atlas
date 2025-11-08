@@ -87,6 +87,7 @@ pub trait DatabaseClient: Send + Sync {
     /// * `template_id` - Template ID for the compositions
     /// * `compositions` - Compositions to insert
     /// * `export_mode` - Export mode (full or incremental)
+    /// * `enable_checksum` - Whether to calculate and include checksums
     /// * `max_retries` - Maximum number of retries for transient failures
     ///
     /// # Returns
@@ -97,6 +98,7 @@ pub trait DatabaseClient: Send + Sync {
         template_id: &TemplateId,
         compositions: Vec<Composition>,
         export_mode: String,
+        enable_checksum: bool,
         max_retries: usize,
     ) -> Result<BulkInsertResult>;
 
@@ -107,6 +109,7 @@ pub trait DatabaseClient: Send + Sync {
     /// * `template_id` - Template ID for the compositions
     /// * `compositions` - Compositions to insert (will be flattened)
     /// * `export_mode` - Export mode (full or incremental)
+    /// * `enable_checksum` - Whether to calculate and include checksums
     /// * `max_retries` - Maximum number of retries for transient failures
     ///
     /// # Returns
@@ -117,6 +120,7 @@ pub trait DatabaseClient: Send + Sync {
         template_id: &TemplateId,
         compositions: Vec<Composition>,
         export_mode: String,
+        enable_checksum: bool,
         max_retries: usize,
     ) -> Result<BulkInsertResult>;
 
