@@ -17,24 +17,15 @@ pub struct ExportedCompositionInfo {
 
     /// Template ID
     pub template_id: TemplateId,
-
-    /// Checksum of the composition content
-    pub checksum: String,
 }
 
 impl ExportedCompositionInfo {
     /// Create a new ExportedCompositionInfo
-    pub fn new(
-        composition_uid: CompositionUid,
-        ehr_id: EhrId,
-        template_id: TemplateId,
-        checksum: String,
-    ) -> Self {
+    pub fn new(composition_uid: CompositionUid, ehr_id: EhrId, template_id: TemplateId) -> Self {
         Self {
             composition_uid,
             ehr_id,
             template_id,
-            checksum,
         }
     }
 }
@@ -103,14 +94,12 @@ impl ExportSummary {
         composition_uid: CompositionUid,
         ehr_id: EhrId,
         template_id: TemplateId,
-        checksum: String,
     ) {
         self.exported_compositions
             .push(ExportedCompositionInfo::new(
                 composition_uid,
                 ehr_id,
                 template_id,
-                checksum,
             ));
     }
 
@@ -310,13 +299,11 @@ mod tests {
         let composition_uid = CompositionUid::from_str("84d7c3f5::local.ehrbase.org::1").unwrap();
         let ehr_id = EhrId::from_str("7d44b88c-4199-4bad-97dc-d78268e01398").unwrap();
         let template_id = TemplateId::from_str("vital_signs.v1").unwrap();
-        let checksum = "abc123def456".to_string();
 
         summary.add_exported_composition(
             composition_uid.clone(),
             ehr_id.clone(),
             template_id.clone(),
-            checksum.clone(),
         );
 
         assert_eq!(summary.exported_compositions.len(), 1);
@@ -326,7 +313,6 @@ mod tests {
         );
         assert_eq!(summary.exported_compositions[0].ehr_id, ehr_id);
         assert_eq!(summary.exported_compositions[0].template_id, template_id);
-        assert_eq!(summary.exported_compositions[0].checksum, checksum);
     }
 
     #[test]
@@ -336,18 +322,15 @@ mod tests {
         let composition_uid = CompositionUid::from_str("84d7c3f5::local.ehrbase.org::1").unwrap();
         let ehr_id = EhrId::from_str("7d44b88c-4199-4bad-97dc-d78268e01398").unwrap();
         let template_id = TemplateId::from_str("vital_signs.v1").unwrap();
-        let checksum = "abc123def456".to_string();
 
         let info = ExportedCompositionInfo::new(
             composition_uid.clone(),
             ehr_id.clone(),
             template_id.clone(),
-            checksum.clone(),
         );
 
         assert_eq!(info.composition_uid, composition_uid);
         assert_eq!(info.ehr_id, ehr_id);
         assert_eq!(info.template_id, template_id);
-        assert_eq!(info.checksum, checksum);
     }
 }

@@ -70,7 +70,6 @@ impl DatabaseClient for PostgreSQLAdapter {
         _template_id: &TemplateId,
         compositions: Vec<Composition>,
         export_mode: String,
-        _enable_checksum: bool,
         _max_retries: usize,
     ) -> Result<BulkInsertResult> {
         let mut success_count = 0;
@@ -161,7 +160,6 @@ impl DatabaseClient for PostgreSQLAdapter {
         _template_id: &TemplateId,
         compositions: Vec<Composition>,
         export_mode: String,
-        _enable_checksum: bool,
         _max_retries: usize,
     ) -> Result<BulkInsertResult> {
         let mut success_count = 0;

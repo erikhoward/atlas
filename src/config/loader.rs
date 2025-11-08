@@ -236,9 +236,6 @@ fn apply_env_overrides(config: &mut AtlasConfig) -> Result<()> {
     if let Ok(val) = std::env::var("ATLAS_VERIFICATION_ENABLE_VERIFICATION") {
         config.verification.enable_verification = val.parse().unwrap_or(false);
     }
-    if let Ok(val) = std::env::var("ATLAS_VERIFICATION_CHECKSUM_ALGORITHM") {
-        config.verification.checksum_algorithm = val;
-    }
 
     // Logging overrides
     if let Ok(val) = std::env::var("ATLAS_LOGGING_LOCAL_ENABLED") {

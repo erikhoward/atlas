@@ -70,7 +70,6 @@ checkpoint_interval_seconds = 60
 
 [verification]
 enable_verification = true
-checksum_algorithm = "sha512"
 
 [logging]
 local_enabled = false
@@ -127,7 +126,6 @@ azure_enabled = false
 
     // Verify verification config
     assert!(config.verification.enable_verification);
-    assert_eq!(config.verification.checksum_algorithm, "sha512");
 
     // Verify logging config
     assert!(!config.logging.local_enabled);

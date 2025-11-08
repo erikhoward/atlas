@@ -75,14 +75,12 @@ impl DatabaseClient for CosmosDbAdapter {
         template_id: &TemplateId,
         compositions: Vec<Composition>,
         export_mode: String,
-        enable_checksum: bool,
         max_retries: usize,
     ) -> Result<BulkInsertResult> {
-        // Transform compositions using preserve_composition which handles checksums
+        // Transform compositions using preserve_composition
         let mut cosmos_compositions = Vec::new();
         for composition in compositions {
-            let json_value =
-                preserve_composition(composition, export_mode.clone(), enable_checksum)?;
+            let json_value = preserve_composition(composition, export_mode.clone())?;
             let cosmos_comp: CosmosComposition = serde_json::from_value(json_value)
                 .map_err(|e| AtlasError::Serialization(e.to_string()))?;
             cosmos_compositions.push(cosmos_comp);
@@ -115,14 +113,12 @@ impl DatabaseClient for CosmosDbAdapter {
         template_id: &TemplateId,
         compositions: Vec<Composition>,
         export_mode: String,
-        enable_checksum: bool,
         max_retries: usize,
     ) -> Result<BulkInsertResult> {
-        // Transform compositions using flatten_composition which handles checksums
+        // Transform compositions using flatten_composition
         let mut cosmos_compositions = Vec::new();
         for composition in compositions {
-            let json_value =
-                flatten_composition(composition, export_mode.clone(), enable_checksum)?;
+            let json_value = flatten_composition(composition, export_mode.clone())?;
             let cosmos_comp: CosmosCompositionFlattened = serde_json::from_value(json_value)
                 .map_err(|e| AtlasError::Serialization(e.to_string()))?;
             cosmos_compositions.push(cosmos_comp);

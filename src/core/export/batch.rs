@@ -6,7 +6,6 @@
 use crate::adapters::database::traits::DatabaseClient;
 use crate::core::state::{StateManager, Watermark};
 use crate::core::transform::CompositionFormat;
-use crate::core::verification::calculate_checksum;
 use crate::domain::composition::Composition;
 use crate::domain::ids::{CompositionUid, EhrId, TemplateId};
 use crate::domain::Result;
@@ -21,32 +20,21 @@ pub struct BatchConfig {
     pub batch_size: usize,
     /// Composition format (preserve or flatten)
     pub composition_format: CompositionFormat,
-    /// Enable checksum calculation
-    pub enable_checksum: bool,
 }
 
 impl BatchConfig {
     /// Create a new batch configuration
-    pub fn new(
-        batch_size: usize,
-        composition_format: CompositionFormat,
-        enable_checksum: bool,
-    ) -> Self {
+    pub fn new(batch_size: usize, composition_format: CompositionFormat) -> Self {
         Self {
             batch_size,
             composition_format,
-            enable_checksum,
         }
     }
 
     /// Create from export config strings
-    pub fn from_config(
-        batch_size: usize,
-        composition_format_str: &str,
-        enable_checksum: bool,
-    ) -> Result<Self> {
+    pub fn from_config(batch_size: usize, composition_format_str: &str) -> Result<Self> {
         let composition_format = CompositionFormat::from_str(composition_format_str)?;
-        Ok(Self::new(batch_size, composition_format, enable_checksum))
+        Ok(Self::new(batch_size, composition_format))
     }
 }
 
@@ -165,29 +153,6 @@ impl BatchProcessor {
             "Processing batch of compositions"
         );
 
-        // Calculate checksums if enabled
-        let mut checksums: HashMap<CompositionUid, String> = HashMap::new();
-        if self.config.enable_checksum {
-            for composition in &compositions {
-                match calculate_checksum(&composition.content) {
-                    Ok(checksum) => {
-                        checksums.insert(composition.uid.clone(), checksum);
-                    }
-                    Err(e) => {
-                        tracing::warn!(
-                            composition_uid = %composition.uid.as_str(),
-                            error = %e,
-                            "Failed to calculate checksum for composition"
-                        );
-                    }
-                }
-            }
-            tracing::debug!(
-                checksums_calculated = checksums.len(),
-                "Calculated checksums for compositions"
-            );
-        }
-
         // Bulk insert to database using the appropriate method based on format
         let bulk_result = match self.config.composition_format {
             CompositionFormat::Preserve => {
@@ -196,7 +161,6 @@ impl BatchProcessor {
                         template_id,
                         compositions.clone(),
                         "preserve".to_string(),
-                        self.config.enable_checksum,
                         3, // max_retries
                     )
                     .await?
@@ -207,7 +171,6 @@ impl BatchProcessor {
                         template_id,
                         compositions.clone(),
                         "flatten".to_string(),
-                        self.config.enable_checksum,
                         3, // max_retries
                     )
                     .await?
@@ -222,19 +185,9 @@ impl BatchProcessor {
             result.add_failure(format!("{}: {}", failure.document_id, failure.error));
         }
 
-        // Add checksums for successfully inserted compositions
-        if self.config.enable_checksum {
-            for composition in &compositions {
-                if let Some(checksum) = checksums.get(&composition.uid) {
-                    result.add_checksum(composition.uid.clone(), checksum.clone());
-                }
-            }
-        }
-
         tracing::info!(
             inserted = bulk_result.success_count,
             failed = bulk_result.failure_count,
-            checksums_tracked = result.checksums.len(),
             "Bulk insert completed"
         );
 
@@ -262,20 +215,18 @@ mod tests {
 
     #[test]
     fn test_batch_config_creation() {
-        let config = BatchConfig::new(1000, CompositionFormat::Preserve, true);
+        let config = BatchConfig::new(1000, CompositionFormat::Preserve);
 
         assert_eq!(config.batch_size, 1000);
         assert_eq!(config.composition_format, CompositionFormat::Preserve);
-        assert!(config.enable_checksum);
     }
 
     #[test]
     fn test_batch_config_from_config() {
-        let config = BatchConfig::from_config(500, "flatten", false).unwrap();
+        let config = BatchConfig::from_config(500, "flatten").unwrap();
 
         assert_eq!(config.batch_size, 500);
         assert_eq!(config.composition_format, CompositionFormat::Flatten);
-        assert!(!config.enable_checksum);
     }
 
     #[test]

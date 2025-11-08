@@ -54,7 +54,6 @@ impl ExportCoordinator {
         let batch_config = BatchConfig::from_config(
             config.openehr.query.batch_size,
             &config.export.export_composition_format,
-            config.verification.enable_verification,
         )?;
 
         // Create batch processor
@@ -409,16 +408,13 @@ impl ExportCoordinator {
                 );
             }
 
-            // Add checksums to summary for verification
+            // Add compositions to summary for verification
             for composition in &compositions {
-                if let Some(checksum) = batch_result.checksums.get(&composition.uid) {
-                    summary.add_exported_composition(
-                        composition.uid.clone(),
-                        ehr_id.clone(),
-                        template_id.clone(),
-                        checksum.clone(),
-                    );
-                }
+                summary.add_exported_composition(
+                    composition.uid.clone(),
+                    ehr_id.clone(),
+                    template_id.clone(),
+                );
             }
         }
 

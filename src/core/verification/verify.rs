@@ -75,7 +75,7 @@ impl Verifier {
                     &exported_comp.composition_uid,
                     &exported_comp.ehr_id,
                     &exported_comp.template_id,
-                    &exported_comp.checksum,
+                    "N/A", // Checksum not used anymore
                 )
                 .await
             {

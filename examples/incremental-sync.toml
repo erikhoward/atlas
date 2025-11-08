@@ -124,9 +124,6 @@ checkpoint_interval_seconds = 30
 # Disable verification for daily sync (prioritize speed)
 enable_verification = false
 
-# Checksum algorithm (not used when verification disabled)
-checksum_algorithm = "sha256"
-
 # ============================================================================
 # Logging Configuration
 # ============================================================================
