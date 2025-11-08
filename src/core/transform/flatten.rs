@@ -4,6 +4,7 @@
 //! nested FLAT paths to simple field names for easier querying.
 
 use crate::adapters::cosmosdb::models::{AtlasMetadata, CosmosCompositionFlattened};
+use crate::core::verification::checksum::calculate_checksum;
 use crate::domain::composition::Composition;
 use crate::domain::Result;
 use serde_json::Value;
@@ -63,7 +64,10 @@ pub fn flatten_composition(
 
     // Calculate checksum if enabled
     if enable_checksum {
-        let checksum = calculate_checksum(&fields)?;
+        // Convert HashMap to Value for checksum calculation
+        let fields_value = serde_json::to_value(&fields)
+            .map_err(|e| crate::domain::AtlasError::Serialization(e.to_string()))?;
+        let checksum = calculate_checksum(&fields_value)?;
         atlas_metadata = atlas_metadata.with_checksum(checksum);
     }
 
@@ -112,20 +116,6 @@ fn flatten_content(content: &Value) -> Result<HashMap<String, Value>> {
 /// - `|` → `_`
 fn flatten_path(path: &str) -> String {
     path.replace(['/', ':', '|'], "_")
-}
-
-/// Calculate SHA-256 checksum of the flattened fields
-fn calculate_checksum(fields: &HashMap<String, Value>) -> Result<String> {
-    use sha2::{Digest, Sha256};
-
-    let fields_str = serde_json::to_string(fields)
-        .map_err(|e| crate::domain::AtlasError::Serialization(e.to_string()))?;
-
-    let mut hasher = Sha256::new();
-    hasher.update(fields_str.as_bytes());
-    let result = hasher.finalize();
-
-    Ok(format!("{result:x}"))
 }
 
 #[cfg(test)]
@@ -272,8 +262,10 @@ mod tests {
             json!(37.5),
         );
 
-        let checksum1 = calculate_checksum(&fields).unwrap();
-        let checksum2 = calculate_checksum(&fields).unwrap();
+        // Convert to Value for checksum calculation
+        let fields_value = serde_json::to_value(&fields).unwrap();
+        let checksum1 = calculate_checksum(&fields_value).unwrap();
+        let checksum2 = calculate_checksum(&fields_value).unwrap();
 
         // Same fields should produce same checksum
         assert_eq!(checksum1, checksum2);

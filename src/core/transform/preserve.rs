@@ -4,6 +4,7 @@
 //! the exact FLAT JSON structure from OpenEHR without modification.
 
 use crate::adapters::cosmosdb::models::CosmosComposition;
+use crate::core::verification::checksum::calculate_checksum;
 use crate::domain::composition::Composition;
 use crate::domain::Result;
 use serde_json::Value;
@@ -61,20 +62,6 @@ pub fn preserve_composition(
         .map_err(|e| crate::domain::AtlasError::Serialization(e.to_string()))?;
 
     Ok(json)
-}
-
-/// Calculate SHA-256 checksum of the composition content
-fn calculate_checksum(content: &Value) -> Result<String> {
-    use sha2::{Digest, Sha256};
-
-    let content_str = serde_json::to_string(content)
-        .map_err(|e| crate::domain::AtlasError::Serialization(e.to_string()))?;
-
-    let mut hasher = Sha256::new();
-    hasher.update(content_str.as_bytes());
-    let result = hasher.finalize();
-
-    Ok(format!("{result:x}"))
 }
 
 #[cfg(test)]
