@@ -1,0 +1,62 @@
+name: Release
+
+permissions:
+  contents: write
+
+on:
+  push:
+    tags:
+      - v[0-9]+.*
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create GitHub Release
+        uses: taiki-e/create-gh-release-action@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  upload-assets:
+    name: Upload ${{ matrix.target }}
+    needs: create-release
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux x86_64
+          - target: x86_64-unknown-linux-musl
+            archive: tar.gz
+          # Linux ARM64
+          - target: aarch64-unknown-linux-musl
+            archive: tar.gz
+          # Windows x86_64
+          - target: x86_64-pc-windows-gnu
+            archive: zip
+          # macOS ARM64 (Apple Silicon)
+          - target: aarch64-apple-darwin
+            archive: tar.gz
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build and upload binary
+        uses: taiki-e/upload-rust-binary-action@v1
+        with:
+          bin: atlas
+          target: ${{ matrix.target }}
+          tar: ${{ matrix.archive == 'tar.gz' && 'all' || 'none' }}
+          zip: ${{ matrix.archive == 'zip' && 'all' || 'none' }}
+          include: README.md,LICENSE
+          leading-dir: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
