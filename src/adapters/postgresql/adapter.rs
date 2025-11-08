@@ -13,6 +13,7 @@ use crate::domain::composition::Composition;
 use crate::domain::ids::{EhrId, TemplateId};
 use crate::domain::{AtlasError, Result};
 use async_trait::async_trait;
+use std::any::Any;
 use std::sync::Arc;
 
 /// PostgreSQL implementation of database traits
@@ -43,6 +44,10 @@ impl PostgreSQLAdapter {
 
 #[async_trait]
 impl DatabaseClient for PostgreSQLAdapter {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
     async fn test_connection(&self) -> Result<()> {
         self.client.test_connection().await
     }

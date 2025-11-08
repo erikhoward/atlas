@@ -18,6 +18,7 @@ use crate::domain::ids::{EhrId, TemplateId};
 use crate::domain::{AtlasError, CosmosDbError, Result};
 use async_trait::async_trait;
 use azure_data_cosmos::PartitionKey;
+use std::any::Any;
 use std::sync::Arc;
 
 /// CosmosDB implementation of database traits
@@ -48,6 +49,10 @@ impl CosmosDbAdapter {
 
 #[async_trait]
 impl DatabaseClient for CosmosDbAdapter {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
     async fn test_connection(&self) -> Result<()> {
         self.client.test_connection().await
     }

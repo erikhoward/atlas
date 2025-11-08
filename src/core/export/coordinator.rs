@@ -3,7 +3,7 @@
 //! This module coordinates the entire export workflow, managing the interaction
 //! between OpenEHR, database backends, state management, and batch processing.
 
-use crate::adapters::cosmosdb::CosmosDbClient;
+use crate::adapters::cosmosdb::{CosmosDbAdapter, CosmosDbClient};
 use crate::adapters::database::create_database_and_state;
 use crate::adapters::database::traits::DatabaseClient;
 use crate::adapters::openehr::OpenEhrClient;
@@ -64,13 +64,15 @@ impl ExportCoordinator {
             batch_config,
         ));
 
-        // Create Cosmos DB client for verification if using CosmosDB
+        // Get Cosmos DB client for verification if using CosmosDB
+        // We reuse the existing client from the adapter instead of creating a new one
         let cosmos_client = if config.database_target == DatabaseTarget::CosmosDB {
-            let cosmos_config = config
-                .cosmosdb
-                .as_ref()
-                .expect("CosmosDB config should be validated");
-            Some(Arc::new(CosmosDbClient::new(cosmos_config.clone()).await?))
+            // Downcast the trait object to get the concrete CosmosDbAdapter
+            let adapter = database_client
+                .as_any()
+                .downcast_ref::<CosmosDbAdapter>()
+                .expect("database_client should be CosmosDbAdapter when using CosmosDB");
+            Some(adapter.client().clone())
         } else {
             None
         };
