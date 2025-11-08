@@ -41,7 +41,7 @@ jobs:
       matrix:
         include:
           # Linux x86_64
-          - target: x86_64-unknown-linux-musl
+          - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
           # macOS x86_64
           - target: x86_64-apple-darwin
@@ -54,20 +54,8 @@ jobs:
       - name: Install Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
 
-      - name: Install musl tools (Linux only)
-        if: matrix.target == 'x86_64-unknown-linux-musl'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y musl-tools
-
-      - name: Add target
-        run: rustup target add ${{ matrix.target }}
-
       - name: Build release binary
         run: cargo build --release --target ${{ matrix.target }}
-        env:
-          OPENSSL_STATIC: 1
-          OPENSSL_VENDORED: 1
 
       - name: Create archive
         id: archive
