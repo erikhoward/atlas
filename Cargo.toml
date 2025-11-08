@@ -3,17 +3,19 @@ name = "atlas"
 version = "2.0.0"
 edition = "2021"
 authors = ["Erik Howard", "Atlas Contributors"]
-description = "ETL tool for exporting OpenEHR compositions to Azure Cosmos DB"
+description = "ETL tool for exporting OpenEHR compositions to multiple datastore backends"
 license = "MIT"
 repository = "https://github.com/erikhoward/atlas"
 readme = "README.md"
-keywords = ["openehr", "azure", "cosmosdb", "etl", "healthcare"]
+keywords = ["openehr", "azure", "cosmosdb", "postgresql", "etl", "healthcare"]
 categories = ["command-line-utilities", "database", "healthcare"]
 
 [profile.release]
 opt-level = 3
 lto = true
 codegen-units = 1
+strip = true
+panic = "abort"
 
 [dependencies]
 # Async runtime (TR-3.1)

@@ -8,6 +8,9 @@ This directory contains comprehensive documentation for the Atlas ETL tool.
 - **architecture.md** - High-level architecture and component descriptions
 - **user-guide.md** - Step-by-step user guide for common scenarios
 - **developer-guide.md** - Development setup and contribution guidelines
+- **azure-log-analytics-setup.md** - Azure Log Analytics workspace setup guide
+- **docker-setup.md** - Docker installation and setup guide
+- **postgresql-setup.md** - PostgreSQL database setup guide
 - **deployment/** - Deployment guides for various platforms
 
 ## Quick Links
@@ -19,4 +22,3 @@ This directory contains comprehensive documentation for the Atlas ETL tool.
 ## Documentation Status
 
 Documentation will be completed in Phase 11 of the development checklist.
-
