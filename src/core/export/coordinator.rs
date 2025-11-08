@@ -72,7 +72,13 @@ impl ExportCoordinator {
                 .as_any()
                 .downcast_ref::<CosmosDbAdapter>()
                 .expect("database_client should be CosmosDbAdapter when using CosmosDB");
-            Some(adapter.client().clone())
+            let client = adapter.client().clone();
+            tracing::debug!(
+                endpoint = %client.endpoint(),
+                database = %client.database_name(),
+                "Reusing existing CosmosDbClient for verification"
+            );
+            Some(client)
         } else {
             None
         };

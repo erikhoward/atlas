@@ -9,6 +9,7 @@ use azure_core::credentials::Secret;
 use azure_data_cosmos::clients::{ContainerClient, DatabaseClient};
 use azure_data_cosmos::models::{ContainerProperties, IndexingPolicy, PartitionKeyDefinition};
 use azure_data_cosmos::{CosmosClient, CosmosClientOptions, PartitionKey};
+use futures::stream::StreamExt;
 use serde_json::Value;
 use std::borrow::Cow;
 
@@ -272,39 +273,55 @@ impl CosmosDbClient {
     ) -> Result<Value> {
         let container = self.get_container_client(template_id);
         let partition_key = PartitionKey::from(ehr_id.as_str().to_string());
-        let document_id = composition_uid.as_str();
 
         tracing::debug!(
             template_id = %template_id.as_str(),
             ehr_id = %ehr_id.as_str(),
             composition_uid = %composition_uid.as_str(),
-            "Fetching composition from Cosmos DB"
+            "Fetching composition from Cosmos DB using query"
         );
 
-        match container
-            .read_item::<Value>(partition_key, document_id, None)
-            .await
-        {
-            Ok(response) => {
-                let document = response.into_body().map_err(|e| {
-                    AtlasError::CosmosDb(CosmosDbError::DeserializationFailed(format!(
-                        "Failed to deserialize composition: {e}"
-                    )))
-                })?;
-                Ok(document)
-            }
-            Err(e) => {
-                if e.to_string().contains("404") || e.to_string().contains("NotFound") {
-                    Err(AtlasError::CosmosDb(CosmosDbError::QueryFailed(format!(
-                        "Composition not found: {}",
-                        composition_uid.as_str()
-                    ))))
-                } else {
-                    Err(AtlasError::CosmosDb(CosmosDbError::QueryFailed(format!(
+        // Use query instead of read_item to avoid potential issues with special characters in document IDs
+        let query = format!(
+            "SELECT * FROM c WHERE c.id = '{}'",
+            composition_uid.as_str().replace('\'', "''") // Escape single quotes
+        );
+
+        let mut query_response = container
+            .query_items::<Value>(query, partition_key, None)
+            .map_err(|e| {
+                AtlasError::CosmosDb(CosmosDbError::QueryFailed(format!(
+                    "Failed to create query: {e}"
+                )))
+            })?;
+
+        // Collect all results
+        let mut documents = Vec::new();
+        while let Some(item) = query_response.next().await {
+            match item {
+                Ok(doc) => documents.push(doc),
+                Err(e) => {
+                    return Err(AtlasError::CosmosDb(CosmosDbError::QueryFailed(format!(
                         "Failed to fetch composition: {e}"
-                    ))))
+                    ))));
                 }
             }
+        }
+
+        if documents.is_empty() {
+            Err(AtlasError::CosmosDb(CosmosDbError::QueryFailed(format!(
+                "Composition not found: {}",
+                composition_uid.as_str()
+            ))))
+        } else if documents.len() > 1 {
+            tracing::warn!(
+                composition_uid = %composition_uid.as_str(),
+                count = documents.len(),
+                "Multiple documents found with same ID, using first one"
+            );
+            Ok(documents.into_iter().next().unwrap())
+        } else {
+            Ok(documents.into_iter().next().unwrap())
         }
     }
 
