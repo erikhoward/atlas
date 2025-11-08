@@ -6,9 +6,11 @@
 use crate::adapters::database::traits::DatabaseClient;
 use crate::core::state::{StateManager, Watermark};
 use crate::core::transform::CompositionFormat;
+use crate::core::verification::calculate_checksum;
 use crate::domain::composition::Composition;
-use crate::domain::ids::{EhrId, TemplateId};
+use crate::domain::ids::{CompositionUid, EhrId, TemplateId};
 use crate::domain::Result;
+use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -59,6 +61,8 @@ pub struct BatchResult {
     pub duplicates_skipped: usize,
     /// Errors encountered
     pub errors: Vec<String>,
+    /// Checksums of successfully exported compositions (composition_uid -> checksum)
+    pub checksums: HashMap<CompositionUid, String>,
 }
 
 impl BatchResult {
@@ -69,6 +73,7 @@ impl BatchResult {
             failed: 0,
             duplicates_skipped: 0,
             errors: Vec::new(),
+            checksums: HashMap::new(),
         }
     }
 
@@ -94,6 +99,12 @@ impl BatchResult {
         self.failed += other.failed;
         self.duplicates_skipped += other.duplicates_skipped;
         self.errors.extend(other.errors);
+        self.checksums.extend(other.checksums);
+    }
+
+    /// Add a checksum for a successfully exported composition
+    pub fn add_checksum(&mut self, composition_uid: CompositionUid, checksum: String) {
+        self.checksums.insert(composition_uid, checksum);
     }
 }
 
@@ -154,6 +165,29 @@ impl BatchProcessor {
             "Processing batch of compositions"
         );
 
+        // Calculate checksums if enabled
+        let mut checksums: HashMap<CompositionUid, String> = HashMap::new();
+        if self.config.enable_checksum {
+            for composition in &compositions {
+                match calculate_checksum(&composition.content) {
+                    Ok(checksum) => {
+                        checksums.insert(composition.uid.clone(), checksum);
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            composition_uid = %composition.uid.as_str(),
+                            error = %e,
+                            "Failed to calculate checksum for composition"
+                        );
+                    }
+                }
+            }
+            tracing::debug!(
+                checksums_calculated = checksums.len(),
+                "Calculated checksums for compositions"
+            );
+        }
+
         // Bulk insert to database using the appropriate method based on format
         let bulk_result = match self.config.composition_format {
             CompositionFormat::Preserve => {
@@ -186,9 +220,19 @@ impl BatchProcessor {
             result.add_failure(format!("{}: {}", failure.document_id, failure.error));
         }
 
+        // Add checksums for successfully inserted compositions
+        if self.config.enable_checksum {
+            for composition in &compositions {
+                if let Some(checksum) = checksums.get(&composition.uid) {
+                    result.add_checksum(composition.uid.clone(), checksum.clone());
+                }
+            }
+        }
+
         tracing::info!(
             inserted = bulk_result.success_count,
             failed = bulk_result.failure_count,
+            checksums_tracked = result.checksums.len(),
             "Bulk insert completed"
         );
 
@@ -234,11 +278,14 @@ mod tests {
 
     #[test]
     fn test_batch_result_operations() {
+        use std::str::FromStr;
+
         let mut result = BatchResult::new();
 
         assert_eq!(result.successful, 0);
         assert_eq!(result.failed, 0);
         assert_eq!(result.duplicates_skipped, 0);
+        assert!(result.checksums.is_empty());
 
         result.add_success();
         result.add_success();
@@ -250,18 +297,30 @@ mod tests {
 
         result.add_duplicate();
         assert_eq!(result.duplicates_skipped, 1);
+
+        // Test checksum tracking
+        let uid = CompositionUid::from_str("84d7c3f5::local.ehrbase.org::1").unwrap();
+        result.add_checksum(uid.clone(), "abc123".to_string());
+        assert_eq!(result.checksums.len(), 1);
+        assert_eq!(result.checksums.get(&uid), Some(&"abc123".to_string()));
     }
 
     #[test]
     fn test_batch_result_merge() {
+        use std::str::FromStr;
+
         let mut result1 = BatchResult::new();
         result1.add_success();
         result1.add_failure("Error 1".to_string());
+        let uid1 = CompositionUid::from_str("84d7c3f5::local.ehrbase.org::1").unwrap();
+        result1.add_checksum(uid1.clone(), "checksum1".to_string());
 
         let mut result2 = BatchResult::new();
         result2.add_success();
         result2.add_success();
         result2.add_duplicate();
+        let uid2 = CompositionUid::from_str("95e8d4g6::local.ehrbase.org::1").unwrap();
+        result2.add_checksum(uid2.clone(), "checksum2".to_string());
 
         result1.merge(result2);
 
@@ -269,5 +328,8 @@ mod tests {
         assert_eq!(result1.failed, 1);
         assert_eq!(result1.duplicates_skipped, 1);
         assert_eq!(result1.errors.len(), 1);
+        assert_eq!(result1.checksums.len(), 2);
+        assert_eq!(result1.checksums.get(&uid1), Some(&"checksum1".to_string()));
+        assert_eq!(result1.checksums.get(&uid2), Some(&"checksum2".to_string()));
     }
 }

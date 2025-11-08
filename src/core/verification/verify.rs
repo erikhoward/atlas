@@ -5,16 +5,15 @@
 
 use crate::adapters::cosmosdb::CosmosDbClient;
 use crate::core::export::ExportSummary;
+use crate::core::verification::calculate_checksum;
 use crate::core::verification::report::{VerificationFailure, VerificationReport};
 use crate::domain::ids::{CompositionUid, EhrId, TemplateId};
 use crate::domain::Result;
-use azure_data_cosmos::clients::ContainerClient;
 use std::sync::Arc;
 use std::time::Instant;
 
 /// Verifier for post-export validation
 pub struct Verifier {
-    #[allow(dead_code)]
     cosmos_client: Arc<CosmosDbClient>,
 }
 
@@ -55,31 +54,51 @@ impl Verifier {
         let start = Instant::now();
         let mut report = VerificationReport::new();
 
+        let total_to_verify = summary.exported_compositions.len();
+
         tracing::info!(
-            total_compositions = summary.total_compositions,
+            total_compositions = total_to_verify,
             "Starting post-export verification"
         );
 
-        // For now, we'll verify based on the summary
-        // In a real implementation, we would need to track which compositions were exported
-        // and their checksums. This is a placeholder implementation.
+        // If no compositions were exported with checksums, skip verification
+        if total_to_verify == 0 {
+            tracing::info!("No compositions to verify (checksums not enabled or no exports)");
+            let duration = start.elapsed();
+            report.set_duration(duration.as_millis() as u64);
+            return Ok(report);
+        }
 
-        // Since we don't have a list of exported compositions in the summary,
-        // we'll just create a report indicating verification was attempted
-        // but no compositions were verified (this would be enhanced in a real implementation)
-
-        tracing::warn!(
-            "Verification is not fully implemented - would need to track exported composition IDs and checksums"
-        );
+        // Verify each exported composition
+        for exported_comp in &summary.exported_compositions {
+            match self
+                .verify_composition(
+                    &exported_comp.composition_uid,
+                    &exported_comp.ehr_id,
+                    &exported_comp.template_id,
+                    &exported_comp.checksum,
+                )
+                .await
+            {
+                Ok(()) => {
+                    report.record_pass();
+                }
+                Err(failure) => {
+                    report.record_failure(failure);
+                }
+            }
+        }
 
         let duration = start.elapsed();
         report.set_duration(duration.as_millis() as u64);
 
         tracing::info!(
+            total_verified = report.total_verified,
             passed = report.passed,
             failed = report.failed,
             skipped = report.skipped,
             duration_ms = report.duration_ms,
+            success_rate = format!("{:.2}%", report.success_rate()),
             "Verification completed"
         );
 
@@ -90,41 +109,103 @@ impl Verifier {
     ///
     /// # Arguments
     ///
-    /// * `_container_client` - The Cosmos DB container client
-    /// * `_composition_uid` - The composition UID
-    /// * `_ehr_id` - The EHR ID (partition key)
-    /// * `_template_id` - The template ID
-    /// * `_expected_checksum` - The expected checksum from metadata
+    /// * `composition_uid` - The composition UID
+    /// * `ehr_id` - The EHR ID (partition key)
+    /// * `template_id` - The template ID
+    /// * `expected_checksum` - The expected checksum from export
     ///
     /// # Returns
     ///
     /// Returns Ok(()) if verification passes, or a VerificationFailure if it fails.
-    ///
-    /// # Note
-    ///
-    /// This is a placeholder implementation. Full verification would require:
-    /// 1. Fetching the composition from Cosmos DB
-    /// 2. Extracting the content field
-    /// 3. Recalculating the checksum
-    /// 4. Comparing with the expected checksum
-    #[allow(dead_code)]
     async fn verify_composition(
         &self,
-        _container_client: &ContainerClient,
-        _composition_uid: CompositionUid,
-        _ehr_id: EhrId,
-        _template_id: TemplateId,
-        _expected_checksum: String,
+        composition_uid: &CompositionUid,
+        ehr_id: &EhrId,
+        template_id: &TemplateId,
+        expected_checksum: &str,
     ) -> std::result::Result<(), VerificationFailure> {
-        // Placeholder implementation
-        // In a real implementation, this would:
-        // 1. Fetch document from Cosmos DB using the container client
-        // 2. Extract the content field
-        // 3. Recalculate checksum using calculate_checksum()
-        // 4. Compare with expected_checksum
-        // 5. Return Ok(()) or Err(VerificationFailure)
+        tracing::debug!(
+            composition_uid = %composition_uid.as_str(),
+            ehr_id = %ehr_id.as_str(),
+            template_id = %template_id.as_str(),
+            "Verifying composition"
+        );
 
-        Ok(())
+        // Fetch the composition document from Cosmos DB
+        let document = match self
+            .cosmos_client
+            .fetch_composition(template_id, ehr_id, composition_uid)
+            .await
+        {
+            Ok(doc) => doc,
+            Err(e) => {
+                return Err(VerificationFailure {
+                    composition_uid: composition_uid.clone(),
+                    ehr_id: ehr_id.clone(),
+                    template_id: template_id.clone(),
+                    expected_checksum: expected_checksum.to_string(),
+                    actual_checksum: "N/A".to_string(),
+                    reason: format!("Failed to fetch composition from Cosmos DB: {e}"),
+                });
+            }
+        };
+
+        // Extract the content field from the document
+        // The document structure depends on the export format (preserve or flatten)
+        let content = if let Some(content_field) = document.get("content") {
+            // Preserve format - content is in a dedicated field
+            content_field.clone()
+        } else {
+            // Flatten format - the entire document is the content (minus metadata fields)
+            // We need to exclude atlas_metadata and system fields
+            let mut content_map = document.as_object().cloned().unwrap_or_default();
+            content_map.remove("id");
+            content_map.remove("ehr_id");
+            content_map.remove("composition_uid");
+            content_map.remove("template_id");
+            content_map.remove("time_committed");
+            content_map.remove("atlas_metadata");
+            serde_json::Value::Object(content_map)
+        };
+
+        // Recalculate the checksum
+        let actual_checksum = match calculate_checksum(&content) {
+            Ok(checksum) => checksum,
+            Err(e) => {
+                return Err(VerificationFailure {
+                    composition_uid: composition_uid.clone(),
+                    ehr_id: ehr_id.clone(),
+                    template_id: template_id.clone(),
+                    expected_checksum: expected_checksum.to_string(),
+                    actual_checksum: "N/A".to_string(),
+                    reason: format!("Failed to calculate checksum: {e}"),
+                });
+            }
+        };
+
+        // Compare checksums
+        if actual_checksum == expected_checksum {
+            tracing::debug!(
+                composition_uid = %composition_uid.as_str(),
+                "Composition verification passed"
+            );
+            Ok(())
+        } else {
+            tracing::warn!(
+                composition_uid = %composition_uid.as_str(),
+                expected = %expected_checksum,
+                actual = %actual_checksum,
+                "Composition verification failed - checksum mismatch"
+            );
+            Err(VerificationFailure {
+                composition_uid: composition_uid.clone(),
+                ehr_id: ehr_id.clone(),
+                template_id: template_id.clone(),
+                expected_checksum: expected_checksum.to_string(),
+                actual_checksum,
+                reason: "Checksum mismatch".to_string(),
+            })
+        }
     }
 }
 

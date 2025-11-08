@@ -3,12 +3,13 @@
 //! This module provides the client for interacting with Azure Cosmos DB.
 
 use crate::config::CosmosDbConfig;
-use crate::domain::ids::TemplateId;
+use crate::domain::ids::{CompositionUid, EhrId, TemplateId};
 use crate::domain::{AtlasError, CosmosDbError, Result};
 use azure_core::credentials::Secret;
 use azure_data_cosmos::clients::{ContainerClient, DatabaseClient};
 use azure_data_cosmos::models::{ContainerProperties, IndexingPolicy, PartitionKeyDefinition};
 use azure_data_cosmos::{CosmosClient, CosmosClientOptions, PartitionKey};
+use serde_json::Value;
 use std::borrow::Cow;
 
 /// Cosmos DB client for Atlas
@@ -246,6 +247,61 @@ impl CosmosDbClient {
                 } else {
                     Err(AtlasError::CosmosDb(CosmosDbError::QueryFailed(format!(
                         "Failed to check if composition exists: {e}"
+                    ))))
+                }
+            }
+        }
+    }
+
+    /// Fetch a composition document from Cosmos DB
+    ///
+    /// # Arguments
+    ///
+    /// * `template_id` - Template ID
+    /// * `ehr_id` - EHR ID (partition key)
+    /// * `composition_uid` - Composition UID (document ID)
+    ///
+    /// # Returns
+    ///
+    /// Returns the composition document as a JSON Value
+    pub async fn fetch_composition(
+        &self,
+        template_id: &TemplateId,
+        ehr_id: &EhrId,
+        composition_uid: &CompositionUid,
+    ) -> Result<Value> {
+        let container = self.get_container_client(template_id);
+        let partition_key = PartitionKey::from(ehr_id.as_str().to_string());
+        let document_id = composition_uid.as_str();
+
+        tracing::debug!(
+            template_id = %template_id.as_str(),
+            ehr_id = %ehr_id.as_str(),
+            composition_uid = %composition_uid.as_str(),
+            "Fetching composition from Cosmos DB"
+        );
+
+        match container
+            .read_item::<Value>(partition_key, document_id, None)
+            .await
+        {
+            Ok(response) => {
+                let document = response.into_body().map_err(|e| {
+                    AtlasError::CosmosDb(CosmosDbError::DeserializationFailed(format!(
+                        "Failed to deserialize composition: {e}"
+                    )))
+                })?;
+                Ok(document)
+            }
+            Err(e) => {
+                if e.to_string().contains("404") || e.to_string().contains("NotFound") {
+                    Err(AtlasError::CosmosDb(CosmosDbError::QueryFailed(format!(
+                        "Composition not found: {}",
+                        composition_uid.as_str()
+                    ))))
+                } else {
+                    Err(AtlasError::CosmosDb(CosmosDbError::QueryFailed(format!(
+                        "Failed to fetch composition: {e}"
                     ))))
                 }
             }

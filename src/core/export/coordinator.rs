@@ -3,13 +3,16 @@
 //! This module coordinates the entire export workflow, managing the interaction
 //! between OpenEHR, database backends, state management, and batch processing.
 
+use crate::adapters::cosmosdb::CosmosDbClient;
 use crate::adapters::database::create_database_and_state;
 use crate::adapters::database::traits::DatabaseClient;
 use crate::adapters::openehr::OpenEhrClient;
+use crate::config::schema::DatabaseTarget;
 use crate::config::AtlasConfig;
 use crate::core::export::batch::{BatchConfig, BatchProcessor};
 use crate::core::export::summary::{ExportError, ExportErrorType, ExportSummary};
 use crate::core::state::{StateManager, WatermarkBuilder};
+use crate::core::verification::Verifier;
 use crate::domain::ids::{EhrId, TemplateId};
 use crate::domain::Result;
 use std::str::FromStr;
@@ -25,6 +28,8 @@ pub struct ExportCoordinator {
     state_manager: Arc<StateManager>,
     #[allow(dead_code)] // Will be used in future phases
     batch_processor: Arc<BatchProcessor>,
+    /// Cosmos DB client for verification (only available when using CosmosDB)
+    cosmos_client: Option<Arc<CosmosDbClient>>,
 }
 
 impl ExportCoordinator {
@@ -59,12 +64,24 @@ impl ExportCoordinator {
             batch_config,
         ));
 
+        // Create Cosmos DB client for verification if using CosmosDB
+        let cosmos_client = if config.database_target == DatabaseTarget::CosmosDB {
+            let cosmos_config = config
+                .cosmosdb
+                .as_ref()
+                .expect("CosmosDB config should be validated");
+            Some(Arc::new(CosmosDbClient::new(cosmos_config.clone()).await?))
+        } else {
+            None
+        };
+
         Ok(Self {
             config,
             openehr_client,
             database_client,
             state_manager,
             batch_processor,
+            cosmos_client,
         })
     }
 
@@ -181,6 +198,60 @@ impl ExportCoordinator {
                         );
                     }
                 }
+            }
+        }
+
+        // Run verification if enabled and cosmos client is available
+        if self.config.verification.enable_verification {
+            if let Some(cosmos_client) = &self.cosmos_client {
+                tracing::info!("Running post-export verification");
+                let verifier = Verifier::new(cosmos_client.clone());
+
+                match verifier.verify_export(&summary).await {
+                    Ok(verification_report) => {
+                        tracing::info!(
+                            total_verified = verification_report.total_verified,
+                            passed = verification_report.passed,
+                            failed = verification_report.failed,
+                            success_rate = format!("{:.2}%", verification_report.success_rate()),
+                            "Verification completed"
+                        );
+
+                        // Log verification failures
+                        if !verification_report.is_success() {
+                            tracing::warn!(
+                                failed_count = verification_report.failed,
+                                "Verification found {} composition(s) with checksum mismatches",
+                                verification_report.failed
+                            );
+                            for failure in &verification_report.failures {
+                                tracing::warn!(
+                                    composition_uid = %failure.composition_uid.as_str(),
+                                    ehr_id = %failure.ehr_id.as_str(),
+                                    template_id = %failure.template_id.as_str(),
+                                    expected = %failure.expected_checksum,
+                                    actual = %failure.actual_checksum,
+                                    reason = %failure.reason,
+                                    "Verification failure"
+                                );
+                            }
+                        }
+
+                        // Store verification report in summary
+                        summary.set_verification_report(verification_report);
+                    }
+                    Err(e) => {
+                        tracing::error!(error = %e, "Verification failed");
+                        summary.add_error(ExportError::new(
+                            ExportErrorType::Unknown,
+                            format!("Verification failed: {e}"),
+                        ));
+                    }
+                }
+            } else {
+                tracing::warn!(
+                    "Verification is enabled but not available for the current database target"
+                );
             }
         }
 
@@ -312,7 +383,7 @@ impl ExportCoordinator {
         if !compositions.is_empty() {
             let batch_result = self
                 .batch_processor
-                .process_batch(compositions, template_id, ehr_id, &mut watermark)
+                .process_batch(compositions.clone(), template_id, ehr_id, &mut watermark)
                 .await?;
 
             // Update summary with batch results
@@ -330,6 +401,18 @@ impl ExportCoordinator {
                         ehr_id.as_str()
                     )),
                 );
+            }
+
+            // Add checksums to summary for verification
+            for composition in &compositions {
+                if let Some(checksum) = batch_result.checksums.get(&composition.uid) {
+                    summary.add_exported_composition(
+                        composition.uid.clone(),
+                        ehr_id.clone(),
+                        template_id.clone(),
+                        checksum.clone(),
+                    );
+                }
             }
         }
 
