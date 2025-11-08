@@ -68,9 +68,9 @@ pub fn load_config(path: impl AsRef<Path>) -> Result<AtlasConfig> {
     apply_env_overrides(&mut config)?;
 
     // Validate configuration
-    config.validate().map_err(|e| {
-        AtlasError::Configuration(format!("Configuration validation failed: {e}"))
-    })?;
+    config
+        .validate()
+        .map_err(|e| AtlasError::Configuration(format!("Configuration validation failed: {e}")))?;
 
     Ok(config)
 }
@@ -125,6 +125,11 @@ fn substitute_env_vars(input: &str) -> Result<String> {
             "Missing required environment variables: {}",
             missing_vars.join(", ")
         )));
+    }
+
+    // Remove trailing newline if present
+    if result.ends_with('\n') {
+        result.pop();
     }
 
     Ok(result)
@@ -301,7 +306,8 @@ mod tests {
 
     #[test]
     fn test_load_config_valid() {
-        let toml_content = r#"
+        let toml_content = r#"database_target = "cosmosdb"
+
 [application]
 name = "atlas"
 version = "1.0.0"

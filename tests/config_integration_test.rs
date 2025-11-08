@@ -25,7 +25,8 @@ fn cleanup_env_vars() {
 #[test]
 fn test_load_complete_config() {
     cleanup_env_vars();
-    let toml_content = r#"
+    let toml_content = r#"database_target = "cosmosdb"
+
 [application]
 name = "atlas"
 version = "1.0.0"
@@ -138,7 +139,8 @@ azure_enabled = false
 fn test_load_minimal_config_with_defaults() {
     cleanup_env_vars();
 
-    let toml_content = r#"
+    let toml_content = r#"database_target = "cosmosdb"
+
 [application]
 name = "atlas"
 version = "1.0.0"
@@ -194,7 +196,8 @@ fn test_env_var_substitution() {
     std::env::set_var("TEST_OPENEHR_PASSWORD", "secret_pass");
     std::env::set_var("TEST_COSMOS_KEY", "secret_key");
 
-    let toml_content = r#"
+    let toml_content = r#"database_target = "cosmosdb"
+
 [application]
 name = "atlas"
 version = "1.0.0"
@@ -242,7 +245,8 @@ fn test_env_var_overrides() {
     std::env::set_var("ATLAS_EXPORT_MODE", "full");
     std::env::set_var("ATLAS_OPENEHR_QUERY_BATCH_SIZE", "2000");
 
-    let toml_content = r#"
+    let toml_content = r#"database_target = "cosmosdb"
+
 [application]
 name = "atlas"
 version = "1.0.0"
@@ -288,7 +292,8 @@ database_name = "test_db"
 fn test_invalid_config_validation() {
     cleanup_env_vars();
 
-    let toml_content = r#"
+    let toml_content = r#"database_target = "cosmosdb"
+
 [application]
 name = "atlas"
 version = "1.0.0"
