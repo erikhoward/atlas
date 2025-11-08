@@ -34,7 +34,7 @@ jobs:
   # Build matrix for multiple platforms
   build:
     name: Build ${{ matrix.target }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     needs: lint-and-test
     strategy:
       fail-fast: false
@@ -42,34 +42,41 @@ jobs:
         include:
           # Linux x86_64
           - target: x86_64-unknown-linux-musl
-            archive: tar.gz
+            os: ubuntu-latest
           # macOS x86_64
           - target: x86_64-apple-darwin
-            archive: tar.gz
-          # Windows x86_64
-          - target: x86_64-pc-windows-msvc
-            archive: zip
+            os: macos-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Install musl tools (Linux only)
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+
+      - name: Add target
+        run: rustup target add ${{ matrix.target }}
+
       - name: Build release binary
-        id: compile
-        uses: rust-build/rust-build.action@v1.4.5
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          RUSTTARGET: ${{ matrix.target }}
-          ARCHIVE_TYPES: ${{ matrix.archive }}
-          UPLOAD_MODE: none
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Create archive
+        id: archive
+        run: |
+          cd target/${{ matrix.target }}/release
+          tar czf atlas-${{ matrix.target }}.tar.gz atlas
+          echo "archive_path=target/${{ matrix.target }}/release/atlas-${{ matrix.target }}.tar.gz" >> $GITHUB_OUTPUT
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: atlas-${{ matrix.target }}
-          path: |
-            ${{ steps.compile.outputs.BUILT_ARCHIVE }}
-            ${{ steps.compile.outputs.BUILT_CHECKSUM }}
-          if-no-files-found: warn
+          path: ${{ steps.archive.outputs.archive_path }}
+          if-no-files-found: error
 

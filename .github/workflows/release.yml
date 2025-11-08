@@ -27,20 +27,17 @@ jobs:
   upload-assets:
     name: Upload ${{ matrix.target }}
     needs: create-release
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
           # Linux x86_64
           - target: x86_64-unknown-linux-musl
-            archive: tar.gz
+            os: ubuntu-latest
           # macOS x86_64
           - target: x86_64-apple-darwin
-            archive: tar.gz
-          # Windows x86_64
-          - target: x86_64-pc-windows-msvc
-            archive: zip
+            os: macos-latest
 
     steps:
       - name: Checkout repository
@@ -51,8 +48,7 @@ jobs:
         with:
           bin: atlas
           target: ${{ matrix.target }}
-          tar: ${{ matrix.archive == 'tar.gz' && 'all' || 'none' }}
-          zip: ${{ matrix.archive == 'zip' && 'all' || 'none' }}
+          tar: all
           include: README.md,LICENSE
           leading-dir: true
           token: ${{ secrets.GITHUB_TOKEN }}
