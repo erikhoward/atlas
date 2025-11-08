@@ -141,7 +141,7 @@ impl ExportCoordinator {
                 summary.add_error(
                     ExportError::new(
                         ExportErrorType::Storage,
-                        format!("Failed to create container: {}", e),
+                        format!("Failed to create container: {e}"),
                     )
                     .with_context(format!("template_id={}", template_id.as_str())),
                 );
@@ -171,7 +171,7 @@ impl ExportCoordinator {
                         summary.add_error(
                             ExportError::new(
                                 ExportErrorType::Unknown,
-                                format!("Failed to process EHR: {}", e),
+                                format!("Failed to process EHR: {e}"),
                             )
                             .with_context(format!(
                                 "template_id={}, ehr_id={}",

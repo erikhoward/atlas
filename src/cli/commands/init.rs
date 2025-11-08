@@ -68,7 +68,7 @@ impl InitArgs {
             }
             Err(e) => {
                 println!("❌ Failed to write configuration file");
-                println!("   Error: {}", e);
+                println!("   Error: {e}");
                 Ok(5) // Fatal error exit code
             }
         }

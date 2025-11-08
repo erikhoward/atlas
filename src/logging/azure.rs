@@ -15,14 +15,22 @@
 //! # Example
 //!
 //! ```no_run
-//! use atlas::logging::azure::AzureLogger;
+//! use atlas::logging::azure::{AzureLogger, ExportOperationParams};
 //! use atlas::config::LoggingConfig;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let config = LoggingConfig::default();
 //! if config.azure_enabled {
 //!     let logger = AzureLogger::new(&config).await?;
-//!     logger.log_export_operation("export_started", "ehr-123", "IDCR - Vital Signs.v1", 42, "completed", None, 1250).await?;
+//!     logger.log_export_operation(ExportOperationParams {
+//!         operation_type: "export_started",
+//!         ehr_id: "ehr-123",
+//!         template_id: "IDCR - Vital Signs.v1",
+//!         composition_count: 42,
+//!         status: "completed",
+//!         error_message: None,
+//!         duration_ms: 1250,
+//!     }).await?;
 //! }
 //! # Ok(())
 //! # }
@@ -36,6 +44,25 @@ use chrono::Utc;
 use serde_json::json;
 use std::sync::Arc;
 use tracing::{debug, error, info};
+
+/// Parameters for logging an export operation
+#[derive(Debug, Clone)]
+pub struct ExportOperationParams<'a> {
+    /// Type of operation (e.g., "export_started", "export_completed", "batch_processed")
+    pub operation_type: &'a str,
+    /// EHR ID being processed
+    pub ehr_id: &'a str,
+    /// Template ID being processed
+    pub template_id: &'a str,
+    /// Number of compositions processed
+    pub composition_count: i64,
+    /// Operation status (e.g., "started", "completed", "failed")
+    pub status: &'a str,
+    /// Optional error message if operation failed
+    pub error_message: Option<&'a str>,
+    /// Operation duration in milliseconds
+    pub duration_ms: i64,
+}
 
 /// Azure logger for Log Analytics using Logs Ingestion API
 ///
@@ -175,8 +202,7 @@ impl AzureLogger {
         )
         .map_err(|e| {
             crate::domain::AtlasError::AzureLogging(format!(
-                "Failed to create Azure AD credential: {}",
-                e
+                "Failed to create Azure AD credential: {e}"
             ))
         })?;
 
@@ -186,8 +212,7 @@ impl AzureLogger {
             .build()
             .map_err(|e| {
                 crate::domain::AtlasError::Configuration(format!(
-                    "Failed to create HTTP client: {}",
-                    e
+                    "Failed to create HTTP client: {e}"
                 ))
             })?;
 
@@ -224,8 +249,7 @@ impl AzureLogger {
             .await
             .map_err(|e| {
                 crate::domain::AtlasError::AzureLogging(format!(
-                    "Failed to acquire Azure AD token: {}",
-                    e
+                    "Failed to acquire Azure AD token: {e}"
                 ))
             })?;
 
@@ -263,15 +287,14 @@ impl AzureLogger {
         let response = self
             .http_client
             .post(&url)
-            .header("Authorization", format!("Bearer {}", token))
+            .header("Authorization", format!("Bearer {token}"))
             .header("Content-Type", "application/json")
             .json(&records)
             .send()
             .await
             .map_err(|e| {
                 crate::domain::AtlasError::AzureLogging(format!(
-                    "Failed to send logs to Azure: {}",
-                    e
+                    "Failed to send logs to Azure: {e}"
                 ))
             })?;
 
@@ -295,8 +318,7 @@ impl AzureLogger {
                 "Failed to send logs to Azure Log Analytics"
             );
             Err(crate::domain::AtlasError::AzureLogging(format!(
-                "Azure Log Analytics API returned status {}: {}",
-                status, error_body
+                "Azure Log Analytics API returned status {status}: {error_body}"
             )))
         }
     }
@@ -305,64 +327,49 @@ impl AzureLogger {
     ///
     /// # Arguments
     ///
-    /// * `operation_type` - Type of operation (e.g., "export_started", "export_completed", "batch_processed")
-    /// * `ehr_id` - EHR ID being processed
-    /// * `template_id` - Template ID being processed
-    /// * `composition_count` - Number of compositions processed
-    /// * `status` - Operation status (e.g., "started", "completed", "failed")
-    /// * `error_message` - Optional error message if operation failed
-    /// * `duration_ms` - Operation duration in milliseconds
+    /// * `params` - Export operation parameters
     ///
     /// # Example
     ///
     /// ```no_run
-    /// # use atlas::logging::azure::AzureLogger;
+    /// # use atlas::logging::azure::{AzureLogger, ExportOperationParams};
     /// # use atlas::config::LoggingConfig;
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// # let config = LoggingConfig::default();
     /// # let logger = AzureLogger::new(&config).await?;
-    /// logger.log_export_operation(
-    ///     "export_completed",
-    ///     "ehr-123",
-    ///     "IDCR - Vital Signs.v1",
-    ///     42,
-    ///     "completed",
-    ///     None,
-    ///     1250
-    /// ).await?;
+    /// logger.log_export_operation(ExportOperationParams {
+    ///     operation_type: "export_completed",
+    ///     ehr_id: "ehr-123",
+    ///     template_id: "IDCR - Vital Signs.v1",
+    ///     composition_count: 42,
+    ///     status: "completed",
+    ///     error_message: None,
+    ///     duration_ms: 1250,
+    /// }).await?;
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn log_export_operation(
-        &self,
-        operation_type: &str,
-        ehr_id: &str,
-        template_id: &str,
-        composition_count: i64,
-        status: &str,
-        error_message: Option<&str>,
-        duration_ms: i64,
-    ) -> Result<()> {
+    pub async fn log_export_operation(&self, params: ExportOperationParams<'_>) -> Result<()> {
         let timestamp = Utc::now().to_rfc3339();
 
         let record = json!([{
             "TimeGenerated": timestamp,
-            "OperationType": operation_type,
-            "EhrId": ehr_id,
-            "TemplateId": template_id,
-            "CompositionCount": composition_count,
-            "Status": status,
-            "ErrorMessage": error_message.unwrap_or(""),
-            "DurationMs": duration_ms,
+            "OperationType": params.operation_type,
+            "EhrId": params.ehr_id,
+            "TemplateId": params.template_id,
+            "CompositionCount": params.composition_count,
+            "Status": params.status,
+            "ErrorMessage": params.error_message.unwrap_or(""),
+            "DurationMs": params.duration_ms,
         }]);
 
         info!(
-            operation_type = operation_type,
-            ehr_id = ehr_id,
-            template_id = template_id,
-            composition_count = composition_count,
-            status = status,
-            duration_ms = duration_ms,
+            operation_type = params.operation_type,
+            ehr_id = params.ehr_id,
+            template_id = params.template_id,
+            composition_count = params.composition_count,
+            status = params.status,
+            duration_ms = params.duration_ms,
             "Logging export operation to Azure Log Analytics"
         );
 

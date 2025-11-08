@@ -176,8 +176,7 @@ impl StateStorage for CosmosDbAdapter {
             Ok(response) => {
                 let watermark = response.into_body().map_err(|e| {
                     AtlasError::CosmosDb(CosmosDbError::DeserializationFailed(format!(
-                        "Failed to deserialize watermark: {}",
-                        e
+                        "Failed to deserialize watermark: {e}"
                     )))
                 })?;
 
@@ -201,8 +200,7 @@ impl StateStorage for CosmosDbAdapter {
                     Ok(None)
                 } else {
                     Err(AtlasError::CosmosDb(CosmosDbError::QueryFailed(format!(
-                        "Failed to load watermark: {}",
-                        e
+                        "Failed to load watermark: {e}"
                     ))))
                 }
             }
@@ -225,8 +223,7 @@ impl StateStorage for CosmosDbAdapter {
             .await
             .map_err(|e| {
                 AtlasError::CosmosDb(CosmosDbError::WriteFailed(format!(
-                    "Failed to save watermark: {}",
-                    e
+                    "Failed to save watermark: {e}"
                 )))
             })?;
 

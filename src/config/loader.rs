@@ -62,14 +62,14 @@ pub fn load_config(path: impl AsRef<Path>) -> Result<AtlasConfig> {
 
     // Parse TOML
     let mut config: AtlasConfig = toml::from_str(&contents)
-        .map_err(|e| AtlasError::Configuration(format!("Failed to parse TOML: {}", e)))?;
+        .map_err(|e| AtlasError::Configuration(format!("Failed to parse TOML: {e}")))?;
 
     // Apply environment variable overrides
     apply_env_overrides(&mut config)?;
 
     // Validate configuration
     config.validate().map_err(|e| {
-        AtlasError::Configuration(format!("Configuration validation failed: {}", e))
+        AtlasError::Configuration(format!("Configuration validation failed: {e}"))
     })?;
 
     Ok(config)
@@ -106,7 +106,7 @@ fn substitute_env_vars(input: &str) -> Result<String> {
             let var_name = &cap[1];
             match std::env::var(var_name) {
                 Ok(value) => {
-                    let placeholder = format!("${{{}}}", var_name);
+                    let placeholder = format!("${{{var_name}}}");
                     processed_line = processed_line.replace(&placeholder, &value);
                 }
                 Err(_) => {

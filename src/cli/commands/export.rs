@@ -63,7 +63,7 @@ impl ExportArgs {
         // Validate configuration
         if let Err(e) = config.validate() {
             tracing::error!(error = %e, "Configuration validation failed");
-            eprintln!("Configuration validation failed: {}", e);
+            eprintln!("Configuration validation failed: {e}");
             return Ok(2); // Configuration error exit code
         }
 
@@ -108,7 +108,7 @@ impl ExportArgs {
             Ok(c) => c,
             Err(e) => {
                 tracing::error!(error = %e, "Failed to create export coordinator");
-                eprintln!("Failed to initialize export: {}", e);
+                eprintln!("Failed to initialize export: {e}");
                 return Ok(4); // Connection error exit code
             }
         };
@@ -122,7 +122,7 @@ impl ExportArgs {
             Ok(s) => s,
             Err(e) => {
                 tracing::error!(error = %e, "Export failed");
-                eprintln!("Export failed: {}", e);
+                eprintln!("Export failed: {e}");
                 return Ok(5); // Fatal error exit code
             }
         };
@@ -144,7 +144,7 @@ impl ExportArgs {
             for error in &summary.errors {
                 println!("  - {:?}: {}", error.error_type, error.message);
                 if let Some(context) = &error.context {
-                    println!("    Context: {}", context);
+                    println!("    Context: {context}");
                 }
             }
             println!();

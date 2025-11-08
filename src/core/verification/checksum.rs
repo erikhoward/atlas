@@ -35,7 +35,7 @@ pub fn calculate_checksum(data: &Value) -> Result<String> {
     hasher.update(data_str.as_bytes());
     let result = hasher.finalize();
 
-    Ok(format!("{:x}", result))
+    Ok(format!("{result:x}"))
 }
 
 /// Calculate SHA-256 checksum of raw bytes
@@ -51,7 +51,7 @@ pub fn calculate_checksum_bytes(data: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(data);
     let result = hasher.finalize();
-    format!("{:x}", result)
+    format!("{result:x}")
 }
 
 #[cfg(test)]

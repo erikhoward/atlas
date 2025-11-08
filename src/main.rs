@@ -34,7 +34,7 @@ async fn main() {
         azure_stream_name: None,
     };
     if let Err(e) = init_logging(log_level, &logging_config) {
-        eprintln!("Failed to initialize logging: {}", e);
+        eprintln!("Failed to initialize logging: {e}");
         process::exit(5);
     }
 
@@ -48,7 +48,7 @@ async fn main() {
         Ok(code) => code,
         Err(e) => {
             tracing::error!(error = %e, "Command execution failed");
-            eprintln!("Error: {}", e);
+            eprintln!("Error: {e}");
             5 // Fatal error exit code
         }
     };

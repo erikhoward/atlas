@@ -216,22 +216,19 @@ mod tests {
 
     #[test]
     fn test_batch_config_creation() {
-        let config = BatchConfig::new(1000, CompositionFormat::Preserve, "full".to_string(), true);
+        let config = BatchConfig::new(1000, CompositionFormat::Preserve, true);
 
         assert_eq!(config.batch_size, 1000);
         assert_eq!(config.composition_format, CompositionFormat::Preserve);
-        assert_eq!(config.export_mode, "full");
         assert!(config.enable_checksum);
     }
 
     #[test]
     fn test_batch_config_from_config() {
-        let config =
-            BatchConfig::from_config(500, "flatten", "incremental".to_string(), false).unwrap();
+        let config = BatchConfig::from_config(500, "flatten", false).unwrap();
 
         assert_eq!(config.batch_size, 500);
         assert_eq!(config.composition_format, CompositionFormat::Flatten);
-        assert_eq!(config.export_mode, "incremental");
         assert!(!config.enable_checksum);
     }
 

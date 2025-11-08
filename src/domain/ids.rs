@@ -111,8 +111,7 @@ impl CompositionUid {
         let parts: Vec<&str> = uid.split("::").collect();
         if parts.len() != 3 {
             return Err(format!(
-                "Invalid composition UID format. Expected format: {{uuid}}::{{system_id}}::{{version}}, got: {}",
-                uid
+                "Invalid composition UID format. Expected format: {{uuid}}::{{system_id}}::{{version}}, got: {uid}"
             ));
         }
 
@@ -253,7 +252,7 @@ impl TemplateId {
         if prefix.is_empty() {
             result
         } else {
-            format!("{}_{}", prefix, result)
+            format!("{prefix}_{result}")
         }
     }
 }
@@ -297,7 +296,7 @@ mod tests {
     #[test]
     fn test_ehr_id_display() {
         let id = EhrId::new("test-id").unwrap();
-        assert_eq!(format!("{}", id), "test-id");
+        assert_eq!(format!("{id}"), "test-id");
     }
 
     #[test]

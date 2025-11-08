@@ -112,12 +112,13 @@ azure_enabled = false
     assert_eq!(config.export.max_retries, 5);
 
     // Verify Cosmos DB config
-    assert_eq!(
-        config.cosmosdb.endpoint,
-        "https://test.documents.azure.com:443/"
-    );
-    assert_eq!(config.cosmosdb.database_name, "test_openehr");
-    assert_eq!(config.cosmosdb.max_concurrency, 20);
+    let cosmosdb = config
+        .cosmosdb
+        .as_ref()
+        .expect("CosmosDB config should be present");
+    assert_eq!(cosmosdb.endpoint, "https://test.documents.azure.com:443/");
+    assert_eq!(cosmosdb.database_name, "test_openehr");
+    assert_eq!(cosmosdb.max_concurrency, 20);
 
     // Verify state config
     assert!(!config.state.enable_checkpointing);
@@ -176,8 +177,12 @@ database_name = "test_db"
     assert_eq!(config.export.mode, "incremental");
     assert_eq!(config.export.export_composition_format, "preserve");
     assert_eq!(config.export.max_retries, 3);
-    assert_eq!(config.cosmosdb.control_container, "atlas_control");
-    assert_eq!(config.cosmosdb.data_container_prefix, "compositions");
+    let cosmosdb = config
+        .cosmosdb
+        .as_ref()
+        .expect("CosmosDB config should be present");
+    assert_eq!(cosmosdb.control_container, "atlas_control");
+    assert_eq!(cosmosdb.data_container_prefix, "compositions");
     assert!(config.state.enable_checkpointing);
     assert_eq!(config.state.checkpoint_interval_seconds, 30);
 }
@@ -219,7 +224,11 @@ database_name = "test_db"
     let config = load_config(temp_file.path()).expect("Failed to load config");
 
     assert_eq!(config.openehr.password, Some("secret_pass".to_string()));
-    assert_eq!(config.cosmosdb.key, "secret_key");
+    let cosmosdb = config
+        .cosmosdb
+        .as_ref()
+        .expect("CosmosDB config should be present");
+    assert_eq!(cosmosdb.key, "secret_key");
 
     std::env::remove_var("TEST_OPENEHR_PASSWORD");
     std::env::remove_var("TEST_COSMOS_KEY");

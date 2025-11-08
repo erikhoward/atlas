@@ -125,7 +125,7 @@ fn calculate_checksum(fields: &HashMap<String, Value>) -> Result<String> {
     hasher.update(fields_str.as_bytes());
     let result = hasher.finalize();
 
-    Ok(format!("{:x}", result))
+    Ok(format!("{result:x}"))
 }
 
 #[cfg(test)]

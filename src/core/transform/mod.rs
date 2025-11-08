@@ -31,8 +31,7 @@ impl FromStr for CompositionFormat {
             "preserve" | "preserved" => Ok(Self::Preserve),
             "flatten" | "flattened" => Ok(Self::Flatten),
             _ => Err(AtlasError::Configuration(format!(
-                "Invalid composition format: {}. Expected 'preserve' or 'flatten'",
-                s
+                "Invalid composition format: {s}. Expected 'preserve' or 'flatten'"
             ))),
         }
     }

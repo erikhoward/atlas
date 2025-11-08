@@ -33,7 +33,7 @@ impl StatusArgs {
             Ok(c) => c,
             Err(e) => {
                 println!("❌ Failed to load configuration file");
-                println!("   Error: {}", e);
+                println!("   Error: {e}");
                 return Ok(2); // Configuration error exit code
             }
         };
@@ -43,7 +43,7 @@ impl StatusArgs {
             Ok(s) => s,
             Err(e) => {
                 println!("❌ Failed to connect to database");
-                println!("   Error: {}", e);
+                println!("   Error: {e}");
                 return Ok(4); // Connection error exit code
             }
         };
@@ -56,7 +56,7 @@ impl StatusArgs {
             Ok(w) => w,
             Err(e) => {
                 println!("❌ Failed to load watermarks");
-                println!("   Error: {}", e);
+                println!("   Error: {e}");
                 return Ok(5); // Fatal error exit code
             }
         };

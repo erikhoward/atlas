@@ -82,7 +82,7 @@ impl DatabaseClient for PostgreSQLAdapter {
                 Err(e) => {
                     failures.push(BulkInsertFailure {
                         document_id: doc_id,
-                        error: format!("Failed to convert composition: {}", e),
+                        error: format!("Failed to convert composition: {e}"),
                         is_throttled: false,
                     });
                     continue;
@@ -103,7 +103,7 @@ impl DatabaseClient for PostgreSQLAdapter {
             "#;
 
             let content_json = serde_json::to_value(&pg_comp.content).map_err(|e| {
-                AtlasError::Serialization(format!("Failed to serialize content: {}", e))
+                AtlasError::Serialization(format!("Failed to serialize content: {e}"))
             })?;
 
             match self
@@ -172,7 +172,7 @@ impl DatabaseClient for PostgreSQLAdapter {
                 Err(e) => {
                     failures.push(BulkInsertFailure {
                         document_id: doc_id,
-                        error: format!("Failed to convert composition: {}", e),
+                        error: format!("Failed to convert composition: {e}"),
                         is_throttled: false,
                     });
                     continue;
@@ -193,7 +193,7 @@ impl DatabaseClient for PostgreSQLAdapter {
             "#;
 
             let content_json = serde_json::to_value(&pg_comp.content).map_err(|e| {
-                AtlasError::Serialization(format!("Failed to serialize content: {}", e))
+                AtlasError::Serialization(format!("Failed to serialize content: {e}"))
             })?;
 
             match self

@@ -277,7 +277,7 @@ impl From<serde_json::Error> for AtlasError {
 // Conversion from toml parse errors
 impl From<toml::de::Error> for AtlasError {
     fn from(err: toml::de::Error) -> Self {
-        AtlasError::Configuration(format!("TOML parse error: {}", err))
+        AtlasError::Configuration(format!("TOML parse error: {err}"))
     }
 }
 

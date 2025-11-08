@@ -16,7 +16,7 @@ impl ValidateArgs {
     pub async fn execute(&self, config_path: &str) -> anyhow::Result<i32> {
         tracing::info!(config_path = %config_path, "Validating configuration");
 
-        println!("🔍 Validating configuration file: {}", config_path);
+        println!("🔍 Validating configuration file: {config_path}");
         println!();
 
         // Load configuration
@@ -27,7 +27,7 @@ impl ValidateArgs {
             }
             Err(e) => {
                 println!("❌ Failed to load configuration file");
-                println!("   Error: {}", e);
+                println!("   Error: {e}");
                 return Ok(2); // Configuration error exit code
             }
         };
@@ -61,7 +61,7 @@ impl ValidateArgs {
                                 pg_config
                                     .connection_string
                                     .split('@')
-                                    .last()
+                                    .next_back()
                                     .unwrap_or("***")
                             );
                             println!("  Max Connections: {}", pg_config.max_connections);
@@ -82,7 +82,7 @@ impl ValidateArgs {
             }
             Err(e) => {
                 println!("❌ Configuration validation failed");
-                println!("   Error: {}", e);
+                println!("   Error: {e}");
                 println!();
                 Ok(2) // Configuration error exit code
             }
@@ -98,6 +98,6 @@ mod tests {
     fn test_validate_args_creation() {
         let args = ValidateArgs {};
         // Just ensure it compiles and can be created
-        let _ = format!("{:?}", args);
+        let _ = format!("{args:?}");
     }
 }

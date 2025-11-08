@@ -71,7 +71,7 @@ pub fn init_logging(log_level_str: &str, config: &LoggingConfig) -> Result<Loggi
 
     // Create environment filter
     let env_filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new(format!("atlas={}", log_level)));
+        .unwrap_or_else(|_| EnvFilter::new(format!("atlas={log_level}")));
 
     // Build the subscriber with layers
     let mut layers = Vec::new();
@@ -143,8 +143,7 @@ fn parse_log_level(level_str: &str) -> Result<Level> {
         "warn" => Ok(Level::WARN),
         "error" => Ok(Level::ERROR),
         _ => Err(crate::domain::AtlasError::Configuration(format!(
-            "Invalid log level: {}. Must be one of: trace, debug, info, warn, error",
-            level_str
+            "Invalid log level: {level_str}. Must be one of: trace, debug, info, warn, error"
         ))),
     }
 }

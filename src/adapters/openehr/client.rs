@@ -56,8 +56,7 @@ impl OpenEhrClient {
             }
             _ => {
                 return Err(AtlasError::Configuration(format!(
-                    "Unsupported OpenEHR vendor: {}. Supported vendors: ehrbase",
-                    vendor_type
+                    "Unsupported OpenEHR vendor: {vendor_type}. Supported vendors: ehrbase"
                 )))
             }
         };

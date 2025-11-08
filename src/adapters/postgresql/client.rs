@@ -50,7 +50,7 @@ impl PostgreSQLClient {
 
         // Parse connection string
         let pg_config: tokio_postgres::Config = config.connection_string.parse().map_err(|e| {
-            AtlasError::Configuration(format!("Invalid PostgreSQL connection string: {}", e))
+            AtlasError::Configuration(format!("Invalid PostgreSQL connection string: {e}"))
         })?;
 
         // Create pool configuration
@@ -72,7 +72,7 @@ impl PostgreSQLClient {
             .danger_accept_invalid_certs(accept_invalid_certs)
             .build()
             .map_err(|e| {
-                AtlasError::Configuration(format!("Failed to create TLS connector: {}", e))
+                AtlasError::Configuration(format!("Failed to create TLS connector: {e}"))
             })?;
         let tls = MakeTlsConnector::new(tls_connector);
 
@@ -82,7 +82,7 @@ impl PostgreSQLClient {
             .danger_accept_invalid_certs(accept_invalid_certs)
             .build()
             .map_err(|e| {
-                AtlasError::Configuration(format!("Failed to create test TLS connector: {}", e))
+                AtlasError::Configuration(format!("Failed to create test TLS connector: {e}"))
             })?;
         let test_tls = MakeTlsConnector::new(test_tls_connector);
 
@@ -102,22 +102,21 @@ impl PostgreSQLClient {
                     }
                     Err(e) => {
                         return Err(AtlasError::Database(format!(
-                            "Direct connection succeeded but test query failed: {}",
-                            e
+                            "Direct connection succeeded but test query failed: {e}"
                         )));
                     }
                 }
             }
             Err(e) => {
                 // Try to get more detailed error information by walking the error chain
-                let error_display = format!("{}", e);
-                let error_debug = format!("{:?}", e);
+                let error_display = format!("{e}");
+                let error_debug = format!("{e:?}");
 
                 // Try to get the source error
                 let mut error_chain = vec![error_display.clone()];
                 let mut source = std::error::Error::source(&e);
                 while let Some(err) = source {
-                    error_chain.push(format!("{}", err));
+                    error_chain.push(format!("{err}"));
                     source = std::error::Error::source(err);
                 }
 
@@ -159,7 +158,7 @@ impl PostgreSQLClient {
                     config
                         .connection_string
                         .split('@')
-                        .last()
+                        .next_back()
                         .unwrap_or("unknown"),
                     error_hint
                 )));
@@ -177,14 +176,14 @@ impl PostgreSQLClient {
             .max_size(config.max_connections)
             .build()
             .map_err(|e| {
-                AtlasError::Database(format!("Failed to create connection pool: {}", e))
+                AtlasError::Database(format!("Failed to create connection pool: {e}"))
             })?;
 
         // Test the connection immediately to get better error messages
         tracing::debug!("Testing PostgreSQL connection...");
         let test_client = pool.get().await.map_err(|e| {
             // Try to extract more detailed error information
-            let error_msg = format!("{}", e);
+            let error_msg = format!("{e}");
             let detailed_msg = if error_msg.contains("error connecting to server") {
                 format!(
                     "Failed to connect to PostgreSQL server. \
@@ -194,11 +193,10 @@ impl PostgreSQLClient {
                     3. Database 'openehr_data' exists\n\
                     4. User 'atlas_user' has access\n\
                     5. pg_hba.conf allows connections from localhost\n\
-                    \nOriginal error: {}",
-                    e
+                    \nOriginal error: {e}"
                 )
             } else {
-                format!("Failed to get connection from pool: {}", e)
+                format!("Failed to get connection from pool: {e}")
             };
             AtlasError::Database(detailed_msg)
         })?;
@@ -207,7 +205,7 @@ impl PostgreSQLClient {
         test_client
             .query_one("SELECT 1 as test", &[])
             .await
-            .map_err(|e| AtlasError::Database(format!("Connection test query failed: {}", e)))?;
+            .map_err(|e| AtlasError::Database(format!("Connection test query failed: {e}")))?;
 
         tracing::info!("PostgreSQL connection test successful");
 
@@ -219,13 +217,13 @@ impl PostgreSQLClient {
     /// Attempts to get a connection from the pool and execute a simple query.
     pub async fn test_connection(&self) -> Result<()> {
         let client = self.pool.get().await.map_err(|e| {
-            AtlasError::Database(format!("Failed to get connection from pool: {}", e))
+            AtlasError::Database(format!("Failed to get connection from pool: {e}"))
         })?;
 
         client
             .query_one("SELECT 1", &[])
             .await
-            .map_err(|e| AtlasError::Database(format!("Connection test failed: {}", e)))?;
+            .map_err(|e| AtlasError::Database(format!("Connection test failed: {e}")))?;
 
         tracing::info!("PostgreSQL connection test successful");
         Ok(())
@@ -240,7 +238,7 @@ impl PostgreSQLClient {
     /// Returns an error if the schema cannot be created.
     pub async fn ensure_database_exists(&self) -> Result<()> {
         let client = self.pool.get().await.map_err(|e| {
-            AtlasError::Database(format!("Failed to get connection from pool: {}", e))
+            AtlasError::Database(format!("Failed to get connection from pool: {e}"))
         })?;
 
         // Read migration SQL
@@ -249,8 +247,8 @@ impl PostgreSQLClient {
         // Execute migration
         client.batch_execute(migration_sql).await.map_err(|e| {
             // Extract detailed error information
-            let error_msg = format!("{}", e);
-            let error_debug = format!("{:?}", e);
+            let error_msg = format!("{e}");
+            let error_debug = format!("{e:?}");
 
             tracing::error!("Migration failed: {}", error_msg);
             tracing::error!("Debug info: {}", error_debug);
@@ -264,8 +262,7 @@ impl PostgreSQLClient {
                         docker exec -it local-postgres psql -U postgres -d openehr_data -c \\\n\
                         \"ALTER TABLE compositions OWNER TO atlas_user; \\\n\
                          ALTER TABLE watermarks OWNER TO atlas_user;\"\n\
-                        \nOriginal error: {}",
-                    error_msg
+                        \nOriginal error: {error_msg}"
                 ))
             } else if error_msg.contains("column") && error_msg.contains("does not exist") {
                 AtlasError::Database(format!(
@@ -277,15 +274,13 @@ impl PostgreSQLClient {
                         \"DROP TABLE IF EXISTS compositions CASCADE; DROP TABLE IF EXISTS watermarks CASCADE;\"\n\
                         \nThen restart Atlas to recreate tables with the new schema.\n\
                         \n📖 For production migrations, see: migrations/README.md\n\
-                        \nOriginal error: {}",
-                    error_msg
+                        \nOriginal error: {error_msg}"
                 ))
             } else {
                 AtlasError::Database(format!(
-                    "Failed to execute migration: {}\n\
-                        \nDebug: {}\n\
-                        \nFor troubleshooting, see: migrations/README.md",
-                    error_msg, error_debug
+                    "Failed to execute migration: {error_msg}\n\
+                        \nDebug: {error_debug}\n\
+                        \nFor troubleshooting, see: migrations/README.md"
                 ))
             }
         })?;
@@ -324,7 +319,7 @@ impl PostgreSQLClient {
         self.pool
             .get()
             .await
-            .map_err(|e| AtlasError::Database(format!("Failed to get connection from pool: {}", e)))
+            .map_err(|e| AtlasError::Database(format!("Failed to get connection from pool: {e}")))
     }
 
     /// Execute a query and return rows
@@ -352,12 +347,12 @@ impl PostgreSQLClient {
         client
             .execute(&timeout_query, &[])
             .await
-            .map_err(|e| AtlasError::Database(format!("Failed to set statement timeout: {}", e)))?;
+            .map_err(|e| AtlasError::Database(format!("Failed to set statement timeout: {e}")))?;
 
         client
             .query(query, params)
             .await
-            .map_err(|e| AtlasError::Database(format!("Query failed: {}", e)))
+            .map_err(|e| AtlasError::Database(format!("Query failed: {e}")))
     }
 
     /// Execute a statement and return the number of affected rows
@@ -385,12 +380,12 @@ impl PostgreSQLClient {
         client
             .execute(&timeout_query, &[])
             .await
-            .map_err(|e| AtlasError::Database(format!("Failed to set statement timeout: {}", e)))?;
+            .map_err(|e| AtlasError::Database(format!("Failed to set statement timeout: {e}")))?;
 
         client
             .execute(statement, params)
             .await
-            .map_err(|e| AtlasError::Database(format!("Statement execution failed: {}", e)))
+            .map_err(|e| AtlasError::Database(format!("Statement execution failed: {e}")))
     }
 
     /// Get the connection string (without password)
@@ -399,8 +394,8 @@ impl PostgreSQLClient {
         self.config
             .connection_string
             .split('@')
-            .last()
-            .map(|s| format!("postgresql://***@{}", s))
+            .next_back()
+            .map(|s| format!("postgresql://***@{s}"))
             .unwrap_or_else(|| "postgresql://***".to_string())
     }
 

@@ -176,8 +176,7 @@ async fn insert_with_retry<T: Serialize + Clone>(
                     delay_ms = delay_ms.min(30000); // Cap at 30 seconds
                 } else {
                     return Err(AtlasError::CosmosDb(CosmosDbError::InsertFailed(format!(
-                        "Failed to insert document after {} retries: {}",
-                        retry_count, e
+                        "Failed to insert document after {retry_count} retries: {e}"
                     ))));
                 }
             }
@@ -262,8 +261,7 @@ async fn upsert_with_retry<T: Serialize + Clone>(
                     delay_ms = delay_ms.min(30000); // Cap at 30 seconds
                 } else {
                     return Err(AtlasError::CosmosDb(CosmosDbError::UpdateFailed(format!(
-                        "Failed to upsert document after {} retries: {}",
-                        retry_count, e
+                        "Failed to upsert document after {retry_count} retries: {e}"
                     ))));
                 }
             }

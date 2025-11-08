@@ -163,14 +163,14 @@ impl PostgreSQLWatermark {
         use crate::domain::AtlasError;
 
         let template_id =
-            TemplateId::new(&self.template_id).map_err(|e| AtlasError::Validation(e))?;
-        let ehr_id = EhrId::new(&self.ehr_id).map_err(|e| AtlasError::Validation(e))?;
+            TemplateId::new(&self.template_id).map_err(AtlasError::Validation)?;
+        let ehr_id = EhrId::new(&self.ehr_id).map_err(AtlasError::Validation)?;
 
         let last_exported_composition_uid =
             if let Some(ref uid_str) = self.last_exported_composition_uid {
                 Some(
                     crate::domain::ids::CompositionUid::new(uid_str)
-                        .map_err(|e| AtlasError::Validation(e))?,
+                        .map_err(AtlasError::Validation)?,
                 )
             } else {
                 None
@@ -222,14 +222,14 @@ fn flatten_json_recursive(value: &Value, prefix: String, result: &mut HashMap<St
                 let new_prefix = if prefix.is_empty() {
                     key.clone()
                 } else {
-                    format!("{}.{}", prefix, key)
+                    format!("{prefix}.{key}")
                 };
                 flatten_json_recursive(val, new_prefix, result);
             }
         }
         Value::Array(arr) => {
             for (idx, val) in arr.iter().enumerate() {
-                let new_prefix = format!("{}[{}]", prefix, idx);
+                let new_prefix = format!("{prefix}[{idx}]");
                 flatten_json_recursive(val, new_prefix, result);
             }
         }

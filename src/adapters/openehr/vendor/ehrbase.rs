@@ -95,14 +95,14 @@ impl EhrBaseVendor {
     /// Build authorization header value
     fn auth_header_value(&self) -> Option<String> {
         if let Some(ref token) = self.auth_token {
-            Some(format!("Bearer {}", token))
+            Some(format!("Bearer {token}"))
         } else if let (Some(ref username), Some(ref password)) =
             (&self.config.username, &self.config.password)
         {
             // Basic auth
-            let credentials = format!("{}:{}", username, password);
+            let credentials = format!("{username}:{password}");
             let encoded = general_purpose::STANDARD.encode(credentials.as_bytes());
-            Some(format!("Basic {}", encoded))
+            Some(format!("Basic {encoded}"))
         } else {
             None
         }
@@ -197,8 +197,7 @@ impl OpenEhrVendor for EhrBaseVendor {
                     let body = resp.text().await.unwrap_or_default();
                     return Err(AtlasError::OpenEhr(
                         crate::domain::OpenEhrError::QueryFailed(format!(
-                            "AQL query to fetch EHR IDs failed with status {}: {}",
-                            status, body
+                            "AQL query to fetch EHR IDs failed with status {status}: {body}"
                         )),
                     ));
                 }
@@ -250,10 +249,9 @@ impl OpenEhrVendor for EhrBaseVendor {
         let mut aql = format!(
             "SELECT c/uid/value, c/archetype_details/template_id/value, \
              c/context/start_time/value, c/name/value \
-             FROM EHR e[ehr_id/value='{}'] \
+             FROM EHR e[ehr_id/value='{ehr_id}'] \
              CONTAINS COMPOSITION c \
-             WHERE c/archetype_details/template_id/value = '{}'",
-            ehr_id, template_id
+             WHERE c/archetype_details/template_id/value = '{template_id}'"
         );
 
         if let Some(since_time) = since {
@@ -294,8 +292,7 @@ impl OpenEhrVendor for EhrBaseVendor {
                     let body = resp.text().await.unwrap_or_default();
                     return Err(AtlasError::OpenEhr(
                         crate::domain::OpenEhrError::QueryFailed(format!(
-                            "AQL query failed with status {}: {}",
-                            status, body
+                            "AQL query failed with status {status}: {body}"
                         )),
                     ));
                 }
@@ -336,8 +333,7 @@ impl OpenEhrVendor for EhrBaseVendor {
                 let time_committed = DateTime::parse_from_rfc3339(time_str)
                     .map_err(|e| {
                         AtlasError::OpenEhr(crate::domain::OpenEhrError::InvalidResponse(format!(
-                            "Invalid timestamp format: {}",
-                            e
+                            "Invalid timestamp format: {e}"
                         )))
                     })?
                     .with_timezone(&Utc);
@@ -425,8 +421,7 @@ impl OpenEhrVendor for EhrBaseVendor {
                     let body = resp.text().await.unwrap_or_default();
                     Err(AtlasError::OpenEhr(
                         crate::domain::OpenEhrError::QueryFailed(format!(
-                            "Failed to fetch composition with status {}: {}",
-                            status, body
+                            "Failed to fetch composition with status {status}: {body}"
                         )),
                     ))
                 }

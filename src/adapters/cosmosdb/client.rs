@@ -43,8 +43,7 @@ impl CosmosDbClient {
 
         let client = CosmosClient::with_key(&config.endpoint, key, options).map_err(|e| {
             AtlasError::CosmosDb(CosmosDbError::ConnectionFailed(format!(
-                "Failed to create Cosmos client: {}",
-                e
+                "Failed to create Cosmos client: {e}"
             )))
         })?;
 
@@ -63,8 +62,7 @@ impl CosmosDbClient {
     pub async fn test_connection(&self) -> Result<()> {
         self.database.read(None).await.map_err(|e| {
             AtlasError::CosmosDb(CosmosDbError::ConnectionFailed(format!(
-                "Connection test failed: {}",
-                e
+                "Connection test failed: {e}"
             )))
         })?;
 
@@ -92,8 +90,7 @@ impl CosmosDbClient {
                     .await
                     .map_err(|e| {
                         AtlasError::CosmosDb(CosmosDbError::DatabaseCreationFailed(format!(
-                            "Failed to create database: {}",
-                            e
+                            "Failed to create database: {e}"
                         )))
                     })?;
 
@@ -147,8 +144,7 @@ impl CosmosDbClient {
                     .await
                     .map_err(|e| {
                         AtlasError::CosmosDb(CosmosDbError::ContainerCreationFailed(format!(
-                            "Failed to create container {}: {}",
-                            container_name, e
+                            "Failed to create container {container_name}: {e}"
                         )))
                     })?;
 
@@ -193,8 +189,7 @@ impl CosmosDbClient {
                     .await
                     .map_err(|e| {
                         AtlasError::CosmosDb(CosmosDbError::ContainerCreationFailed(format!(
-                            "Failed to create control container {}: {}",
-                            container_name, e
+                            "Failed to create control container {container_name}: {e}"
                         )))
                     })?;
 
@@ -250,8 +245,7 @@ impl CosmosDbClient {
                     Ok(false)
                 } else {
                     Err(AtlasError::CosmosDb(CosmosDbError::QueryFailed(format!(
-                        "Failed to check if composition exists: {}",
-                        e
+                        "Failed to check if composition exists: {e}"
                     ))))
                 }
             }

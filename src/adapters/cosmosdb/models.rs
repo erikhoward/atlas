@@ -110,7 +110,7 @@ impl CosmosComposition {
         hasher.update(content_str.as_bytes());
         let result = hasher.finalize();
 
-        Ok(format!("{:x}", result))
+        Ok(format!("{result:x}"))
     }
 
     /// Add checksum to metadata
@@ -213,7 +213,7 @@ impl CosmosCompositionFlattened {
         hasher.update(fields_str.as_bytes());
         let result = hasher.finalize();
 
-        Ok(format!("{:x}", result))
+        Ok(format!("{result:x}"))
     }
 
     /// Add checksum to metadata

@@ -74,7 +74,7 @@ fn calculate_checksum(content: &Value) -> Result<String> {
     hasher.update(content_str.as_bytes());
     let result = hasher.finalize();
 
-    Ok(format!("{:x}", result))
+    Ok(format!("{result:x}"))
 }
 
 #[cfg(test)]
