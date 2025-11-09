@@ -369,7 +369,9 @@ Safe configuration for testing without affecting production data:
 ```toml
 [application]
 log_level = "debug"
-dry_run = true  # Don't write to Cosmos DB
+
+[export]
+dry_run = true  # Don't write to database
 
 [openehr.query]
 template_ids = ["Test Template.v1"]
@@ -386,6 +388,113 @@ local_path = "./logs"  # Local directory
 atlas export -c atlas-dev.toml
 ```
 
+## Dry-Run Mode
+
+Dry-run mode allows you to test your export configuration and preview what would be exported **without writing any data to the database**. This is essential for:
+
+- **Testing configurations** before running production exports
+- **Validating connectivity** to OpenEHR and database
+- **Previewing export scope** (which compositions would be exported)
+- **Debugging issues** without affecting production data
+- **Training and demonstrations** without data modification
+
+### How Dry-Run Works
+
+When dry-run mode is enabled:
+
+1. ✅ **Reads data** from OpenEHR normally
+2. ✅ **Transforms compositions** according to your configuration
+3. ✅ **Validates** all data processing logic
+4. ✅ **Logs** what would be written
+5. ❌ **Skips all database writes** (compositions and watermarks)
+6. ✅ **Generates summary** showing what would have been exported
+
+### Enabling Dry-Run Mode
+
+There are two ways to enable dry-run mode:
+
+#### Option 1: CLI Flag (Recommended)
+
+Use the `--dry-run` flag when running the export command:
+
+```bash
+atlas export --dry-run
+```
+
+This is the recommended approach as it's explicit and doesn't require config changes.
+
+#### Option 2: Configuration File
+
+Set `dry_run = true` in your configuration file:
+
+```toml
+[export]
+mode = "incremental"
+export_composition_format = "preserve"
+dry_run = true  # Enable dry-run mode
+```
+
+Then run normally:
+
+```bash
+atlas export
+```
+
+### Dry-Run Output
+
+When dry-run mode is active, you'll see:
+
+```
+🔍 DRY RUN MODE - No data will be written to the database
+
+Starting export process...
+DRY RUN: Would insert 150 compositions (preserved format)
+DRY RUN: Would save watermark
+
+Export Summary:
+  Total EHRs: 5
+  Total Compositions: 150
+  Successful: 150
+  Failed: 0
+  Duration: 12.5s
+  🔍 DRY RUN MODE - No data was written to the database
+```
+
+### Best Practices
+
+1. **Always test first**: Run with `--dry-run` before any production export
+2. **Validate configuration**: Use dry-run to catch config errors early
+3. **Check scope**: Verify the number of compositions matches expectations
+4. **Test incremental mode**: Ensure watermarks would be updated correctly
+5. **Performance testing**: Dry-run can help estimate export duration
+
+### Example Workflow
+
+```bash
+# 1. Validate configuration
+atlas validate-config
+
+# 2. Test with dry-run
+atlas export --dry-run
+
+# 3. Review the output and logs
+# Check: Number of compositions, any errors, duration
+
+# 4. If everything looks good, run actual export
+atlas export
+```
+
+### Limitations
+
+Dry-run mode does NOT:
+
+- ❌ Test database write permissions (since no writes occur)
+- ❌ Test database capacity or throughput limits
+- ❌ Verify database schema compatibility
+- ❌ Test retry logic for database failures
+
+For these scenarios, consider using a test database environment.
+
 ## Command Reference
 
 ### `atlas export`
@@ -400,7 +509,7 @@ atlas export [OPTIONS]
 **Options**:
 - `-c, --config <FILE>`: Configuration file path (default: `atlas.toml`)
 - `-y, --yes`: Skip confirmation prompt
-- `--dry-run`: Simulate export without writing to Cosmos DB
+- `--dry-run`: Simulate export without writing to database
 - `--template-id <ID>`: Override template IDs from config (can be specified multiple times)
 - `--ehr-id <ID>`: Override EHR IDs from config (can be specified multiple times)
 - `--mode <MODE>`: Override export mode (`full` or `incremental`)

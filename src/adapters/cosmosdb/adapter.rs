@@ -76,6 +76,7 @@ impl DatabaseClient for CosmosDbAdapter {
         compositions: Vec<Composition>,
         export_mode: String,
         max_retries: usize,
+        dry_run: bool,
     ) -> Result<BulkInsertResult> {
         // Transform compositions using preserve_composition
         let mut cosmos_compositions = Vec::new();
@@ -84,6 +85,21 @@ impl DatabaseClient for CosmosDbAdapter {
             let cosmos_comp: CosmosComposition = serde_json::from_value(json_value)
                 .map_err(|e| AtlasError::Serialization(e.to_string()))?;
             cosmos_compositions.push(cosmos_comp);
+        }
+
+        // If dry-run, skip actual write and return success
+        if dry_run {
+            tracing::info!(
+                template_id = %template_id.as_str(),
+                count = cosmos_compositions.len(),
+                "DRY RUN: Would insert {} compositions (preserved format)",
+                cosmos_compositions.len()
+            );
+            return Ok(BulkInsertResult {
+                success_count: cosmos_compositions.len(),
+                failure_count: 0,
+                failures: Vec::new(),
+            });
         }
 
         // Get container client
@@ -114,6 +130,7 @@ impl DatabaseClient for CosmosDbAdapter {
         compositions: Vec<Composition>,
         export_mode: String,
         max_retries: usize,
+        dry_run: bool,
     ) -> Result<BulkInsertResult> {
         // Transform compositions using flatten_composition
         let mut cosmos_compositions = Vec::new();
@@ -122,6 +139,21 @@ impl DatabaseClient for CosmosDbAdapter {
             let cosmos_comp: CosmosCompositionFlattened = serde_json::from_value(json_value)
                 .map_err(|e| AtlasError::Serialization(e.to_string()))?;
             cosmos_compositions.push(cosmos_comp);
+        }
+
+        // If dry-run, skip actual write and return success
+        if dry_run {
+            tracing::info!(
+                template_id = %template_id.as_str(),
+                count = cosmos_compositions.len(),
+                "DRY RUN: Would insert {} compositions (flattened format)",
+                cosmos_compositions.len()
+            );
+            return Ok(BulkInsertResult {
+                success_count: cosmos_compositions.len(),
+                failure_count: 0,
+                failures: Vec::new(),
+            });
         }
 
         // Get container client
@@ -219,16 +251,28 @@ impl StateStorage for CosmosDbAdapter {
         }
     }
 
-    async fn save_watermark(&self, watermark: &Watermark) -> Result<()> {
-        let container = self.client.get_control_container_client();
-        let partition_key = PartitionKey::from(watermark.id.clone());
-
+    async fn save_watermark(&self, watermark: &Watermark, dry_run: bool) -> Result<()> {
         tracing::debug!(
             template_id = %watermark.template_id.as_str(),
             ehr_id = %watermark.ehr_id.as_str(),
             watermark_id = %watermark.id,
+            dry_run = dry_run,
             "Saving watermark"
         );
+
+        // If dry-run, skip actual write
+        if dry_run {
+            tracing::info!(
+                template_id = %watermark.template_id.as_str(),
+                ehr_id = %watermark.ehr_id.as_str(),
+                watermark_id = %watermark.id,
+                "DRY RUN: Would save watermark"
+            );
+            return Ok(());
+        }
+
+        let container = self.client.get_control_container_client();
+        let partition_key = PartitionKey::from(watermark.id.clone());
 
         container
             .upsert_item(partition_key, watermark, None)

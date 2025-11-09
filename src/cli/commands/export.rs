@@ -66,6 +66,12 @@ impl ExportArgs {
             config.openehr.query.ehr_ids = ids;
         }
 
+        // Apply dry-run flag from CLI
+        if self.dry_run {
+            tracing::info!("Enabling dry-run mode from CLI");
+            config.export.dry_run = true;
+        }
+
         // Validate configuration
         if let Err(e) = config.validate() {
             tracing::error!(error = %e, "Configuration validation failed");
@@ -76,7 +82,7 @@ impl ExportArgs {
         // Dry run mode
         if self.dry_run {
             tracing::info!("Dry run mode enabled - no data will be written");
-            println!("🔍 DRY RUN MODE - No data will be written to Cosmos DB");
+            println!("🔍 DRY RUN MODE - No data will be written to the database");
             println!();
         }
 

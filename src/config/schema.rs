@@ -363,6 +363,13 @@ pub struct ExportConfig {
     /// grace periods (e.g., Kubernetes default is 30s).
     #[serde(default = "default_shutdown_timeout_secs")]
     pub shutdown_timeout_secs: u64,
+
+    /// Dry run mode - simulate export without writing to database (default: false)
+    /// When enabled, all database write operations are skipped but the export
+    /// process runs normally. Useful for testing configuration and previewing
+    /// what would be exported without modifying data.
+    #[serde(default)]
+    pub dry_run: bool,
 }
 
 impl ExportConfig {
@@ -884,6 +891,7 @@ mod tests {
             max_retries: 3,
             retry_backoff_ms: vec![1000, 2000, 4000],
             shutdown_timeout_secs: 30,
+            dry_run: false,
         };
 
         assert!(config.validate().is_ok());
