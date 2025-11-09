@@ -14,44 +14,43 @@ This document describes the system architecture, component design, and data flow
 
 ## High-Level Architecture
 
-Atlas is a command-line ETL tool that extracts OpenEHR compositions from EHRBase servers and loads them into Azure Cosmos DB for analytics and querying.
+Atlas is a command-line ETL tool that extracts OpenEHR compositions from EHRBase servers and loads them into either Azure Cosmos DB or PostgreSQL for analytics and querying.
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                        Atlas CLI                            │
-│                     (Rust Binary)                           │
-└──────────────┬──────────────────────────┬───────────────────┘
-               │                          │
-               │ REST API v1.1            │ Azure SDK
-               │                          │
-               ▼                          ▼
-┌──────────────────────────┐   ┌──────────────────────────────┐
-│   OpenEHR Server         │   │   Azure Cosmos DB            │
-│   (EHRBase 0.30+)        │   │   Core (SQL) API             │
-│                          │   │                              │
-│  ┌────────────────────┐  │   │  ┌────────────────────────┐  │
-│  │  Compositions      │  │   │  │  Control Container     │  │
-│  │  (FLAT JSON)       │  │   │  │  (atlas_control)       │  │
-│  └────────────────────┘  │   │  │  - Watermarks          │  │
-│                          │   │  │  - Export state        │  │
-└──────────────────────────┘   │  └────────────────────────┘  │
-                               │                              │
-                               │  ┌────────────────────────┐  │
-                               │  │  Data Containers       │  │
-                               │  │  (compositions_*)      │  │
-                               │  │  - One per template    │  │
-                               │  │  - Partitioned by EHR  │  │
-                               │  └────────────────────────┘  │
-                               └──────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                            Atlas CLI                                    │
+│                         (Rust Binary)                                   │
+└──────────────┬──────────────────────────────────────┬───────────────────┘
+               │                                      │
+               │ REST API v1.1                        │ Database Adapters
+               │                                      │
+               ▼                                      ▼
+┌──────────────────────────┐   ┌──────────────────────────────────────────┐
+│   OpenEHR Server         │   │         Database Backends                │
+│   (EHRBase 0.30+)        │   │                                          │
+│                          │   │  ┌────────────────────────────────────┐  │
+│  ┌────────────────────┐  │   │  │  Azure Cosmos DB (NoSQL)           │  │
+│  │  Compositions      │  │   │  │  - Control Container (watermarks)  │  │
+│  │  (FLAT JSON)       │  │   │  │  - Data Containers (per template)  │  │
+│  └────────────────────┘  │   │  │  - Partitioned by /ehr_id          │  │
+│                          │   │  └────────────────────────────────────┘  │
+└──────────────────────────┘   │                                          │
+                               │  ┌────────────────────────────────────┐  │
+                               │  │  PostgreSQL 14+ (Relational)       │  │
+                               │  │  - atlas_watermarks table          │  │
+                               │  │  - compositions_* tables           │  │
+                               │  │  - JSONB columns for flexibility   │  │
+                               │  └────────────────────────────────────┘  │
+                               └──────────────────────────────────────────┘
 ```
 
 ### Key Components
 
 1. **Atlas CLI**: Command-line interface for configuration, validation, and export operations
 2. **OpenEHR Server**: Source system containing clinical compositions (EHRBase implementation)
-3. **Azure Cosmos DB**: Target system for analytics-ready data storage
-   - **Control Container**: Stores export state and watermarks for incremental processing
-   - **Data Containers**: One container per template type, partitioned by EHR ID
+3. **Database Backends**: Target systems for analytics-ready data storage
+   - **Azure Cosmos DB**: NoSQL database with control container for state and data containers per template
+   - **PostgreSQL**: Relational database with watermarks table and composition tables with JSONB support
 
 ## Component Architecture
 
@@ -83,12 +82,12 @@ Atlas follows a layered architecture with clear separation of concerns:
                               │
 ┌─────────────────────────────────────────────────────────────┐
 │                      Adapter Layer                          │
-│  ┌──────────────────┐              ┌──────────────────┐    │
-│  │  OpenEHR         │              │  Cosmos DB       │    │
-│  │  - Vendor Trait  │              │  - Client        │    │
-│  │  - EHRBase Impl  │              │  - Models        │    │
-│  │  - Client        │              │  - Bulk Ops      │    │
-│  └──────────────────┘              └──────────────────┘    │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────┐  │
+│  │  OpenEHR         │  │  Cosmos DB       │  │PostgreSQL│  │
+│  │  - Vendor Trait  │  │  - Client        │  │ - Client │  │
+│  │  - EHRBase Impl  │  │  - Models        │  │ - Models │  │
+│  │  - Client        │  │  - Bulk Ops      │  │ - Pool   │  │
+│  └──────────────────┘  └──────────────────┘  └──────────┘  │
 └─────────────────────────────────────────────────────────────┘
                               │
 ┌─────────────────────────────────────────────────────────────┐
@@ -115,7 +114,7 @@ Atlas follows a layered architecture with clear separation of concerns:
 #### CLI Layer (`src/cli/`)
 - **Purpose**: User interface and command handling
 - **Commands**:
-  - `export`: Execute data export from OpenEHR to Cosmos DB
+  - `export`: Execute data export from OpenEHR to database (Cosmos DB or PostgreSQL)
   - `validate-config`: Validate configuration file
   - `status`: Display export status and watermarks
   - `init`: Generate sample configuration files
@@ -132,7 +131,7 @@ Atlas follows a layered architecture with clear separation of concerns:
   - `flatten.rs`: Converts nested paths to flat field names
   - `mod.rs`: Strategy pattern for transformation selection
 - **State Module** (`state/`):
-  - `manager.rs`: Watermark persistence to Cosmos DB
+  - `manager.rs`: Watermark persistence to database
   - `watermark.rs`: High-watermark tracking model
 - **Verification Module** (`verification/`):
   - `report.rs`: Verification report generation
@@ -149,6 +148,10 @@ Atlas follows a layered architecture with clear separation of concerns:
   - `client.rs`: Cosmos DB connection management
   - `models.rs`: Document models for Cosmos DB
   - Bulk operations with retry and error handling
+- **PostgreSQL Adapter** (`postgresql/`):
+  - `client.rs`: PostgreSQL connection pool management
+  - `models.rs`: Table models and JSONB handling
+  - Transaction support and batch operations
 
 #### Domain Layer (`src/domain/`)
 - **Purpose**: Core domain types and business rules
@@ -179,13 +182,13 @@ Atlas follows a layered architecture with clear separation of concerns:
 │    ├─> Validate configuration                               │
 │    ├─> Initialize logging                                   │
 │    ├─> Connect to OpenEHR server                            │
-│    └─> Connect to Cosmos DB                                 │
+│    └─> Connect to database (Cosmos DB or PostgreSQL)        │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │ 2. State Loading (Incremental Mode)                         │
-│    ├─> Read watermarks from control container               │
+│    ├─> Read watermarks from database                        │
 │    ├─> Determine last export timestamp per {template, ehr}  │
 │    └─> Calculate compositions to export                     │
 └─────────────────────────────────────────────────────────────┘
@@ -215,11 +218,11 @@ Atlas follows a layered architecture with clear separation of concerns:
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│ 5. Load to Cosmos DB (Batch Processing)                     │
+│ 5. Load to Database (Batch Processing)                      │
 │    ├─> Group compositions into batches (100-5000)           │
 │    ├─> For each batch:                                      │
 │    │   ├─> Check for duplicates (by composition UID)        │
-│    │   ├─> Bulk insert to template container                │
+│    │   ├─> Bulk insert to database                          │
 │    │   ├─> Handle partial failures                          │
 │    │   └─> Update watermark (checkpoint)                    │
 │    └─> Collect batch results                                │
@@ -228,7 +231,7 @@ Atlas follows a layered architecture with clear separation of concerns:
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │ 6. Verification (Optional)                                  │
-│    ├─> Fetch exported compositions from Cosmos DB           │
+│    ├─> Fetch exported compositions from database            │
 │    ├─> Verify document existence                            │
 │    └─> Generate verification report                         │
 └─────────────────────────────────────────────────────────────┘
@@ -459,18 +462,23 @@ impl OpenEhrVendor for BetterPlatformVendor {
 
 - **OpenEHR**: Basic Authentication (username/password)
 - **Cosmos DB**: Primary/Secondary key authentication
+- **PostgreSQL**: Username/password authentication with SSL/TLS
 - **Future**: OAuth 2.0 / OpenID Connect support
 
 ### Data Protection
 
 - **In Transit**: TLS 1.2+ for all connections
-- **At Rest**: Cosmos DB encryption (managed by Azure)
+- **At Rest**:
+  - Cosmos DB: Encryption managed by Azure
+  - PostgreSQL: Database-level encryption (depends on deployment)
 - **Credentials**: Environment variable substitution, never hardcoded
 
 ### Access Control
 
 - **Principle of Least Privilege**: OpenEHR user should have read-only access
-- **Cosmos DB**: Use keys with minimum required permissions
+- **Database Access**:
+  - Cosmos DB: Use keys with minimum required permissions
+  - PostgreSQL: Use dedicated user with INSERT/UPDATE permissions only
 - **Logging**: Sanitize PHI/PII from logs
 
 ### Compliance Considerations
