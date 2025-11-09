@@ -44,7 +44,6 @@ Atlas solves the challenge of making OpenEHR clinical data accessible for modern
   - Automatic retry with exponential backoff
   - Partial batch failure handling
   - Duplicate detection and skipping
-  - Optional SHA-256 checksum verification
   - **Graceful shutdown** with SIGTERM/SIGINT handling
   - Automatic checkpoint on interruption for safe resume
 
@@ -379,37 +378,38 @@ For detailed Docker setup, configuration, and troubleshooting, see the **[Docker
 Atlas follows a layered architecture with clear separation of concerns:
 
 ```text
-┌─────────────────────────────────────────────────────────────┐
-│                        Atlas CLI                            │
-│                     (Rust Binary)                           │
-└──────────────┬──────────────────────────┬───────────────────┘
-               │                          │
-               │ REST API v1.1            │ Azure SDK
-               │                          │
-               ▼                          ▼
-┌──────────────────────────┐   ┌──────────────────────────────┐
-│   OpenEHR Server         │   │   Azure Cosmos DB            │
-│   (EHRBase 0.30+)        │   │   Core (SQL) API             │
-│                          │   │                              │
-│  ┌────────────────────┐  │   │  ┌────────────────────────┐  │
-│  │  Compositions      │  │   │  │  Control Container     │  │
-│  │  (FLAT JSON)       │  │   │  │  - Watermarks          │  │
-│  └────────────────────┘  │   │  │  - Export state        │  │
-│                          │   │  └────────────────────────┘  │
-└──────────────────────────┘   │                              │
-                               │  ┌────────────────────────┐  │
-                               │  │  Data Containers       │  │
-                               │  │  - One per template    │  │
-                               │  │  - Partitioned by EHR  │  │
-                               │  └────────────────────────┘  │
-                               └──────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                            Atlas CLI                                    │
+│                         (Rust Binary)                                   │
+└──────────────┬──────────────────────────────────────┬───────────────────┘
+               │                                      │
+               │ REST API v1.1                        │ Database Adapters
+               │                                      │
+               ▼                                      ▼
+┌──────────────────────────┐   ┌──────────────────────────────────────────┐
+│   OpenEHR Server         │   │         Database Backends                │
+│   (EHRBase 0.30+)        │   │                                          │
+│                          │   │  ┌────────────────────────────────────┐  │
+│  ┌────────────────────┐  │   │  │  Azure Cosmos DB (NoSQL)           │  │
+│  │  Compositions      │  │   │  │  - Control Container (watermarks)  │  │
+│  │  (FLAT JSON)       │  │   │  │  - Data Containers (per template)  │  │
+│  └────────────────────┘  │   │  │  - Partitioned by /ehr_id          │  │
+│                          │   │  └────────────────────────────────────┘  │
+└──────────────────────────┘   │                                          │
+                               │  ┌────────────────────────────────────┐  │
+                               │  │  PostgreSQL 14+ (Relational)       │  │
+                               │  │  - atlas_watermarks table          │  │
+                               │  │  - compositions_* tables           │  │
+                               │  │  - JSONB columns for flexibility   │  │
+                               │  └────────────────────────────────────┘  │
+                               └──────────────────────────────────────────┘
 ```
 
 **Key Components**:
 
 - **CLI Layer**: Command-line interface with clap
 - **Core Layer**: Business logic (export, transform, state, verification)
-- **Adapter Layer**: External integrations (OpenEHR, Cosmos DB)
+- **Adapter Layer**: External integrations (OpenEHR, Cosmos DB, PostgreSQL)
 - **Domain Layer**: Core types and models
 
 See [Architecture Documentation](docs/architecture.md) for details.
@@ -434,7 +434,7 @@ Connect OpenEHR data to Azure Synapse Analytics, Databricks, or Power BI for adv
 
 ### Regulatory Reporting
 
-Maintain audit trails with SHA-256 checksums and verification for compliance requirements.
+Maintain comprehensive audit trails and logging for compliance requirements.
 
 ## 🔧 Configuration Options
 
@@ -446,7 +446,6 @@ Atlas supports extensive configuration options:
 | **Format** | `preserve`, `flatten` | Maintain structure or flatten for analytics |
 | **Batch Size** | 100-5000 | Compositions per batch |
 | **Parallelism** | 1-100 EHRs | Concurrent EHR processing |
-| **Verification** | SHA-256 checksums | Optional data integrity checks |
 | **Logging** | Local, Azure Log Analytics | Structured logging options |
 
 See [Configuration Guide](docs/configuration.md) for complete reference.
@@ -561,10 +560,7 @@ Atlas is built with these excellent open-source projects:
 
 - 🔄 Additional OpenEHR vendors (Better Platform, Ocean Health)
 - 🔄 OAuth 2.0 / OpenID Connect authentication
-- 🔄 Azure Data Factory integration
 - 🔄 Prometheus metrics export
-- 🔄 GraphQL API for querying exported data
-- 🔄 Web UI for configuration and monitoring
 
 ## 📚 Related Projects
 
