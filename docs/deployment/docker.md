@@ -447,6 +447,92 @@ docker inspect atlas
 docker inspect atlas | jq '.[0].HostConfig.Memory'
 ```
 
+### Graceful Shutdown
+
+Atlas supports graceful shutdown in Docker containers, ensuring data integrity when containers are stopped:
+
+**How It Works:**
+
+1. `docker stop` sends SIGTERM to the Atlas process
+2. Atlas completes the current batch being processed
+3. Watermarks are saved to the database with `Interrupted` status
+4. Atlas exits with code 143 (SIGTERM)
+5. Next container run resumes from the checkpoint
+
+**Configuration:**
+
+Docker's default stop timeout is 10 seconds. For Atlas, you should increase this to match your `shutdown_timeout_secs` configuration:
+
+```bash
+# Stop with custom timeout (30 seconds)
+docker stop --time 30 atlas
+
+# Or set in docker-compose.yml
+services:
+  atlas:
+    stop_grace_period: 30s  # Match export.shutdown_timeout_secs
+```
+
+In your `atlas.toml`:
+
+```toml
+[export]
+# Should match Docker stop_grace_period
+shutdown_timeout_secs = 30
+```
+
+**Best Practices:**
+
+```yaml
+version: '3.8'
+
+services:
+  atlas:
+    image: atlas:latest
+
+    # Graceful shutdown configuration
+    stop_grace_period: 30s  # Allow 30s for graceful shutdown
+    stop_signal: SIGTERM    # Use SIGTERM (default)
+
+    volumes:
+      - ./atlas.toml:/etc/atlas/atlas.toml:ro
+      - ./logs:/var/log/atlas
+
+    environment:
+      - ATLAS_OPENEHR_PASSWORD=${ATLAS_OPENEHR_PASSWORD}
+      - ATLAS_COSMOS_KEY=${ATLAS_COSMOS_KEY}
+
+    command: export -c /etc/atlas/atlas.toml
+```
+
+**Handling Container Stops:**
+
+```bash
+# Graceful stop (recommended)
+docker stop atlas
+# Waits up to stop_grace_period for container to exit
+
+# Force stop (NOT recommended - may lose progress)
+docker kill atlas
+# Immediately kills container without saving watermarks
+
+# Check exit code
+docker inspect atlas --format='{{.State.ExitCode}}'
+# 0 = success, 143 = SIGTERM (graceful shutdown)
+```
+
+**Monitoring Shutdown:**
+
+```bash
+# Watch container logs during shutdown
+docker logs -f atlas
+
+# Expected output on Ctrl+C or docker stop:
+# ⚠️  Shutdown signal received, completing current batch...
+# ⚠️  Export interrupted gracefully. Progress saved.
+#    Run the same command to resume from checkpoint.
+```
+
 ## Production Deployment
 
 ### Best Practices
