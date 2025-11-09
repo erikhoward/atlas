@@ -274,6 +274,67 @@ impl ExportCoordinator {
         Ok(true)
     }
 
+    /// Run post-export verification if enabled
+    ///
+    /// # Arguments
+    ///
+    /// * `summary` - Export summary containing exported compositions to verify
+    async fn run_post_export_verification(&self, summary: &mut ExportSummary) {
+        if !self.config.verification.enable_verification {
+            return;
+        }
+
+        let Some(cosmos_client) = &self.cosmos_client else {
+            tracing::warn!(
+                "Verification is enabled but not available for the current database target"
+            );
+            return;
+        };
+
+        tracing::info!("Running post-export verification");
+        let verifier = Verifier::new(cosmos_client.clone());
+
+        match verifier.verify_export(summary).await {
+            Ok(verification_report) => {
+                tracing::info!(
+                    total_verified = verification_report.total_verified,
+                    passed = verification_report.passed,
+                    failed = verification_report.failed,
+                    success_rate = format!("{:.2}%", verification_report.success_rate()),
+                    "Verification completed"
+                );
+
+                // Log verification failures
+                if !verification_report.is_success() {
+                    tracing::warn!(
+                        failed_count = verification_report.failed,
+                        "Verification found {} composition(s) that could not be found in the database",
+                        verification_report.failed
+                    );
+                    for failure in &verification_report.failures {
+                        tracing::warn!(
+                            composition_uid = %failure.composition_uid.as_str(),
+                            ehr_id = %failure.ehr_id.as_str(),
+                            template_id = %failure.template_id.as_str(),
+                            reason = %failure.reason,
+                            "Verification failure"
+                        );
+                    }
+                }
+
+                // Store verification report in summary
+                summary.set_verification_report(verification_report);
+            }
+            Err(e) => {
+                tracing::error!(error = %e, "Verification failed");
+                summary.add_error(ExportError::new(
+                    ExportErrorType::Unknown,
+                    format!("Verification failed: {e}"),
+                ));
+            }
+        }
+    }
+
     /// Execute the export
     ///
     /// This is the main entry point for the export process. It:
@@ -319,57 +380,8 @@ impl ExportCoordinator {
             return Ok(summary.with_duration(start_time.elapsed()));
         }
 
-        // Run verification if enabled and cosmos client is available
-        if self.config.verification.enable_verification {
-            if let Some(cosmos_client) = &self.cosmos_client {
-                tracing::info!("Running post-export verification");
-                let verifier = Verifier::new(cosmos_client.clone());
-
-                match verifier.verify_export(&summary).await {
-                    Ok(verification_report) => {
-                        tracing::info!(
-                            total_verified = verification_report.total_verified,
-                            passed = verification_report.passed,
-                            failed = verification_report.failed,
-                            success_rate = format!("{:.2}%", verification_report.success_rate()),
-                            "Verification completed"
-                        );
-
-                        // Log verification failures
-                        if !verification_report.is_success() {
-                            tracing::warn!(
-                                failed_count = verification_report.failed,
-                                "Verification found {} composition(s) that could not be found in the database",
-                                verification_report.failed
-                            );
-                            for failure in &verification_report.failures {
-                                tracing::warn!(
-                                    composition_uid = %failure.composition_uid.as_str(),
-                                    ehr_id = %failure.ehr_id.as_str(),
-                                    template_id = %failure.template_id.as_str(),
-                                    reason = %failure.reason,
-                                    "Verification failure"
-                                );
-                            }
-                        }
-
-                        // Store verification report in summary
-                        summary.set_verification_report(verification_report);
-                    }
-                    Err(e) => {
-                        tracing::error!(error = %e, "Verification failed");
-                        summary.add_error(ExportError::new(
-                            ExportErrorType::Unknown,
-                            format!("Verification failed: {e}"),
-                        ));
-                    }
-                }
-            } else {
-                tracing::warn!(
-                    "Verification is enabled but not available for the current database target"
-                );
-            }
-        }
+        // Run post-export verification
+        self.run_post_export_verification(&mut summary).await;
 
         let duration = start_time.elapsed();
         summary = summary.with_duration(duration);
