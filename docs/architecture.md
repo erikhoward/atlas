@@ -368,18 +368,98 @@ impl BatchProcessor {
 }
 ```
 
-### 5. Error Categorization
+### 5. Error Handling Strategy
 
-Structured error handling with categorization:
+Atlas uses a **layered error handling approach** following Microsoft Rust Guidelines (TR-6.4, TR-6.5, TR-6.6):
+
+#### Library Layer (src/adapters, src/config, src/core, src/domain, src/logging)
+
+All library code uses **`Result<T, AtlasError>`** for fallible operations:
 
 ```rust
-pub enum ExportError {
-    OpenEhrConnectionError { ... },
-    CosmosDbConnectionError { ... },
-    TransformationError { ... },
-    DuplicateComposition { ... },
-    PartialBatchFailure { ... },
+use crate::domain::{Result, AtlasError};
+
+pub fn load_config(path: &str) -> Result<AtlasConfig> {
+    // Returns Result<AtlasConfig, AtlasError>
 }
+
+pub async fn fetch_composition(uid: &CompositionUid) -> Result<Composition> {
+    // Returns Result<Composition, AtlasError>
+}
+```
+
+#### CLI Layer (src/main.rs, src/cli/*)
+
+The CLI layer uses **`anyhow::Result`** for user-facing error messages:
+
+```rust
+pub async fn execute(&self, config_path: &str) -> anyhow::Result<i32> {
+    // AtlasError automatically converts to anyhow::Error via ? operator
+    let config = load_config(config_path)?;
+    Ok(0)
+}
+```
+
+#### Error Types
+
+**AtlasError** - Main domain error type with variants:
+- `Configuration` - Configuration errors
+- `OpenEhr` - OpenEHR-specific errors (wraps `OpenEhrError`)
+- `CosmosDb` - Cosmos DB errors (wraps `CosmosDbError`)
+- `Database` - Generic database errors
+- `Export` - Export process errors
+- `Validation` - Validation errors
+- `Authentication` - Auth errors
+- `Connection` - Network/connection errors
+- `State` - State management errors
+- `Serialization` - JSON/TOML errors
+- `Io` - File I/O errors
+- `Other` - Catch-all for unexpected errors
+
+**OpenEhrError** - OpenEHR-specific errors:
+- `ConnectionFailed` - Network connection failures
+- `AuthenticationFailed` - Authentication errors
+- `QueryFailed` - AQL query failures
+- `InvalidResponse` - Invalid API responses
+- And more...
+
+**CosmosDbError** - Cosmos DB-specific errors:
+- `Throttled` - Rate limiting (429 errors)
+- `NotFound` - Document not found (404)
+- `Conflict` - Document conflicts (409)
+- `InvalidPartitionKey` - Partition key errors
+- And more...
+
+#### Adding Context to Errors
+
+Use the `ResultExt` trait to add context to errors:
+
+```rust
+use crate::domain::context::ResultExt;
+
+// Eager evaluation
+result.context("Failed to load configuration file")?;
+
+// Lazy evaluation (more efficient for expensive strings)
+result.with_context(|| format!("Failed to fetch composition {} from EHR {}", uid, ehr_id))?;
+```
+
+#### Error Conversion
+
+External errors are converted to domain errors using:
+1. **From trait implementations** for common conversions (std::io::Error, serde_json::Error, toml::de::Error)
+2. **`.map_err()` with context** for context-specific conversions
+3. **`.context()` method** to add operation-specific context
+
+Example:
+```rust
+// From trait (automatic conversion)
+let contents = fs::read_to_string(path)?; // io::Error -> AtlasError
+
+// Context-specific conversion
+request.send().await
+    .map_err(|e| AtlasError::OpenEhr(OpenEhrError::ConnectionFailed(e.to_string())))
+    .context(format!("Failed to fetch composition {}", uid))?;
 ```
 
 ## Extension Points

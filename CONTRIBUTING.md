@@ -28,12 +28,84 @@ Atlas follows the [Microsoft Rust Guidelines](https://microsoft.github.io/rust-g
 - Use the builder pattern for complex structs (TR-6.2)
 - Wrap primitives in newtype wrappers (TR-6.3)
 - Use `Result<T, E>` for fallible operations (TR-6.4)
-- Use `anyhow::Error` with context (TR-6.5)
+- Use `anyhow::Error` **only in CLI layer** (TR-6.5)
 - Map external errors to domain errors (TR-6.6)
 - Main returns `Result` (TR-6.7)
 - Implement `Default` trait where appropriate (TR-6.8)
 - Prefer `&str` over `String` where possible (TR-6.9)
 - Use `if let`/`while let` for conditionals (TR-6.10)
+
+### Error Handling
+
+Atlas uses a **layered error handling strategy**:
+
+#### Library Code (src/adapters, src/config, src/core, src/domain, src/logging)
+
+**Always use `Result<T, AtlasError>`:**
+
+```rust
+use crate::domain::{Result, AtlasError};
+
+pub fn library_function() -> Result<SomeType> {
+    // Use AtlasError for all library code
+    Ok(value)
+}
+```
+
+**Adding context to errors:**
+
+```rust
+use crate::domain::context::ResultExt;
+
+// Eager evaluation
+result.context("Failed to load configuration")?;
+
+// Lazy evaluation (preferred for expensive strings)
+result.with_context(|| format!("Failed to fetch composition {}", uid))?;
+```
+
+**Converting external errors:**
+
+```rust
+// Option 1: Use From trait (for common conversions)
+let contents = fs::read_to_string(path)?; // io::Error -> AtlasError
+
+// Option 2: Use .map_err() for context-specific conversions
+request.send().await
+    .map_err(|e| AtlasError::OpenEhr(OpenEhrError::ConnectionFailed(e.to_string())))?;
+
+// Option 3: Combine .map_err() with .context() for rich context
+request.send().await
+    .map_err(|e| AtlasError::OpenEhr(OpenEhrError::ConnectionFailed(e.to_string())))
+    .context(format!("Failed to fetch composition {}", uid))?;
+```
+
+#### CLI Code (src/main.rs, src/cli/*)
+
+**Use `anyhow::Result` for CLI commands:**
+
+```rust
+pub async fn execute(&self, config_path: &str) -> anyhow::Result<i32> {
+    // AtlasError automatically converts to anyhow::Error via ? operator
+    let config = load_config(config_path)?;
+
+    // Return exit codes:
+    // 0 = success
+    // 1 = partial success
+    // 2 = configuration error
+    // 3 = authentication error
+    // 4 = connection error
+    // 5 = fatal error
+    Ok(0)
+}
+```
+
+**Why this approach?**
+
+- **Library code** uses `Result<T, AtlasError>` for type safety and domain-specific error handling
+- **CLI code** uses `anyhow::Result` for user-friendly error messages with automatic context
+- **Automatic conversion** at the boundary via the `?` operator (AtlasError implements std::error::Error)
+- **Clear separation** between library errors (structured) and user-facing errors (formatted)
 
 ### Testing
 

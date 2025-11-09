@@ -325,4 +325,40 @@ mod tests {
         let atlas_err: AtlasError = io_err.into();
         assert!(matches!(atlas_err, AtlasError::Io(_)));
     }
+
+    #[test]
+    fn test_serde_json_error_conversion() {
+        let json_err = serde_json::from_str::<serde_json::Value>("invalid json").unwrap_err();
+        let atlas_err: AtlasError = json_err.into();
+        assert!(matches!(atlas_err, AtlasError::Serialization(_)));
+    }
+
+    #[test]
+    fn test_toml_error_conversion() {
+        let toml_err = toml::from_str::<toml::Value>("invalid = toml = syntax").unwrap_err();
+        let atlas_err: AtlasError = toml_err.into();
+        assert!(matches!(atlas_err, AtlasError::Configuration(_)));
+        assert!(atlas_err.to_string().contains("TOML parse error"));
+    }
+
+    #[test]
+    fn test_atlas_error_implements_std_error() {
+        let err = AtlasError::Validation("Test error".to_string());
+        // Verify it implements std::error::Error
+        let _: &dyn std::error::Error = &err;
+    }
+
+    #[test]
+    fn test_openehr_error_implements_std_error() {
+        let err = OpenEhrError::ConnectionFailed("Test error".to_string());
+        // Verify it implements std::error::Error
+        let _: &dyn std::error::Error = &err;
+    }
+
+    #[test]
+    fn test_cosmosdb_error_implements_std_error() {
+        let err = CosmosDbError::Throttled("5 seconds".to_string());
+        // Verify it implements std::error::Error
+        let _: &dyn std::error::Error = &err;
+    }
 }
