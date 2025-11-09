@@ -191,8 +191,10 @@ impl AzureLogger {
             .clone();
 
         // Create Azure AD credential
-        // Convert client_secret to Secret type
-        let secret = azure_core::credentials::Secret::new(client_secret.clone());
+        // Convert our SecretString to Azure's Secret type
+        use secrecy::ExposeSecret;
+        let secret_str: String = client_secret.expose_secret().clone().into();
+        let secret = azure_core::credentials::Secret::new(secret_str);
 
         let credential = ClientSecretCredential::new(
             &tenant_id,
@@ -521,6 +523,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_azure_logger_creation_enabled() {
+        use crate::config::secret::SecretValue;
+        use secrecy::Secret;
+
         let config = LoggingConfig {
             local_enabled: true,
             local_path: "/tmp/atlas".to_string(),
@@ -529,7 +534,9 @@ mod tests {
             azure_enabled: true,
             azure_tenant_id: Some("test-tenant-id".to_string()),
             azure_client_id: Some("test-client-id".to_string()),
-            azure_client_secret: Some("test-client-secret".to_string()),
+            azure_client_secret: Some(Secret::new(SecretValue::from(
+                "test-client-secret".to_string(),
+            ))),
             azure_log_analytics_workspace_id: Some("test-workspace-id".to_string()),
             azure_dcr_immutable_id: Some("dcr-test123".to_string()),
             azure_dce_endpoint: Some("https://test-dce.monitor.azure.com".to_string()),

@@ -506,23 +506,44 @@ This checks:
 
 ## Security Best Practices
 
+### Credential Protection
+
+Atlas implements secure credential handling to protect sensitive information:
+
+- **Memory Protection**: All credentials (passwords, keys, secrets) are automatically zeroized in memory when no longer needed
+- **No Logging**: Credentials are never written to log files or exposed in debug output
+- **Redacted Debug Output**: Debug representations show `Secret([REDACTED])` instead of actual values
+- **Explicit Access**: Code must explicitly call `expose_secret()` to access credential values, making security audits easier
+
+**Protected Credentials:**
+- OpenEHR password (`openehr.password`)
+- Cosmos DB key (`cosmosdb.key`)
+- PostgreSQL connection string (`postgresql.connection_string`)
+- Azure client secret (`logging.azure_client_secret`)
+
+### Configuration Security
+
 1. **Never commit credentials to version control**
-   - Use environment variables for sensitive values
+   - Use environment variables for sensitive values (recommended)
    - Add `atlas.toml` to `.gitignore`
+   - Use `.env` file for local development (also add to `.gitignore`)
 
 2. **Use strong access controls**
    - Limit OpenEHR user permissions to read-only
    - Use Cosmos DB keys with minimum required permissions
    - Rotate keys regularly
+   - Use Azure Managed Identity when possible
 
 3. **Enable TLS verification**
    - Keep `tls_verify = true` in production
    - Only disable for local development with self-signed certificates
+   - Use `tls_ca_cert` for custom CA certificates
 
 4. **Secure log files**
    - Ensure log directory has appropriate permissions
    - Logs may contain PHI/PII - treat as sensitive data
    - Configure log rotation to prevent disk space issues
+   - Credentials are automatically excluded from logs
 
 ## Troubleshooting
 

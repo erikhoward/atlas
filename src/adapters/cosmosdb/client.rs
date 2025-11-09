@@ -39,8 +39,12 @@ impl CosmosDbClient {
     ///
     /// Returns an error if the client cannot be created or the connection fails.
     pub async fn new(config: CosmosDbConfig) -> Result<Self> {
+        use secrecy::ExposeSecret;
+
         // Create Cosmos client with key authentication
-        let key = Secret::new(config.key.clone());
+        // Convert our SecretString to Azure's Secret type
+        let key_str: String = config.key.expose_secret().clone().into();
+        let key = Secret::new(key_str);
         let options = Some(CosmosClientOptions::default());
 
         let client = CosmosClient::with_key(&config.endpoint, key, options).map_err(|e| {
@@ -339,12 +343,14 @@ impl CosmosDbClient {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::secret::SecretValue;
+    use secrecy::Secret;
 
     #[test]
     fn test_get_container_name() {
         let config = CosmosDbConfig {
             endpoint: "https://test.documents.azure.com:443/".to_string(),
-            key: "test-key".to_string(),
+            key: Secret::new(SecretValue::from("test-key".to_string())),
             database_name: "test_db".to_string(),
             data_container_prefix: "compositions".to_string(),
             control_container: "atlas_control".to_string(),
@@ -353,16 +359,20 @@ mod tests {
             request_timeout_seconds: 30,
         };
 
+        use secrecy::ExposeSecret;
+        let key_str: String = config.key.expose_secret().clone().into();
+        let azure_secret = azure_core::credentials::Secret::new(key_str);
+
         let client = CosmosDbClient {
             client: CosmosClient::with_key(
                 &config.endpoint,
-                Secret::new(config.key.clone()),
+                azure_secret.clone(),
                 Some(CosmosClientOptions::default()),
             )
             .unwrap(),
             database: CosmosClient::with_key(
                 &config.endpoint,
-                Secret::new(config.key.clone()),
+                azure_secret,
                 Some(CosmosClientOptions::default()),
             )
             .unwrap()

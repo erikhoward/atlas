@@ -55,11 +55,13 @@ impl ValidateArgs {
                     }
                     DatabaseTarget::PostgreSQL => {
                         if let Some(ref pg_config) = config.postgresql {
+                            use secrecy::ExposeSecret;
                             println!("  Database Target: PostgreSQL");
                             println!(
                                 "  PostgreSQL Connection: {}",
                                 pg_config
                                     .connection_string
+                                    .expose_secret()
                                     .split('@')
                                     .next_back()
                                     .unwrap_or("***")

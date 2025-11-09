@@ -160,7 +160,9 @@ fn apply_env_overrides(config: &mut AtlasConfig) -> Result<()> {
         config.openehr.username = Some(val);
     }
     if let Ok(val) = std::env::var("ATLAS_OPENEHR_PASSWORD") {
-        config.openehr.password = Some(val);
+        use crate::config::secret::SecretValue;
+        use secrecy::Secret;
+        config.openehr.password = Some(Secret::new(SecretValue::from(val)));
     }
     if let Ok(val) = std::env::var("ATLAS_OPENEHR_VENDOR") {
         config.openehr.vendor = val.clone();
@@ -204,7 +206,9 @@ fn apply_env_overrides(config: &mut AtlasConfig) -> Result<()> {
             cosmos_config.endpoint = val;
         }
         if let Ok(val) = std::env::var("ATLAS_COSMOSDB_KEY") {
-            cosmos_config.key = val;
+            use crate::config::secret::SecretValue;
+            use secrecy::Secret;
+            cosmos_config.key = Secret::new(SecretValue::from(val));
         }
         if let Ok(val) = std::env::var("ATLAS_COSMOSDB_DATABASE_NAME") {
             cosmos_config.database_name = val;
@@ -254,7 +258,9 @@ fn apply_env_overrides(config: &mut AtlasConfig) -> Result<()> {
         config.logging.azure_client_id = Some(val);
     }
     if let Ok(val) = std::env::var("ATLAS_LOGGING_AZURE_CLIENT_SECRET") {
-        config.logging.azure_client_secret = Some(val);
+        use crate::config::secret::SecretValue;
+        use secrecy::Secret;
+        config.logging.azure_client_secret = Some(Secret::new(SecretValue::from(val)));
     }
     if let Ok(val) = std::env::var("ATLAS_LOGGING_AZURE_LOG_ANALYTICS_WORKSPACE_ID") {
         config.logging.azure_log_analytics_workspace_id = Some(val);
