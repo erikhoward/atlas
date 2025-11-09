@@ -30,6 +30,8 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           changelog: CHANGELOG.md
+          # Allow test releases without changelog entries
+          allow-missing-changelog: true
           # Create as draft first to support immutable releases
           # Assets will be uploaded while in draft state, then published
           draft: true
