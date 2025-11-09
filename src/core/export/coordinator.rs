@@ -11,7 +11,7 @@ use crate::config::schema::DatabaseTarget;
 use crate::config::AtlasConfig;
 use crate::core::export::batch::{BatchConfig, BatchProcessor};
 use crate::core::export::summary::{ExportError, ExportErrorType, ExportSummary};
-use crate::core::state::{StateManager, WatermarkBuilder};
+use crate::core::state::{StateManager, Watermark, WatermarkBuilder};
 use crate::core::verification::Verifier;
 use crate::domain::ids::{EhrId, TemplateId};
 use crate::domain::Result;
@@ -390,6 +390,164 @@ impl ExportCoordinator {
         Ok(summary)
     }
 
+    /// Load or create watermark for a template and EHR
+    ///
+    /// # Arguments
+    ///
+    /// * `template_id` - Template ID
+    /// * `ehr_id` - EHR ID
+    ///
+    /// # Returns
+    ///
+    /// Returns the watermark (either loaded from state or newly created)
+    async fn load_or_create_watermark(
+        &self,
+        template_id: &TemplateId,
+        ehr_id: &EhrId,
+    ) -> Result<Watermark> {
+        let watermark = match self
+            .state_manager
+            .load_watermark(template_id, ehr_id)
+            .await?
+        {
+            Some(wm) => {
+                tracing::info!(
+                    template_id = %template_id.as_str(),
+                    ehr_id = %ehr_id.as_str(),
+                    last_exported = %wm.last_exported_timestamp,
+                    "Loaded existing watermark - incremental export"
+                );
+                wm
+            }
+            None => {
+                tracing::info!(
+                    template_id = %template_id.as_str(),
+                    ehr_id = %ehr_id.as_str(),
+                    "No watermark found - full export"
+                );
+                WatermarkBuilder::new(template_id.clone(), ehr_id.clone()).build()
+            }
+        };
+
+        Ok(watermark)
+    }
+
+    /// Fetch compositions for an EHR and template
+    ///
+    /// # Arguments
+    ///
+    /// * `template_id` - Template ID
+    /// * `ehr_id` - EHR ID
+    /// * `watermark` - Watermark to determine incremental query timestamp
+    ///
+    /// # Returns
+    ///
+    /// Returns a vector of compositions
+    async fn fetch_compositions_for_ehr(
+        &self,
+        template_id: &TemplateId,
+        ehr_id: &EhrId,
+        watermark: &Watermark,
+    ) -> Result<Vec<crate::domain::Composition>> {
+        // Determine the timestamp to query from (for incremental exports)
+        let since = if self.config.export.mode == "incremental" {
+            Some(watermark.last_exported_timestamp)
+        } else {
+            None
+        };
+
+        // Fetch composition metadata from OpenEHR
+        let compositions_metadata = self
+            .openehr_client
+            .vendor()
+            .get_compositions_for_ehr(ehr_id, template_id, since)
+            .await?;
+
+        tracing::info!(
+            template_id = %template_id.as_str(),
+            ehr_id = %ehr_id.as_str(),
+            count = compositions_metadata.len(),
+            "Found compositions for EHR"
+        );
+
+        // Fetch full composition data
+        let mut compositions = Vec::new();
+        for metadata in compositions_metadata {
+            match self
+                .openehr_client
+                .vendor()
+                .fetch_composition(&metadata)
+                .await
+            {
+                Ok(composition) => compositions.push(composition),
+                Err(e) => {
+                    tracing::warn!(
+                        composition_uid = %metadata.uid,
+                        error = %e,
+                        "Failed to fetch composition, skipping"
+                    );
+                }
+            }
+        }
+
+        Ok(compositions)
+    }
+
+    /// Process compositions and update summary
+    ///
+    /// # Arguments
+    ///
+    /// * `compositions` - Compositions to process
+    /// * `template_id` - Template ID
+    /// * `ehr_id` - EHR ID
+    /// * `watermark` - Watermark to update
+    /// * `summary` - Export summary to update
+    async fn process_and_update_summary(
+        &self,
+        compositions: Vec<crate::domain::Composition>,
+        template_id: &TemplateId,
+        ehr_id: &EhrId,
+        watermark: &mut Watermark,
+        summary: &mut ExportSummary,
+    ) -> Result<()> {
+        if compositions.is_empty() {
+            return Ok(());
+        }
+
+        let batch_result = self
+            .batch_processor
+            .process_batch(compositions.clone(), template_id, ehr_id, watermark)
+            .await?;
+
+        // Update summary with batch results
+        summary.total_compositions += batch_result.successful + batch_result.failed;
+        summary.successful_exports += batch_result.successful;
+        summary.failed_exports += batch_result.failed;
+        summary.duplicates_skipped += batch_result.duplicates_skipped;
+
+        // Add batch errors to summary
+        for error_msg in batch_result.errors {
+            summary.add_error(
+                ExportError::new(ExportErrorType::Unknown, error_msg).with_context(format!(
+                    "template_id={}, ehr_id={}",
+                    template_id.as_str(),
+                    ehr_id.as_str()
+                )),
+            );
+        }
+
+        // Add compositions to summary for verification
+        for composition in &compositions {
+            summary.add_exported_composition(
+                composition.uid.clone(),
+                ehr_id.clone(),
+                template_id.clone(),
+            );
+        }
+
+        Ok(())
+    }
+
     /// Get EHR IDs to process
     async fn get_ehr_ids_to_process(&self) -> Result<Vec<EhrId>> {
         // If specific EHR IDs are configured, use those
@@ -418,6 +576,12 @@ impl ExportCoordinator {
     }
 
     /// Process a single EHR for a template
+    ///
+    /// # Arguments
+    ///
+    /// * `template_id` - Template ID to process
+    /// * `ehr_id` - EHR ID to process
+    /// * `summary` - Export summary to update with results
     async fn process_ehr_for_template(
         &self,
         template_id: &TemplateId,
@@ -431,29 +595,7 @@ impl ExportCoordinator {
         );
 
         // Load or create watermark
-        let mut watermark = match self
-            .state_manager
-            .load_watermark(template_id, ehr_id)
-            .await?
-        {
-            Some(wm) => {
-                tracing::info!(
-                    template_id = %template_id.as_str(),
-                    ehr_id = %ehr_id.as_str(),
-                    last_exported = %wm.last_exported_timestamp,
-                    "Loaded existing watermark - incremental export"
-                );
-                wm
-            }
-            None => {
-                tracing::info!(
-                    template_id = %template_id.as_str(),
-                    ehr_id = %ehr_id.as_str(),
-                    "No watermark found - full export"
-                );
-                WatermarkBuilder::new(template_id.clone(), ehr_id.clone()).build()
-            }
-        };
+        let mut watermark = self.load_or_create_watermark(template_id, ehr_id).await?;
 
         // Mark export as started
         watermark.mark_started();
@@ -461,29 +603,13 @@ impl ExportCoordinator {
             .save_watermark(&watermark, self.config.export.dry_run)
             .await?;
 
-        // Determine the timestamp to query from (for incremental exports)
-        let since = if self.config.export.mode == "incremental" {
-            Some(watermark.last_exported_timestamp)
-        } else {
-            None
-        };
-
-        // Fetch composition metadata from OpenEHR
-        let compositions_metadata = self
-            .openehr_client
-            .vendor()
-            .get_compositions_for_ehr(ehr_id, template_id, since)
+        // Fetch compositions for this EHR and template
+        let compositions = self
+            .fetch_compositions_for_ehr(template_id, ehr_id, &watermark)
             .await?;
 
-        tracing::info!(
-            template_id = %template_id.as_str(),
-            ehr_id = %ehr_id.as_str(),
-            count = compositions_metadata.len(),
-            "Found compositions for EHR"
-        );
-
         // If no compositions found, mark as completed and return
-        if compositions_metadata.is_empty() {
+        if compositions.is_empty() {
             watermark.mark_completed();
             self.state_manager
                 .save_watermark(&watermark, self.config.export.dry_run)
@@ -491,61 +617,11 @@ impl ExportCoordinator {
             return Ok(());
         }
 
-        // Fetch full composition data
-        let mut compositions = Vec::new();
-        for metadata in compositions_metadata {
-            match self
-                .openehr_client
-                .vendor()
-                .fetch_composition(&metadata)
-                .await
-            {
-                Ok(composition) => compositions.push(composition),
-                Err(e) => {
-                    tracing::warn!(
-                        composition_uid = %metadata.uid,
-                        error = %e,
-                        "Failed to fetch composition, skipping"
-                    );
-                }
-            }
-        }
+        // Process compositions and update summary
+        self.process_and_update_summary(compositions, template_id, ehr_id, &mut watermark, summary)
+            .await?;
 
-        // Process compositions through batch processor
-        if !compositions.is_empty() {
-            let batch_result = self
-                .batch_processor
-                .process_batch(compositions.clone(), template_id, ehr_id, &mut watermark)
-                .await?;
-
-            // Update summary with batch results
-            summary.total_compositions += batch_result.successful + batch_result.failed;
-            summary.successful_exports += batch_result.successful;
-            summary.failed_exports += batch_result.failed;
-            summary.duplicates_skipped += batch_result.duplicates_skipped;
-
-            // Add batch errors to summary
-            for error_msg in batch_result.errors {
-                summary.add_error(
-                    ExportError::new(ExportErrorType::Unknown, error_msg).with_context(format!(
-                        "template_id={}, ehr_id={}",
-                        template_id.as_str(),
-                        ehr_id.as_str()
-                    )),
-                );
-            }
-
-            // Add compositions to summary for verification
-            for composition in &compositions {
-                summary.add_exported_composition(
-                    composition.uid.clone(),
-                    ehr_id.clone(),
-                    template_id.clone(),
-                );
-            }
-        }
-
-        // Mark export as completed
+        // Mark export as completed and save watermark
         watermark.mark_completed();
         self.state_manager
             .save_watermark(&watermark, self.config.export.dry_run)
