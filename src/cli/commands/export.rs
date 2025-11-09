@@ -139,6 +139,47 @@ impl ExportArgs {
         println!("  Success Rate: {:.2}%", summary.success_rate());
         println!();
 
+        // Display verification results if available
+        if let Some(verification_report) = &summary.verification_report {
+            println!("🔍 Verification Results:");
+            println!("  Total Verified: {}", verification_report.total_verified);
+            println!("  Passed: {}", verification_report.passed);
+            println!("  Failed: {}", verification_report.failed);
+            println!("  Skipped: {}", verification_report.skipped);
+            println!(
+                "  Verification Rate: {:.2}%",
+                verification_report.success_rate()
+            );
+            println!(
+                "  Duration: {:.2}s",
+                verification_report.duration_ms as f64 / 1000.0
+            );
+
+            if !verification_report.failures.is_empty() {
+                println!();
+                println!("  ⚠️  Verification Failures:");
+                for (i, failure) in verification_report.failures.iter().enumerate() {
+                    if i < 10 {
+                        // Show first 10 failures
+                        println!(
+                            "    - {} (EHR: {}, Template: {})",
+                            failure.composition_uid.as_str(),
+                            failure.ehr_id.as_str(),
+                            failure.template_id.as_str()
+                        );
+                        println!("      Reason: {}", failure.reason);
+                    }
+                }
+                if verification_report.failures.len() > 10 {
+                    println!(
+                        "    ... and {} more failures",
+                        verification_report.failures.len() - 10
+                    );
+                }
+            }
+            println!();
+        }
+
         if !summary.errors.is_empty() {
             println!("⚠️  Errors encountered:");
             for error in &summary.errors {

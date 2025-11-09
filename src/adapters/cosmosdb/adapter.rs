@@ -13,11 +13,13 @@ use crate::adapters::database::traits::{
     BulkInsertFailure, BulkInsertResult, DatabaseClient, StateStorage,
 };
 use crate::core::state::watermark::Watermark;
+use crate::core::transform::{flatten::flatten_composition, preserve::preserve_composition};
 use crate::domain::composition::Composition;
 use crate::domain::ids::{EhrId, TemplateId};
 use crate::domain::{AtlasError, CosmosDbError, Result};
 use async_trait::async_trait;
 use azure_data_cosmos::PartitionKey;
+use std::any::Any;
 use std::sync::Arc;
 
 /// CosmosDB implementation of database traits
@@ -48,6 +50,10 @@ impl CosmosDbAdapter {
 
 #[async_trait]
 impl DatabaseClient for CosmosDbAdapter {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
     async fn test_connection(&self) -> Result<()> {
         self.client.test_connection().await
     }
@@ -71,11 +77,14 @@ impl DatabaseClient for CosmosDbAdapter {
         export_mode: String,
         max_retries: usize,
     ) -> Result<BulkInsertResult> {
-        // Convert domain compositions to Cosmos documents
-        let cosmos_compositions: Vec<CosmosComposition> = compositions
-            .into_iter()
-            .map(|c| CosmosComposition::from_domain(c, export_mode.clone()))
-            .collect::<Result<Vec<_>>>()?;
+        // Transform compositions using preserve_composition
+        let mut cosmos_compositions = Vec::new();
+        for composition in compositions {
+            let json_value = preserve_composition(composition, export_mode.clone())?;
+            let cosmos_comp: CosmosComposition = serde_json::from_value(json_value)
+                .map_err(|e| AtlasError::Serialization(e.to_string()))?;
+            cosmos_compositions.push(cosmos_comp);
+        }
 
         // Get container client
         let container = self.client.get_container_client(template_id);
@@ -106,11 +115,14 @@ impl DatabaseClient for CosmosDbAdapter {
         export_mode: String,
         max_retries: usize,
     ) -> Result<BulkInsertResult> {
-        // Convert domain compositions to flattened Cosmos documents
-        let cosmos_compositions: Vec<CosmosCompositionFlattened> = compositions
-            .into_iter()
-            .map(|c| CosmosCompositionFlattened::from_domain(c, export_mode.clone()))
-            .collect::<Result<Vec<_>>>()?;
+        // Transform compositions using flatten_composition
+        let mut cosmos_compositions = Vec::new();
+        for composition in compositions {
+            let json_value = flatten_composition(composition, export_mode.clone())?;
+            let cosmos_comp: CosmosCompositionFlattened = serde_json::from_value(json_value)
+                .map_err(|e| AtlasError::Serialization(e.to_string()))?;
+            cosmos_compositions.push(cosmos_comp);
+        }
 
         // Get container client
         let container = self.client.get_container_client(template_id);

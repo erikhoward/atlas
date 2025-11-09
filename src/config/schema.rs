@@ -539,37 +539,16 @@ impl StateConfig {
 }
 
 /// Data verification configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct VerificationConfig {
     /// Enable verification
     #[serde(default)]
     pub enable_verification: bool,
-
-    /// Checksum algorithm
-    #[serde(default = "default_checksum_algorithm")]
-    pub checksum_algorithm: String,
 }
 
 impl VerificationConfig {
     fn validate(&self) -> Result<(), String> {
-        let valid_algorithms = ["sha256", "sha512"];
-        if !valid_algorithms.contains(&self.checksum_algorithm.as_str()) {
-            return Err(format!(
-                "Invalid verification.checksum_algorithm '{}'. Must be one of: {}",
-                self.checksum_algorithm,
-                valid_algorithms.join(", ")
-            ));
-        }
         Ok(())
-    }
-}
-
-impl Default for VerificationConfig {
-    fn default() -> Self {
-        Self {
-            enable_verification: false,
-            checksum_algorithm: default_checksum_algorithm(),
-        }
     }
 }
 
@@ -778,10 +757,6 @@ fn default_checkpoint_interval_seconds() -> u64 {
     30
 }
 
-fn default_checksum_algorithm() -> String {
-    "sha256".to_string()
-}
-
 fn default_local_path() -> String {
     "/var/log/atlas".to_string()
 }
@@ -933,7 +908,6 @@ mod tests {
     fn test_verification_config_default() {
         let config = VerificationConfig::default();
         assert!(!config.enable_verification);
-        assert_eq!(config.checksum_algorithm, "sha256");
         assert!(config.validate().is_ok());
     }
 

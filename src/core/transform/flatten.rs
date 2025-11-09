@@ -19,7 +19,6 @@ use std::collections::HashMap;
 ///
 /// * `composition` - The domain composition to transform
 /// * `export_mode` - The export mode (full or incremental)
-/// * `enable_checksum` - Whether to calculate and include a checksum
 ///
 /// # Returns
 ///
@@ -40,15 +39,11 @@ use std::collections::HashMap;
 ///     .template_id(TemplateId::from_str("vital_signs.v1")?)
 ///     .build()?;
 ///
-/// let result = flatten_composition(composition, "full".to_string(), false)?;
+/// let result = flatten_composition(composition, "full".to_string())?;
 /// # Ok(())
 /// # }
 /// ```
-pub fn flatten_composition(
-    composition: Composition,
-    export_mode: String,
-    enable_checksum: bool,
-) -> Result<Value> {
+pub fn flatten_composition(composition: Composition, export_mode: String) -> Result<Value> {
     let id = composition.uid.to_string();
     let ehr_id = composition.ehr_id.to_string();
     let composition_uid = composition.uid.to_string();
@@ -59,13 +54,7 @@ pub fn flatten_composition(
     let fields = flatten_content(&composition.content)?;
 
     // Create metadata
-    let mut atlas_metadata = AtlasMetadata::new(composition.template_id, export_mode);
-
-    // Calculate checksum if enabled
-    if enable_checksum {
-        let checksum = calculate_checksum(&fields)?;
-        atlas_metadata = atlas_metadata.with_checksum(checksum);
-    }
+    let atlas_metadata = AtlasMetadata::new(composition.template_id, export_mode);
 
     // Create the flattened composition
     let cosmos_comp = CosmosCompositionFlattened {
@@ -114,20 +103,6 @@ fn flatten_path(path: &str) -> String {
     path.replace(['/', ':', '|'], "_")
 }
 
-/// Calculate SHA-256 checksum of the flattened fields
-fn calculate_checksum(fields: &HashMap<String, Value>) -> Result<String> {
-    use sha2::{Digest, Sha256};
-
-    let fields_str = serde_json::to_string(fields)
-        .map_err(|e| crate::domain::AtlasError::Serialization(e.to_string()))?;
-
-    let mut hasher = Sha256::new();
-    hasher.update(fields_str.as_bytes());
-    let result = hasher.finalize();
-
-    Ok(format!("{result:x}"))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -169,7 +144,7 @@ mod tests {
     }
 
     #[test]
-    fn test_flatten_composition_without_checksum() {
+    fn test_flatten_composition() {
         let composition = CompositionBuilder::new()
             .uid(CompositionUid::from_str("84d7c3f5::local.ehrbase.org::1").unwrap())
             .ehr_id(EhrId::from_str("7d44b88c-4199-4bad-97dc-d78268e01398").unwrap())
@@ -183,7 +158,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let result = flatten_composition(composition.clone(), "full".to_string(), false).unwrap();
+        let result = flatten_composition(composition.clone(), "full".to_string()).unwrap();
 
         // Verify structure
         assert!(result.is_object());
@@ -203,28 +178,6 @@ mod tests {
     }
 
     #[test]
-    fn test_flatten_composition_with_checksum() {
-        let composition = CompositionBuilder::new()
-            .uid(CompositionUid::from_str("84d7c3f5::local.ehrbase.org::1").unwrap())
-            .ehr_id(EhrId::from_str("7d44b88c-4199-4bad-97dc-d78268e01398").unwrap())
-            .template_id(TemplateId::from_str("vital_signs.v1").unwrap())
-            .time_committed(Utc::now())
-            .content(json!({
-                "ctx/language": "en",
-                "vital_signs/body_temperature:0|magnitude": 37.5
-            }))
-            .build()
-            .unwrap();
-
-        let result = flatten_composition(composition, "incremental".to_string(), true).unwrap();
-
-        // Verify checksum is present
-        assert!(result["atlas_metadata"]["checksum"].is_string());
-        let checksum = result["atlas_metadata"]["checksum"].as_str().unwrap();
-        assert_eq!(checksum.len(), 64); // SHA-256 produces 64 hex characters
-    }
-
-    #[test]
     fn test_flatten_composition_complex_paths() {
         let composition = CompositionBuilder::new()
             .uid(CompositionUid::from_str("84d7c3f5::local.ehrbase.org::1").unwrap())
@@ -241,7 +194,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let result = flatten_composition(composition, "full".to_string(), false).unwrap();
+        let result = flatten_composition(composition, "full".to_string()).unwrap();
 
         // Verify all paths are flattened correctly
         assert_eq!(result["ctx_language"], "en");
@@ -261,22 +214,5 @@ mod tests {
             result["vital_signs_blood_pressure_0_diastolic_unit"],
             "mm[Hg]"
         );
-    }
-
-    #[test]
-    fn test_calculate_checksum_deterministic() {
-        let mut fields = HashMap::new();
-        fields.insert("ctx_language".to_string(), json!("en"));
-        fields.insert(
-            "vital_signs_body_temperature_0_magnitude".to_string(),
-            json!(37.5),
-        );
-
-        let checksum1 = calculate_checksum(&fields).unwrap();
-        let checksum2 = calculate_checksum(&fields).unwrap();
-
-        // Same fields should produce same checksum
-        assert_eq!(checksum1, checksum2);
-        assert_eq!(checksum1.len(), 64);
     }
 }

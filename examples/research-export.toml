@@ -130,11 +130,10 @@ checkpoint_interval_seconds = 60
 # ============================================================================
 
 [verification]
-# Enable verification for research data quality
+# Enable post-export verification for research data quality
+# Verifies data integrity by comparing checksums of exported compositions
+# Note: Only available when using Cosmos DB as the database target
 enable_verification = true
-
-# Checksum algorithm
-checksum_algorithm = "sha256"
 
 # ============================================================================
 # Logging Configuration

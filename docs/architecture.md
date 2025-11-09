@@ -76,7 +76,7 @@ Atlas follows a layered architecture with clear separation of concerns:
 │                                                             │
 │  ┌──────────────────┐                                      │
 │  │  Verification    │                                      │
-│  │  - Checksum      │                                      │
+│  │  - Existence     │                                      │
 │  │  - Report        │                                      │
 │  └──────────────────┘                                      │
 └─────────────────────────────────────────────────────────────┘
@@ -135,7 +135,6 @@ Atlas follows a layered architecture with clear separation of concerns:
   - `manager.rs`: Watermark persistence to Cosmos DB
   - `watermark.rs`: High-watermark tracking model
 - **Verification Module** (`verification/`):
-  - `checksum.rs`: SHA-256 checksum calculation
   - `report.rs`: Verification report generation
   - `verify.rs`: Post-export validation logic
 
@@ -208,12 +207,10 @@ Atlas follows a layered architecture with clear separation of concerns:
 │    ├─> Select transformation mode from config               │
 │    ├─> Preserve Mode:                                       │
 │    │   ├─> Maintain exact FLAT JSON structure               │
-│    │   ├─> Add atlas_metadata section                       │
-│    │   └─> Calculate checksum (if enabled)                  │
+│    │   └─> Add atlas_metadata section                       │
 │    └─> Flatten Mode:                                        │
 │        ├─> Convert paths to flat field names                │
-│        ├─> Add atlas_metadata section                       │
-│        └─> Calculate checksum (if enabled)                  │
+│        └─> Add atlas_metadata section                       │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -232,8 +229,7 @@ Atlas follows a layered architecture with clear separation of concerns:
 ┌─────────────────────────────────────────────────────────────┐
 │ 6. Verification (Optional)                                  │
 │    ├─> Fetch exported compositions from Cosmos DB           │
-│    ├─> Recalculate checksums                                │
-│    ├─> Compare with stored checksums                        │
+│    ├─> Verify document existence                            │
 │    └─> Generate verification report                         │
 └─────────────────────────────────────────────────────────────┘
                               │
@@ -319,11 +315,10 @@ Transform selection based on configuration:
 pub fn transform_composition(
     composition: &Composition,
     format: &str,
-    enable_checksum: bool,
 ) -> Result<Value> {
     match format {
-        "preserve" => preserve::preserve_composition(composition, enable_checksum),
-        "flatten" => flatten::flatten_composition(composition, enable_checksum),
+        "preserve" => preserve::preserve_composition(composition),
+        "flatten" => flatten::flatten_composition(composition),
         _ => Err(AtlasError::Configuration(...)),
     }
 }

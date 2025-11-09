@@ -42,12 +42,6 @@ impl AtlasMetadata {
             template_id: template_id.to_string(),
         }
     }
-
-    /// Set the checksum
-    pub fn with_checksum(mut self, checksum: String) -> Self {
-        self.checksum = Some(checksum);
-        self
-    }
 }
 
 /// Composition document in preserved format (maintains FLAT structure)
@@ -97,27 +91,6 @@ impl CosmosComposition {
             content: composition.content,
             atlas_metadata,
         })
-    }
-
-    /// Calculate SHA-256 checksum of the content
-    pub fn calculate_checksum(&self) -> Result<String> {
-        use sha2::{Digest, Sha256};
-
-        let content_str = serde_json::to_string(&self.content)
-            .map_err(|e| crate::domain::AtlasError::Serialization(e.to_string()))?;
-
-        let mut hasher = Sha256::new();
-        hasher.update(content_str.as_bytes());
-        let result = hasher.finalize();
-
-        Ok(format!("{result:x}"))
-    }
-
-    /// Add checksum to metadata
-    pub fn with_checksum(mut self) -> Result<Self> {
-        let checksum = self.calculate_checksum()?;
-        self.atlas_metadata.checksum = Some(checksum);
-        Ok(self)
     }
 }
 
@@ -201,27 +174,6 @@ impl CosmosCompositionFlattened {
     fn flatten_path(path: &str) -> String {
         path.replace(['/', ':', '|'], "_")
     }
-
-    /// Calculate SHA-256 checksum of the fields
-    pub fn calculate_checksum(&self) -> Result<String> {
-        use sha2::{Digest, Sha256};
-
-        let fields_str = serde_json::to_string(&self.fields)
-            .map_err(|e| crate::domain::AtlasError::Serialization(e.to_string()))?;
-
-        let mut hasher = Sha256::new();
-        hasher.update(fields_str.as_bytes());
-        let result = hasher.finalize();
-
-        Ok(format!("{result:x}"))
-    }
-
-    /// Add checksum to metadata
-    pub fn with_checksum(mut self) -> Result<Self> {
-        let checksum = self.calculate_checksum()?;
-        self.atlas_metadata.checksum = Some(checksum);
-        Ok(self)
-    }
 }
 
 #[cfg(test)]
@@ -296,26 +248,5 @@ mod tests {
             .fields
             .contains_key("vital_signs_body_temperature_0_magnitude"));
         assert!(cosmos_doc.fields.contains_key("ctx_language"));
-    }
-
-    #[test]
-    fn test_checksum_calculation() {
-        let composition = CompositionBuilder::new()
-            .uid(CompositionUid::new("84d7c3f5::local.ehrbase.org::1").unwrap())
-            .ehr_id(EhrId::new("7d44b88c-4199-4bad-97dc-d78268e01398").unwrap())
-            .template_id(TemplateId::new("vital_signs").unwrap())
-            .time_committed(Utc::now())
-            .content(json!({"ctx/language": "en"}))
-            .build()
-            .unwrap();
-
-        let cosmos_doc = CosmosComposition::from_domain(composition, "full".to_string())
-            .unwrap()
-            .with_checksum()
-            .unwrap();
-
-        assert!(cosmos_doc.atlas_metadata.checksum.is_some());
-        let checksum = cosmos_doc.atlas_metadata.checksum.unwrap();
-        assert_eq!(checksum.len(), 64); // SHA-256 produces 64 hex characters
     }
 }

@@ -335,25 +335,38 @@ checkpoint_interval_seconds = 30
 
 ### Verification
 
-Optional data integrity verification using checksums.
+Optional post-export verification to ensure exported compositions exist in the database.
 
 ```toml
 [verification]
 enable_verification = false
-checksum_algorithm = "sha256"
 ```
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `enable_verification` | boolean | false | Enable post-export data verification |
-| `checksum_algorithm` | string | "sha256" | Checksum algorithm: `sha256` or `sha512` |
 
 **Verification Process:**
 
-- When enabled, Atlas calculates checksums of exported data
-- Checksums are stored in the `atlas_metadata.checksum` field
-- Post-export verification compares stored checksums with recalculated values
-- Verification adds overhead; recommended only for critical data exports
+When enabled, Atlas performs the following verification steps:
+
+1. **After Export**: Fetches each exported composition from the database to verify it exists
+2. **Reporting**: Generates a detailed verification report showing pass/fail status for each composition
+
+**Verification Report Includes:**
+
+- Total compositions verified
+- Number passed/failed/skipped
+- Success rate percentage
+- Detailed failure information (composition UID, reason)
+- Verification duration
+
+**Important Notes:**
+
+- Verification is currently only available when using **Azure Cosmos DB** as the database target
+- Verification adds overhead to the export process (typically 10-20% longer)
+- Recommended for critical data exports where you want to confirm all compositions were successfully written
+- Failed verifications indicate compositions that were not found in the database
 
 ### Logging
 

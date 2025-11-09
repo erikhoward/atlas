@@ -93,12 +93,6 @@ impl PostgreSQLComposition {
             checksum: None,
         })
     }
-
-    /// Set the checksum
-    pub fn with_checksum(mut self, checksum: String) -> Self {
-        self.checksum = Some(checksum);
-        self
-    }
 }
 
 /// Watermark document for PostgreSQL storage
@@ -162,19 +156,16 @@ impl PostgreSQLWatermark {
     pub fn to_domain(&self) -> Result<Watermark> {
         use crate::domain::AtlasError;
 
-        let template_id =
-            TemplateId::new(&self.template_id).map_err(AtlasError::Validation)?;
+        let template_id = TemplateId::new(&self.template_id).map_err(AtlasError::Validation)?;
         let ehr_id = EhrId::new(&self.ehr_id).map_err(AtlasError::Validation)?;
 
-        let last_exported_composition_uid =
-            if let Some(ref uid_str) = self.last_exported_composition_uid {
-                Some(
-                    crate::domain::ids::CompositionUid::new(uid_str)
-                        .map_err(AtlasError::Validation)?,
-                )
-            } else {
-                None
-            };
+        let last_exported_composition_uid = if let Some(ref uid_str) =
+            self.last_exported_composition_uid
+        {
+            Some(crate::domain::ids::CompositionUid::new(uid_str).map_err(AtlasError::Validation)?)
+        } else {
+            None
+        };
 
         let last_export_status = match self.last_export_status.as_str() {
             "in_progress" => ExportStatus::InProgress,

@@ -138,9 +138,6 @@ checkpoint_interval_seconds = 60
 # Data quality checks can be done in ML pipeline
 enable_verification = false
 
-# Checksum algorithm
-checksum_algorithm = "sha256"
-
 # ============================================================================
 # Logging Configuration
 # ============================================================================

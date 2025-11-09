@@ -217,7 +217,6 @@ features = df.select("ehr_id", "vital_signs_blood_pressure_systolic", "vital_sig
    ```toml
    [verification]
    enable_verification = true
-   checksum_algorithm = "sha256"
    ```
 
 ### Creating Your Own Configuration

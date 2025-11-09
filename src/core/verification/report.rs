@@ -126,8 +126,6 @@ impl VerificationReport {
                 ));
                 summary.push_str(&format!("     EHR: {}\n", failure.ehr_id));
                 summary.push_str(&format!("     Template: {}\n", failure.template_id));
-                summary.push_str(&format!("     Expected: {}\n", failure.expected_checksum));
-                summary.push_str(&format!("     Actual: {}\n", failure.actual_checksum));
                 summary.push_str(&format!("     Reason: {}\n", failure.reason));
             }
         }

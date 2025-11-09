@@ -7,8 +7,9 @@ use crate::adapters::database::traits::DatabaseClient;
 use crate::core::state::{StateManager, Watermark};
 use crate::core::transform::CompositionFormat;
 use crate::domain::composition::Composition;
-use crate::domain::ids::{EhrId, TemplateId};
+use crate::domain::ids::{CompositionUid, EhrId, TemplateId};
 use crate::domain::Result;
+use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -19,32 +20,21 @@ pub struct BatchConfig {
     pub batch_size: usize,
     /// Composition format (preserve or flatten)
     pub composition_format: CompositionFormat,
-    /// Enable checksum calculation
-    pub enable_checksum: bool,
 }
 
 impl BatchConfig {
     /// Create a new batch configuration
-    pub fn new(
-        batch_size: usize,
-        composition_format: CompositionFormat,
-        enable_checksum: bool,
-    ) -> Self {
+    pub fn new(batch_size: usize, composition_format: CompositionFormat) -> Self {
         Self {
             batch_size,
             composition_format,
-            enable_checksum,
         }
     }
 
     /// Create from export config strings
-    pub fn from_config(
-        batch_size: usize,
-        composition_format_str: &str,
-        enable_checksum: bool,
-    ) -> Result<Self> {
+    pub fn from_config(batch_size: usize, composition_format_str: &str) -> Result<Self> {
         let composition_format = CompositionFormat::from_str(composition_format_str)?;
-        Ok(Self::new(batch_size, composition_format, enable_checksum))
+        Ok(Self::new(batch_size, composition_format))
     }
 }
 
@@ -59,6 +49,8 @@ pub struct BatchResult {
     pub duplicates_skipped: usize,
     /// Errors encountered
     pub errors: Vec<String>,
+    /// Checksums of successfully exported compositions (composition_uid -> checksum)
+    pub checksums: HashMap<CompositionUid, String>,
 }
 
 impl BatchResult {
@@ -69,6 +61,7 @@ impl BatchResult {
             failed: 0,
             duplicates_skipped: 0,
             errors: Vec::new(),
+            checksums: HashMap::new(),
         }
     }
 
@@ -94,6 +87,12 @@ impl BatchResult {
         self.failed += other.failed;
         self.duplicates_skipped += other.duplicates_skipped;
         self.errors.extend(other.errors);
+        self.checksums.extend(other.checksums);
+    }
+
+    /// Add a checksum for a successfully exported composition
+    pub fn add_checksum(&mut self, composition_uid: CompositionUid, checksum: String) {
+        self.checksums.insert(composition_uid, checksum);
     }
 }
 
@@ -216,20 +215,18 @@ mod tests {
 
     #[test]
     fn test_batch_config_creation() {
-        let config = BatchConfig::new(1000, CompositionFormat::Preserve, true);
+        let config = BatchConfig::new(1000, CompositionFormat::Preserve);
 
         assert_eq!(config.batch_size, 1000);
         assert_eq!(config.composition_format, CompositionFormat::Preserve);
-        assert!(config.enable_checksum);
     }
 
     #[test]
     fn test_batch_config_from_config() {
-        let config = BatchConfig::from_config(500, "flatten", false).unwrap();
+        let config = BatchConfig::from_config(500, "flatten").unwrap();
 
         assert_eq!(config.batch_size, 500);
         assert_eq!(config.composition_format, CompositionFormat::Flatten);
-        assert!(!config.enable_checksum);
     }
 
     #[test]
@@ -239,6 +236,7 @@ mod tests {
         assert_eq!(result.successful, 0);
         assert_eq!(result.failed, 0);
         assert_eq!(result.duplicates_skipped, 0);
+        assert!(result.checksums.is_empty());
 
         result.add_success();
         result.add_success();
@@ -254,14 +252,20 @@ mod tests {
 
     #[test]
     fn test_batch_result_merge() {
+        use std::str::FromStr;
+
         let mut result1 = BatchResult::new();
         result1.add_success();
         result1.add_failure("Error 1".to_string());
+        let uid1 = CompositionUid::from_str("84d7c3f5::local.ehrbase.org::1").unwrap();
+        result1.add_checksum(uid1.clone(), "checksum1".to_string());
 
         let mut result2 = BatchResult::new();
         result2.add_success();
         result2.add_success();
         result2.add_duplicate();
+        let uid2 = CompositionUid::from_str("95e8d4g6::local.ehrbase.org::1").unwrap();
+        result2.add_checksum(uid2.clone(), "checksum2".to_string());
 
         result1.merge(result2);
 
@@ -269,5 +273,8 @@ mod tests {
         assert_eq!(result1.failed, 1);
         assert_eq!(result1.duplicates_skipped, 1);
         assert_eq!(result1.errors.len(), 1);
+        assert_eq!(result1.checksums.len(), 2);
+        assert_eq!(result1.checksums.get(&uid1), Some(&"checksum1".to_string()));
+        assert_eq!(result1.checksums.get(&uid2), Some(&"checksum2".to_string()));
     }
 }

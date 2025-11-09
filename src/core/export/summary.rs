@@ -2,7 +2,33 @@
 //!
 //! This module defines structures for tracking and reporting export results.
 
+use crate::core::verification::report::VerificationReport;
+use crate::domain::ids::{CompositionUid, EhrId, TemplateId};
 use std::time::Duration;
+
+/// Information about an exported composition for verification
+#[derive(Debug, Clone)]
+pub struct ExportedCompositionInfo {
+    /// Composition UID
+    pub composition_uid: CompositionUid,
+
+    /// EHR ID (partition key)
+    pub ehr_id: EhrId,
+
+    /// Template ID
+    pub template_id: TemplateId,
+}
+
+impl ExportedCompositionInfo {
+    /// Create a new ExportedCompositionInfo
+    pub fn new(composition_uid: CompositionUid, ehr_id: EhrId, template_id: TemplateId) -> Self {
+        Self {
+            composition_uid,
+            ehr_id,
+            template_id,
+        }
+    }
+}
 
 /// Summary of an export operation
 #[derive(Debug, Clone)]
@@ -27,6 +53,12 @@ pub struct ExportSummary {
 
     /// Errors encountered during export
     pub errors: Vec<ExportError>,
+
+    /// List of successfully exported compositions (for verification)
+    pub exported_compositions: Vec<ExportedCompositionInfo>,
+
+    /// Verification report (if verification was run)
+    pub verification_report: Option<VerificationReport>,
 }
 
 impl ExportSummary {
@@ -40,6 +72,8 @@ impl ExportSummary {
             duplicates_skipped: 0,
             duration: Duration::from_secs(0),
             errors: Vec::new(),
+            exported_compositions: Vec::new(),
+            verification_report: None,
         }
     }
 
@@ -52,6 +86,26 @@ impl ExportSummary {
     /// Add an error
     pub fn add_error(&mut self, error: ExportError) {
         self.errors.push(error);
+    }
+
+    /// Record an exported composition for verification
+    pub fn add_exported_composition(
+        &mut self,
+        composition_uid: CompositionUid,
+        ehr_id: EhrId,
+        template_id: TemplateId,
+    ) {
+        self.exported_compositions
+            .push(ExportedCompositionInfo::new(
+                composition_uid,
+                ehr_id,
+                template_id,
+            ));
+    }
+
+    /// Set the verification report
+    pub fn set_verification_report(&mut self, report: VerificationReport) {
+        self.verification_report = Some(report);
     }
 
     /// Check if the export was successful (no failures)
@@ -156,6 +210,7 @@ impl ExportError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::str::FromStr;
 
     #[test]
     fn test_export_summary_creation() {
@@ -168,6 +223,7 @@ mod tests {
         assert_eq!(summary.duplicates_skipped, 0);
         assert_eq!(summary.duration, Duration::from_secs(0));
         assert!(summary.errors.is_empty());
+        assert!(summary.exported_compositions.is_empty());
     }
 
     #[test]
@@ -232,5 +288,49 @@ mod tests {
 
         assert_eq!(summary.errors.len(), 1);
         assert_eq!(summary.errors[0].error_type, ExportErrorType::Storage);
+    }
+
+    #[test]
+    fn test_add_exported_composition() {
+        use crate::domain::ids::{CompositionUid, EhrId, TemplateId};
+
+        let mut summary = ExportSummary::new();
+
+        let composition_uid = CompositionUid::from_str("84d7c3f5::local.ehrbase.org::1").unwrap();
+        let ehr_id = EhrId::from_str("7d44b88c-4199-4bad-97dc-d78268e01398").unwrap();
+        let template_id = TemplateId::from_str("vital_signs.v1").unwrap();
+
+        summary.add_exported_composition(
+            composition_uid.clone(),
+            ehr_id.clone(),
+            template_id.clone(),
+        );
+
+        assert_eq!(summary.exported_compositions.len(), 1);
+        assert_eq!(
+            summary.exported_compositions[0].composition_uid,
+            composition_uid
+        );
+        assert_eq!(summary.exported_compositions[0].ehr_id, ehr_id);
+        assert_eq!(summary.exported_compositions[0].template_id, template_id);
+    }
+
+    #[test]
+    fn test_exported_composition_info_creation() {
+        use crate::domain::ids::{CompositionUid, EhrId, TemplateId};
+
+        let composition_uid = CompositionUid::from_str("84d7c3f5::local.ehrbase.org::1").unwrap();
+        let ehr_id = EhrId::from_str("7d44b88c-4199-4bad-97dc-d78268e01398").unwrap();
+        let template_id = TemplateId::from_str("vital_signs.v1").unwrap();
+
+        let info = ExportedCompositionInfo::new(
+            composition_uid.clone(),
+            ehr_id.clone(),
+            template_id.clone(),
+        );
+
+        assert_eq!(info.composition_uid, composition_uid);
+        assert_eq!(info.ehr_id, ehr_id);
+        assert_eq!(info.template_id, template_id);
     }
 }

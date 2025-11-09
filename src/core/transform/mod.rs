@@ -81,15 +81,10 @@ pub fn transform_composition(
     composition: Composition,
     format: CompositionFormat,
     export_mode: String,
-    enable_checksum: bool,
 ) -> Result<Value> {
     match format {
-        CompositionFormat::Preserve => {
-            preserve::preserve_composition(composition, export_mode, enable_checksum)
-        }
-        CompositionFormat::Flatten => {
-            flatten::flatten_composition(composition, export_mode, enable_checksum)
-        }
+        CompositionFormat::Preserve => preserve::preserve_composition(composition, export_mode),
+        CompositionFormat::Flatten => flatten::flatten_composition(composition, export_mode),
     }
 }
 
@@ -149,13 +144,9 @@ mod tests {
             .build()
             .unwrap();
 
-        let result = transform_composition(
-            composition,
-            CompositionFormat::Preserve,
-            "full".to_string(),
-            false,
-        )
-        .unwrap();
+        let result =
+            transform_composition(composition, CompositionFormat::Preserve, "full".to_string())
+                .unwrap();
 
         // Verify preserved format - content field should exist with original paths
         assert!(result["content"].is_object());
@@ -180,41 +171,12 @@ mod tests {
             .build()
             .unwrap();
 
-        let result = transform_composition(
-            composition,
-            CompositionFormat::Flatten,
-            "full".to_string(),
-            false,
-        )
-        .unwrap();
+        let result =
+            transform_composition(composition, CompositionFormat::Flatten, "full".to_string())
+                .unwrap();
 
         // Verify flattened format - fields should be at top level with underscores
         assert_eq!(result["ctx_language"], "en");
         assert_eq!(result["vital_signs_body_temperature_0_magnitude"], 37.5);
-    }
-
-    #[test]
-    fn test_transform_composition_with_checksum() {
-        let composition = CompositionBuilder::new()
-            .uid(CompositionUid::from_str("84d7c3f5::local.ehrbase.org::1").unwrap())
-            .ehr_id(EhrId::from_str("7d44b88c-4199-4bad-97dc-d78268e01398").unwrap())
-            .template_id(TemplateId::from_str("vital_signs.v1").unwrap())
-            .time_committed(Utc::now())
-            .content(json!({
-                "ctx/language": "en"
-            }))
-            .build()
-            .unwrap();
-
-        let result = transform_composition(
-            composition,
-            CompositionFormat::Preserve,
-            "full".to_string(),
-            true,
-        )
-        .unwrap();
-
-        // Verify checksum is present
-        assert!(result["atlas_metadata"]["checksum"].is_string());
     }
 }

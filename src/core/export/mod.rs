@@ -11,4 +11,4 @@ pub mod summary;
 
 pub use batch::{BatchConfig, BatchProcessor, BatchResult};
 pub use coordinator::ExportCoordinator;
-pub use summary::{ExportError, ExportErrorType, ExportSummary};
+pub use summary::{ExportError, ExportErrorType, ExportSummary, ExportedCompositionInfo};

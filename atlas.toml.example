@@ -116,9 +116,10 @@ checkpoint_interval_seconds = 30
 # ============================================================================
 
 [verification]
-# Optional data integrity verification using checksums
+# Optional post-export data integrity verification using SHA-256 checksums
+# Note: Only available when using Cosmos DB as the database target
+# Adds 20-30% overhead but ensures data integrity
 enable_verification = false
-checksum_algorithm = "sha256"  # sha256 | sha512
 
 # ============================================================================
 # LOGGING

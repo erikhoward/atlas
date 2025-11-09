@@ -63,9 +63,8 @@ enable_checkpointing = true
 checkpoint_interval_seconds = 30
 
 [verification]
-# Optional data verification
+# Optional post-export data integrity verification (Cosmos DB only)
 enable_verification = false
-checksum_algorithm = "sha256"
 
 [logging]
 # Local logging

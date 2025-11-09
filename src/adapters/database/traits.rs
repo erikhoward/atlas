@@ -8,6 +8,7 @@ use crate::domain::composition::Composition;
 use crate::domain::ids::{EhrId, TemplateId};
 use crate::domain::Result;
 use async_trait::async_trait;
+use std::any::Any;
 
 /// Result of a bulk insert operation
 #[derive(Debug, Clone)]
@@ -41,6 +42,12 @@ pub struct BulkInsertFailure {
 /// for storing and managing OpenEHR compositions.
 #[async_trait]
 pub trait DatabaseClient: Send + Sync {
+    /// Downcast to Any for type-specific operations
+    ///
+    /// This allows downcasting the trait object to concrete types when needed
+    /// (e.g., for verification operations that require the underlying client).
+    fn as_any(&self) -> &dyn Any;
+
     /// Test the database connection
     ///
     /// # Errors
@@ -205,4 +212,3 @@ pub trait StateStorage: Send + Sync {
     /// Returns an error if the query fails.
     async fn get_all_watermarks(&self) -> Result<Vec<Watermark>>;
 }
-
