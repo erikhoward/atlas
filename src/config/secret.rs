@@ -14,11 +14,11 @@
 //! # Example
 //!
 //! ```rust
-//! use atlas::config::SecretString;
+//! use atlas::config::{SecretString, SecretValue};
 //! use secrecy::{Secret, ExposeSecret};
 //!
 //! // Create a secret
-//! let password = SecretString::new("my-password".to_string());
+//! let password: SecretString = Secret::new(SecretValue::from("my-password".to_string()));
 //!
 //! // Access the secret (only when needed)
 //! let password_str = password.expose_secret();
@@ -185,7 +185,7 @@ mod tests {
     #[test]
     fn test_secret_debug_redacted() {
         let secret = secret_string("sensitive-data".to_string());
-        let debug_output = format!("{:?}", secret);
+        let debug_output = format!("{secret:?}");
 
         // Should not contain the actual secret
         assert!(!debug_output.contains("sensitive-data"));

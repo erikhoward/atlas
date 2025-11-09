@@ -38,7 +38,7 @@
 //!
 //! fn example() -> Result<()> {
 //!     // Errors are automatically converted using the ? operator
-//!     let config = atlas::config::AtlasConfig::from_file("atlas.toml")?;
+//!     let config = atlas::config::load_config("atlas.toml")?;
 //!     Ok(())
 //! }
 //! ```
@@ -48,14 +48,15 @@
 //! Complex domain models use the builder pattern for construction:
 //!
 //! ```rust
-//! use atlas::domain::{CompositionBuilder, EhrId, TemplateId};
+//! use atlas::domain::{CompositionBuilder, CompositionUid, EhrId, TemplateId};
 //! use chrono::Utc;
+//! use std::str::FromStr;
 //!
 //! # fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let composition = CompositionBuilder::new()
-//!     .uid("composition-123::server.com::1")?
-//!     .ehr_id("ehr-456")?
-//!     .template_id("IDCR - Vital Signs.v1")?
+//!     .uid(CompositionUid::from_str("composition-123::server.com::1")?)
+//!     .ehr_id(EhrId::from_str("ehr-456")?)
+//!     .template_id(TemplateId::from_str("IDCR - Vital Signs.v1")?)
 //!     .time_committed(Utc::now())
 //!     .content(serde_json::json!({"vital_signs": {}}))
 //!     .build()?;

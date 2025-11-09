@@ -78,6 +78,8 @@ impl CompositionMetadata {
 /// use atlas::adapters::openehr::vendor::{OpenEhrVendor, EhrBaseVendor};
 /// use atlas::config::OpenEhrConfig;
 /// use atlas::domain::ids::{EhrId, TemplateId};
+/// use atlas::domain::AtlasError;
+/// use std::str::FromStr;
 ///
 /// # async fn example() -> atlas::domain::Result<()> {
 /// // Create a vendor instance
@@ -91,8 +93,8 @@ impl CompositionMetadata {
 /// let ehr_ids = vendor.get_ehr_ids().await?;
 ///
 /// // Get compositions for a specific EHR and template
-/// let ehr_id = EhrId::new("ehr-123")?;
-/// let template_id = TemplateId::new("vital_signs")?;
+/// let ehr_id = EhrId::from_str("ehr-123").map_err(|e| AtlasError::Validation(e))?;
+/// let template_id = TemplateId::from_str("vital_signs").map_err(|e| AtlasError::Validation(e))?;
 /// let compositions = vendor.get_compositions_for_ehr(&ehr_id, &template_id, None).await?;
 /// # Ok(())
 /// # }
@@ -145,10 +147,12 @@ pub trait OpenEhrVendor: Send + Sync {
     /// ```no_run
     /// # use atlas::adapters::openehr::vendor::OpenEhrVendor;
     /// # use atlas::domain::ids::{EhrId, TemplateId};
+    /// # use atlas::domain::AtlasError;
     /// # use chrono::Utc;
+    /// # use std::str::FromStr;
     /// # async fn example(vendor: &impl OpenEhrVendor) -> atlas::domain::Result<()> {
-    /// let ehr_id = EhrId::new("ehr-123")?;
-    /// let template_id = TemplateId::new("vital_signs")?;
+    /// let ehr_id = EhrId::from_str("ehr-123").map_err(|e| AtlasError::Validation(e))?;
+    /// let template_id = TemplateId::from_str("vital_signs").map_err(|e| AtlasError::Validation(e))?;
     /// let since = Some(Utc::now() - chrono::Duration::days(7));
     ///
     /// let compositions = vendor.get_compositions_for_ehr(&ehr_id, &template_id, since).await?;
@@ -181,12 +185,15 @@ pub trait OpenEhrVendor: Send + Sync {
     /// ```no_run
     /// # use atlas::adapters::openehr::vendor::{OpenEhrVendor, CompositionMetadata};
     /// # use atlas::domain::ids::{EhrId, CompositionUid, TemplateId};
+    /// # use atlas::domain::AtlasError;
     /// # use chrono::Utc;
+    /// # use std::str::FromStr;
     /// # async fn example(vendor: &impl OpenEhrVendor) -> atlas::domain::Result<()> {
     /// let metadata = CompositionMetadata::new(
-    ///     CompositionUid::parse("550e8400-e29b-41d4-a716-446655440000::local.ehrbase.org::1")?,
-    ///     TemplateId::new("vital_signs")?,
-    ///     EhrId::new("7d44b88c-4199-4bad-97dc-d78268e01398")?,
+    ///     CompositionUid::from_str("550e8400-e29b-41d4-a716-446655440000::local.ehrbase.org::1")
+    ///         .map_err(|e| AtlasError::Validation(e))?,
+    ///     TemplateId::from_str("vital_signs").map_err(|e| AtlasError::Validation(e))?,
+    ///     EhrId::from_str("7d44b88c-4199-4bad-97dc-d78268e01398").map_err(|e| AtlasError::Validation(e))?,
     ///     Utc::now(),
     /// );
     /// let composition = vendor.fetch_composition(&metadata).await?;

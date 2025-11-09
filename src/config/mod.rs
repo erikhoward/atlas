@@ -14,15 +14,17 @@
 //! # Quick Start
 //!
 //! ```rust,no_run
-//! use atlas::config::AtlasConfig;
+//! use atlas::config::load_config;
 //!
 //! # fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Load configuration from file
-//! let config = AtlasConfig::from_file("atlas.toml")?;
+//! let config = load_config("atlas.toml")?;
 //!
 //! // Access configuration sections
 //! println!("OpenEHR URL: {}", config.openehr.base_url);
-//! println!("Cosmos DB: {}", config.cosmosdb.database_name);
+//! if let Some(cosmosdb) = &config.cosmosdb {
+//!     println!("Cosmos DB: {}", cosmosdb.database_name);
+//! }
 //! println!("Export mode: {}", config.export.mode);
 //! # Ok(())
 //! # }
@@ -81,10 +83,10 @@
 //! Configuration is validated on load:
 //!
 //! ```rust,no_run
-//! use atlas::config::AtlasConfig;
+//! use atlas::config::load_config;
 //!
 //! # fn example() {
-//! match AtlasConfig::from_file("atlas.toml") {
+//! match load_config("atlas.toml") {
 //!     Ok(config) => println!("Configuration valid"),
 //!     Err(e) => eprintln!("Configuration error: {}", e),
 //! }
@@ -106,4 +108,4 @@ pub use schema::{
     ApplicationConfig, AtlasConfig, CosmosDbConfig, ExportConfig, LoggingConfig, OpenEhrConfig,
     QueryConfig, StateConfig, VerificationConfig,
 };
-pub use secret::{secret_string, secret_string_opt, SecretString};
+pub use secret::{secret_string, secret_string_opt, SecretString, SecretValue};

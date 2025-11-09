@@ -38,10 +38,13 @@ impl Verifier {
     /// use atlas::core::verification::verify::Verifier;
     /// use atlas::core::export::ExportSummary;
     /// use atlas::adapters::cosmosdb::CosmosDbClient;
+    /// use atlas::config::load_config;
     /// use std::sync::Arc;
     ///
     /// # async fn example() -> anyhow::Result<()> {
-    /// # let cosmos_client = Arc::new(CosmosDbClient::new(Default::default()).await?);
+    /// # let config = load_config("atlas.toml")?;
+    /// # let cosmos_config = config.cosmosdb.ok_or_else(|| anyhow::anyhow!("CosmosDB config required"))?;
+    /// # let cosmos_client = Arc::new(CosmosDbClient::new(cosmos_config).await?);
     /// let verifier = Verifier::new(cosmos_client);
     /// let summary = ExportSummary::new();
     /// let report = verifier.verify_export(&summary).await?;

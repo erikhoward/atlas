@@ -29,16 +29,19 @@
 //! ## Quick Start
 //!
 //! ```rust,no_run
-//! use atlas::config::AtlasConfig;
+//! use atlas::config::load_config;
 //! use atlas::core::export::ExportCoordinator;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     // Load configuration
-//!     let config = AtlasConfig::from_file("atlas.toml")?;
+//!     let config = load_config("atlas.toml")?;
+//!
+//!     // Create shutdown signal
+//!     let (_shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
 //!
 //!     // Create export coordinator
-//!     let coordinator = ExportCoordinator::new(&config).await?;
+//!     let coordinator = ExportCoordinator::new(config, shutdown_rx).await?;
 //!
 //!     // Execute export
 //!     let summary = coordinator.execute_export().await?;
@@ -58,9 +61,10 @@
 //! ```rust,no_run
 //! use atlas::core::state::StateManager;
 //! use atlas::domain::{TemplateId, EhrId};
+//! use std::sync::Arc;
 //!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! let state_manager = StateManager::new(/* cosmos_client */);
+//! # async fn example(storage: Arc<dyn atlas::adapters::database::traits::StateStorage + Send + Sync>) -> Result<(), Box<dyn std::error::Error>> {
+//! let state_manager = StateManager::new_with_storage(storage);
 //!
 //! // Load watermark for a specific template and EHR
 //! let template_id = TemplateId::new("IDCR - Vital Signs.v1")?;
@@ -80,15 +84,16 @@
 //! - **Flatten**: Converts nested paths to flat field names for analytics
 //!
 //! ```rust,no_run
-//! use atlas::core::transform;
+//! use atlas::core::transform::preserve::preserve_composition;
+//! use atlas::core::transform::flatten::flatten_composition;
 //! use atlas::domain::Composition;
 //!
-//! # fn example(composition: &Composition) -> Result<(), Box<dyn std::error::Error>> {
+//! # fn example(composition: Composition) -> Result<(), Box<dyn std::error::Error>> {
 //! // Preserve mode - maintains exact structure
-//! let preserved = transform::preserve_composition(composition, true)?;
+//! let preserved = preserve_composition(composition.clone(), "full".to_string())?;
 //!
 //! // Flatten mode - converts to flat field names
-//! let flattened = transform::flatten_composition(composition, true)?;
+//! let flattened = flatten_composition(composition, "full".to_string())?;
 //! # Ok(())
 //! # }
 //! ```
@@ -98,15 +103,29 @@
 //! Atlas processes compositions in configurable batches for optimal performance:
 //!
 //! ```rust,no_run
-//! use atlas::core::export::BatchProcessor;
+//! use atlas::core::export::{BatchProcessor, BatchConfig};
+//! use atlas::core::state::{StateManager, WatermarkBuilder};
+//! use atlas::core::transform::CompositionFormat;
+//! use atlas::domain::{Composition, TemplateId, EhrId};
+//! use std::sync::Arc;
 //!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! let batch_processor = BatchProcessor::new(/* cosmos_client, state_manager */);
+//! # async fn example(
+//! #     database_client: Arc<dyn atlas::adapters::database::traits::DatabaseClient + Send + Sync>,
+//! #     state_manager: Arc<StateManager>,
+//! #     compositions: Vec<Composition>,
+//! #     template_id: TemplateId,
+//! #     ehr_id: EhrId,
+//! # ) -> Result<(), Box<dyn std::error::Error>> {
+//! let batch_config = BatchConfig::new(1000, CompositionFormat::Preserve, false);
+//! let batch_processor = BatchProcessor::new(database_client, state_manager.clone(), batch_config);
 //!
 //! // Process batch of compositions
+//! let mut watermark = WatermarkBuilder::new(template_id.clone(), ehr_id.clone()).build();
 //! let result = batch_processor.process_batch(
 //!     compositions,
-//!     &batch_config,
+//!     &template_id,
+//!     &ehr_id,
+//!     &mut watermark,
 //! ).await?;
 //!
 //! println!("Processed: {}, Failed: {}", result.successful, result.failed);
@@ -123,7 +142,7 @@
 //!
 //! fn example() -> Result<(), AtlasError> {
 //!     // Errors are automatically converted using the ? operator
-//!     let config = atlas::config::AtlasConfig::from_file("atlas.toml")?;
+//!     let config = atlas::config::load_config("atlas.toml")?;
 //!     Ok(())
 //! }
 //! ```
@@ -135,9 +154,13 @@
 //! ```rust,no_run
 //! use tracing::{info, warn, error};
 //!
+//! # fn example() {
 //! info!("Starting export");
 //! warn!(template_id = "IDCR - Vital Signs.v1", "No compositions found");
+//!
+//! let err = std::io::Error::new(std::io::ErrorKind::Other, "Export failed");
 //! error!(error = ?err, "Export failed");
+//! # }
 //! ```
 //!
 //! ## See Also
