@@ -18,6 +18,7 @@ use crate::domain::Result;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Instant;
+use tokio::sync::watch;
 
 /// Export coordinator
 pub struct ExportCoordinator {
@@ -30,11 +31,18 @@ pub struct ExportCoordinator {
     batch_processor: Arc<BatchProcessor>,
     /// Cosmos DB client for verification (only available when using CosmosDB)
     cosmos_client: Option<Arc<CosmosDbClient>>,
+    /// Shutdown signal receiver for graceful shutdown
+    shutdown_signal: watch::Receiver<bool>,
 }
 
 impl ExportCoordinator {
     /// Create a new export coordinator
-    pub async fn new(config: AtlasConfig) -> Result<Self> {
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - Atlas configuration
+    /// * `shutdown_signal` - Receiver for shutdown signal (true = shutdown requested)
+    pub async fn new(config: AtlasConfig, shutdown_signal: watch::Receiver<bool>) -> Result<Self> {
         // Create OpenEHR client
         let openehr_client = Arc::new(OpenEhrClient::new(config.openehr.clone()).await?);
 
@@ -89,7 +97,13 @@ impl ExportCoordinator {
             state_manager,
             batch_processor,
             cosmos_client,
+            shutdown_signal,
         })
+    }
+
+    /// Check if shutdown has been requested
+    fn is_shutdown_requested(&self) -> bool {
+        *self.shutdown_signal.borrow()
     }
 
     /// Execute the export
@@ -146,6 +160,14 @@ impl ExportCoordinator {
 
         // Process each template
         for template_id in &template_ids {
+            // Check for shutdown signal before processing each template
+            if self.is_shutdown_requested() {
+                tracing::info!("Shutdown signal received, stopping export");
+                summary.interrupted = true;
+                summary.shutdown_reason = Some("User signal (SIGTERM/SIGINT)".to_string());
+                return Ok(summary.with_duration(start_time.elapsed()));
+            }
+
             tracing::info!(
                 template_id = %template_id.as_str(),
                 "Processing template"
@@ -174,6 +196,14 @@ impl ExportCoordinator {
 
             // Process each EHR for this template
             for ehr_id in &ehr_ids {
+                // Check for shutdown signal before processing each EHR
+                if self.is_shutdown_requested() {
+                    tracing::info!("Shutdown signal received, stopping export");
+                    summary.interrupted = true;
+                    summary.shutdown_reason = Some("User signal (SIGTERM/SIGINT)".to_string());
+                    return Ok(summary.with_duration(start_time.elapsed()));
+                }
+
                 match self
                     .process_ehr_for_template(template_id, ehr_id, &mut summary)
                     .await

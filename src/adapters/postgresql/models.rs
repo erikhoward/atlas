@@ -147,6 +147,7 @@ impl PostgreSQLWatermark {
                 ExportStatus::InProgress => "in_progress".to_string(),
                 ExportStatus::Completed => "completed".to_string(),
                 ExportStatus::Failed => "failed".to_string(),
+                ExportStatus::Interrupted => "interrupted".to_string(),
                 ExportStatus::NotStarted => "not_started".to_string(),
             },
         }
@@ -171,6 +172,7 @@ impl PostgreSQLWatermark {
             "in_progress" => ExportStatus::InProgress,
             "completed" => ExportStatus::Completed,
             "failed" => ExportStatus::Failed,
+            "interrupted" => ExportStatus::Interrupted,
             "not_started" => ExportStatus::NotStarted,
             _ => ExportStatus::Failed,
         };

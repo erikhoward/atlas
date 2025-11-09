@@ -7,6 +7,7 @@ use atlas::config::LoggingConfig;
 use atlas::logging::init_logging;
 use clap::Parser;
 use std::process;
+use tokio::sync::watch;
 
 #[tokio::main]
 async fn main() {
@@ -43,8 +44,46 @@ async fn main() {
         "Atlas - OpenEHR to Azure Cosmos DB ETL Tool"
     );
 
+    // Create shutdown signal channel for graceful shutdown
+    let (shutdown_tx, shutdown_rx) = watch::channel(false);
+
+    // Spawn signal handler task
+    let shutdown_tx_clone = shutdown_tx.clone();
+    tokio::spawn(async move {
+        #[cfg(unix)]
+        {
+            use tokio::signal::unix::{signal, SignalKind};
+            let mut sigterm =
+                signal(SignalKind::terminate()).expect("Failed to create SIGTERM handler");
+
+            tokio::select! {
+                _ = tokio::signal::ctrl_c() => {
+                    tracing::info!("Received SIGINT (Ctrl+C), initiating graceful shutdown...");
+                    println!("\n⚠️  Shutdown signal received, completing current batch...");
+                    let _ = shutdown_tx_clone.send(true);
+                }
+                _ = sigterm.recv() => {
+                    tracing::info!("Received SIGTERM, initiating graceful shutdown...");
+                    println!("\n⚠️  Shutdown signal received, completing current batch...");
+                    let _ = shutdown_tx_clone.send(true);
+                }
+            }
+        }
+
+        #[cfg(not(unix))]
+        {
+            if let Err(e) = tokio::signal::ctrl_c().await {
+                tracing::error!(error = %e, "Failed to listen for Ctrl+C");
+            } else {
+                tracing::info!("Received SIGINT (Ctrl+C), initiating graceful shutdown...");
+                println!("\n⚠️  Shutdown signal received, completing current batch...");
+                let _ = shutdown_tx_clone.send(true);
+            }
+        }
+    });
+
     // Execute command and get exit code
-    let exit_code = match execute_command(&cli).await {
+    let exit_code = match execute_command(&cli, shutdown_rx).await {
         Ok(code) => code,
         Err(e) => {
             tracing::error!(error = %e, "Command execution failed");
@@ -58,9 +97,9 @@ async fn main() {
 }
 
 /// Execute the CLI command
-async fn execute_command(cli: &Cli) -> anyhow::Result<i32> {
+async fn execute_command(cli: &Cli, shutdown_signal: watch::Receiver<bool>) -> anyhow::Result<i32> {
     match &cli.command {
-        Commands::Export(args) => args.execute(&cli.config).await,
+        Commands::Export(args) => args.execute(&cli.config, shutdown_signal).await,
         Commands::ValidateConfig(args) => args.execute(&cli.config).await,
         Commands::Status(args) => args.execute(&cli.config).await,
         Commands::Init(args) => args.execute().await,
