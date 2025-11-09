@@ -71,7 +71,22 @@ impl DatabaseClient for PostgreSQLAdapter {
         compositions: Vec<Composition>,
         export_mode: String,
         _max_retries: usize,
+        dry_run: bool,
     ) -> Result<BulkInsertResult> {
+        // If dry-run, skip actual write and return success
+        if dry_run {
+            tracing::info!(
+                count = compositions.len(),
+                "DRY RUN: Would insert {} compositions (preserved format) into PostgreSQL",
+                compositions.len()
+            );
+            return Ok(BulkInsertResult {
+                success_count: compositions.len(),
+                failure_count: 0,
+                failures: Vec::new(),
+            });
+        }
+
         let mut success_count = 0;
         let mut failures = Vec::new();
 
@@ -161,7 +176,22 @@ impl DatabaseClient for PostgreSQLAdapter {
         compositions: Vec<Composition>,
         export_mode: String,
         _max_retries: usize,
+        dry_run: bool,
     ) -> Result<BulkInsertResult> {
+        // If dry-run, skip actual write and return success
+        if dry_run {
+            tracing::info!(
+                count = compositions.len(),
+                "DRY RUN: Would insert {} compositions (flattened format) into PostgreSQL",
+                compositions.len()
+            );
+            return Ok(BulkInsertResult {
+                success_count: compositions.len(),
+                failure_count: 0,
+                failures: Vec::new(),
+            });
+        }
+
         let mut success_count = 0;
         let mut failures = Vec::new();
 
@@ -324,13 +354,25 @@ impl StateStorage for PostgreSQLAdapter {
         }
     }
 
-    async fn save_watermark(&self, watermark: &Watermark) -> Result<()> {
+    async fn save_watermark(&self, watermark: &Watermark, dry_run: bool) -> Result<()> {
         tracing::debug!(
             template_id = %watermark.template_id.as_str(),
             ehr_id = %watermark.ehr_id.as_str(),
             watermark_id = %watermark.id,
+            dry_run = dry_run,
             "Saving watermark to PostgreSQL"
         );
+
+        // If dry-run, skip actual write
+        if dry_run {
+            tracing::info!(
+                template_id = %watermark.template_id.as_str(),
+                ehr_id = %watermark.ehr_id.as_str(),
+                watermark_id = %watermark.id,
+                "DRY RUN: Would save watermark to PostgreSQL"
+            );
+            return Ok(());
+        }
 
         let pg_watermark = PostgreSQLWatermark::from_domain(watermark);
 

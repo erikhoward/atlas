@@ -57,12 +57,13 @@ impl StateManager {
     /// # Arguments
     ///
     /// * `watermark` - Watermark to save
+    /// * `dry_run` - If true, skip actual database writes (for testing)
     ///
     /// # Errors
     ///
     /// Returns an error if the upsert operation fails.
-    pub async fn save_watermark(&self, watermark: &Watermark) -> Result<()> {
-        self.storage.save_watermark(watermark).await
+    pub async fn save_watermark(&self, watermark: &Watermark, dry_run: bool) -> Result<()> {
+        self.storage.save_watermark(watermark, dry_run).await
     }
 
     /// Get all watermarks from the database
@@ -86,11 +87,12 @@ impl StateManager {
     /// # Arguments
     ///
     /// * `watermark` - Watermark to checkpoint
+    /// * `dry_run` - If true, skip actual database writes (for testing)
     ///
     /// # Errors
     ///
     /// Returns an error if the checkpoint fails.
-    pub async fn checkpoint_batch(&self, watermark: &Watermark) -> Result<()> {
+    pub async fn checkpoint_batch(&self, watermark: &Watermark, dry_run: bool) -> Result<()> {
         tracing::info!(
             template_id = %watermark.template_id.as_str(),
             ehr_id = %watermark.ehr_id.as_str(),
@@ -98,7 +100,7 @@ impl StateManager {
             "Checkpointing batch"
         );
 
-        self.save_watermark(watermark).await
+        self.save_watermark(watermark, dry_run).await
     }
 }
 

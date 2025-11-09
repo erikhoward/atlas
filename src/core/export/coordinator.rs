@@ -62,6 +62,7 @@ impl ExportCoordinator {
         let batch_config = BatchConfig::from_config(
             config.openehr.query.batch_size,
             &config.export.export_composition_format,
+            config.export.dry_run,
         )?;
 
         // Create batch processor
@@ -123,6 +124,7 @@ impl ExportCoordinator {
     pub async fn execute_export(&self) -> Result<ExportSummary> {
         let start_time = Instant::now();
         let mut summary = ExportSummary::new();
+        summary.dry_run = self.config.export.dry_run;
 
         tracing::info!("Starting export process");
 
@@ -364,7 +366,9 @@ impl ExportCoordinator {
 
         // Mark export as started
         watermark.mark_started();
-        self.state_manager.save_watermark(&watermark).await?;
+        self.state_manager
+            .save_watermark(&watermark, self.config.export.dry_run)
+            .await?;
 
         // Determine the timestamp to query from (for incremental exports)
         let since = if self.config.export.mode == "incremental" {
@@ -390,7 +394,9 @@ impl ExportCoordinator {
         // If no compositions found, mark as completed and return
         if compositions_metadata.is_empty() {
             watermark.mark_completed();
-            self.state_manager.save_watermark(&watermark).await?;
+            self.state_manager
+                .save_watermark(&watermark, self.config.export.dry_run)
+                .await?;
             return Ok(());
         }
 
@@ -450,7 +456,9 @@ impl ExportCoordinator {
 
         // Mark export as completed
         watermark.mark_completed();
-        self.state_manager.save_watermark(&watermark).await?;
+        self.state_manager
+            .save_watermark(&watermark, self.config.export.dry_run)
+            .await?;
 
         Ok(())
     }

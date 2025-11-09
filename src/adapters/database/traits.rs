@@ -88,6 +88,7 @@ pub trait DatabaseClient: Send + Sync {
     /// * `compositions` - Compositions to insert
     /// * `export_mode` - Export mode (full or incremental)
     /// * `max_retries` - Maximum number of retries for transient failures
+    /// * `dry_run` - If true, skip actual database writes (for testing)
     ///
     /// # Returns
     ///
@@ -98,6 +99,7 @@ pub trait DatabaseClient: Send + Sync {
         compositions: Vec<Composition>,
         export_mode: String,
         max_retries: usize,
+        dry_run: bool,
     ) -> Result<BulkInsertResult>;
 
     /// Bulk insert compositions in flattened format
@@ -108,6 +110,7 @@ pub trait DatabaseClient: Send + Sync {
     /// * `compositions` - Compositions to insert (will be flattened)
     /// * `export_mode` - Export mode (full or incremental)
     /// * `max_retries` - Maximum number of retries for transient failures
+    /// * `dry_run` - If true, skip actual database writes (for testing)
     ///
     /// # Returns
     ///
@@ -118,6 +121,7 @@ pub trait DatabaseClient: Send + Sync {
         compositions: Vec<Composition>,
         export_mode: String,
         max_retries: usize,
+        dry_run: bool,
     ) -> Result<BulkInsertResult>;
 
     /// Check if a composition exists
@@ -173,11 +177,12 @@ pub trait StateStorage: Send + Sync {
     /// # Arguments
     ///
     /// * `watermark` - Watermark to save
+    /// * `dry_run` - If true, skip actual database writes (for testing)
     ///
     /// # Errors
     ///
     /// Returns an error if the save operation fails.
-    async fn save_watermark(&self, watermark: &Watermark) -> Result<()>;
+    async fn save_watermark(&self, watermark: &Watermark, dry_run: bool) -> Result<()>;
 
     /// Checkpoint a batch by saving the watermark
     ///
@@ -186,11 +191,12 @@ pub trait StateStorage: Send + Sync {
     /// # Arguments
     ///
     /// * `watermark` - Watermark to checkpoint
+    /// * `dry_run` - If true, skip actual database writes (for testing)
     ///
     /// # Errors
     ///
     /// Returns an error if the checkpoint fails.
-    async fn checkpoint_batch(&self, watermark: &Watermark) -> Result<()> {
+    async fn checkpoint_batch(&self, watermark: &Watermark, dry_run: bool) -> Result<()> {
         tracing::info!(
             template_id = %watermark.template_id.as_str(),
             ehr_id = %watermark.ehr_id.as_str(),
@@ -198,7 +204,7 @@ pub trait StateStorage: Send + Sync {
             "Checkpointing batch"
         );
 
-        self.save_watermark(watermark).await
+        self.save_watermark(watermark, dry_run).await
     }
 
     /// Get all watermarks from storage

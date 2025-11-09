@@ -20,21 +20,28 @@ pub struct BatchConfig {
     pub batch_size: usize,
     /// Composition format (preserve or flatten)
     pub composition_format: CompositionFormat,
+    /// Dry run mode - skip database writes
+    pub dry_run: bool,
 }
 
 impl BatchConfig {
     /// Create a new batch configuration
-    pub fn new(batch_size: usize, composition_format: CompositionFormat) -> Self {
+    pub fn new(batch_size: usize, composition_format: CompositionFormat, dry_run: bool) -> Self {
         Self {
             batch_size,
             composition_format,
+            dry_run,
         }
     }
 
     /// Create from export config strings
-    pub fn from_config(batch_size: usize, composition_format_str: &str) -> Result<Self> {
+    pub fn from_config(
+        batch_size: usize,
+        composition_format_str: &str,
+        dry_run: bool,
+    ) -> Result<Self> {
         let composition_format = CompositionFormat::from_str(composition_format_str)?;
-        Ok(Self::new(batch_size, composition_format))
+        Ok(Self::new(batch_size, composition_format, dry_run))
     }
 }
 
@@ -162,6 +169,7 @@ impl BatchProcessor {
                         compositions.clone(),
                         "preserve".to_string(),
                         3, // max_retries
+                        self.config.dry_run,
                     )
                     .await?
             }
@@ -172,6 +180,7 @@ impl BatchProcessor {
                         compositions.clone(),
                         "flatten".to_string(),
                         3, // max_retries
+                        self.config.dry_run,
                     )
                     .await?
             }
@@ -199,7 +208,11 @@ impl BatchProcessor {
             );
 
             // Checkpoint progress
-            if let Err(e) = self.state_manager.checkpoint_batch(watermark).await {
+            if let Err(e) = self
+                .state_manager
+                .checkpoint_batch(watermark, self.config.dry_run)
+                .await
+            {
                 tracing::warn!(error = %e, "Failed to checkpoint watermark");
                 // Don't fail the batch, just log the warning
             }
@@ -215,18 +228,20 @@ mod tests {
 
     #[test]
     fn test_batch_config_creation() {
-        let config = BatchConfig::new(1000, CompositionFormat::Preserve);
+        let config = BatchConfig::new(1000, CompositionFormat::Preserve, false);
 
         assert_eq!(config.batch_size, 1000);
         assert_eq!(config.composition_format, CompositionFormat::Preserve);
+        assert_eq!(config.dry_run, false);
     }
 
     #[test]
     fn test_batch_config_from_config() {
-        let config = BatchConfig::from_config(500, "flatten").unwrap();
+        let config = BatchConfig::from_config(500, "flatten", false).unwrap();
 
         assert_eq!(config.batch_size, 500);
         assert_eq!(config.composition_format, CompositionFormat::Flatten);
+        assert_eq!(config.dry_run, false);
     }
 
     #[test]

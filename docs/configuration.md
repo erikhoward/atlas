@@ -104,7 +104,6 @@ Application-level settings that control Atlas behavior.
 name = "atlas"
 version = "1.0.0"
 log_level = "info"
-dry_run = false
 ```
 
 | Option | Type | Default | Description |
@@ -112,7 +111,6 @@ dry_run = false
 | `name` | string | "atlas" | Application name for logging and identification |
 | `version` | string | "1.0.0" | Application version |
 | `log_level` | string | "info" | Log verbosity: `trace`, `debug`, `info`, `warn`, `error` |
-| `dry_run` | boolean | false | If true, simulate export without writing to Cosmos DB |
 
 ### OpenEHR
 
@@ -199,6 +197,7 @@ database_target = "cosmosdb"  # or "postgresql"
 max_retries = 3
 retry_backoff_ms = [1000, 2000, 4000]
 shutdown_timeout_secs = 30
+dry_run = false
 ```
 
 | Option | Type | Default | Description |
@@ -209,6 +208,7 @@ shutdown_timeout_secs = 30
 | `max_retries` | integer | 3 | Maximum retry attempts for failed exports (0-10) |
 | `retry_backoff_ms` | array[integer] | [1000, 2000, 4000] | Retry delay intervals in milliseconds |
 | `shutdown_timeout_secs` | integer | 30 | Graceful shutdown timeout in seconds. Maximum time to wait for current batch to complete when SIGTERM/SIGINT is received. Should align with container orchestration grace periods (e.g., Kubernetes default is 30s) |
+| `dry_run` | boolean | false | Dry-run mode - simulate export without writing to database. When enabled, all database write operations (compositions and watermarks) are skipped, but the export process runs normally. Useful for testing configuration and previewing what would be exported. Can also be enabled via `--dry-run` CLI flag |
 
 **Export Modes:**
 
@@ -474,7 +474,9 @@ Safe configuration for development and testing:
 ```toml
 [application]
 log_level = "debug"
-dry_run = true  # Don't write to Cosmos DB
+
+[export]
+dry_run = true  # Don't write to database
 
 [openehr.query]
 template_ids = ["Test Template.v1"]

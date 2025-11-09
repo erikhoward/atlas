@@ -65,6 +65,9 @@ pub struct ExportSummary {
 
     /// Reason for shutdown (if interrupted)
     pub shutdown_reason: Option<String>,
+
+    /// Whether this was a dry-run (no actual database writes)
+    pub dry_run: bool,
 }
 
 impl ExportSummary {
@@ -82,6 +85,7 @@ impl ExportSummary {
             verification_report: None,
             interrupted: false,
             shutdown_reason: None,
+            dry_run: false,
         }
     }
 
@@ -131,6 +135,11 @@ impl ExportSummary {
 
     /// Log the summary
     pub fn log_summary(&self) {
+        // Show dry-run mode prominently
+        if self.dry_run {
+            tracing::info!("🔍 DRY RUN MODE - No data was written to the database");
+        }
+
         if self.interrupted {
             tracing::warn!(
                 total_ehrs = self.total_ehrs,
@@ -141,6 +150,7 @@ impl ExportSummary {
                 duration_secs = self.duration.as_secs(),
                 success_rate = format!("{:.2}%", self.success_rate()),
                 shutdown_reason = self.shutdown_reason.as_deref().unwrap_or("Unknown"),
+                dry_run = self.dry_run,
                 "Export interrupted by user signal"
             );
         } else {
@@ -152,6 +162,7 @@ impl ExportSummary {
                 duplicates_skipped = self.duplicates_skipped,
                 duration_secs = self.duration.as_secs(),
                 success_rate = format!("{:.2}%", self.success_rate()),
+                dry_run = self.dry_run,
                 "Export completed"
             );
         }
