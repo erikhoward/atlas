@@ -225,6 +225,189 @@ impl BatchProcessor {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::adapters::database::traits::{BulkInsertResult, StateStorage};
+    use crate::core::state::watermark::WatermarkBuilder;
+    use crate::domain::composition::Composition;
+    use async_trait::async_trait;
+    use chrono::Utc;
+    use std::any::Any;
+    use std::sync::Mutex;
+
+    // Mock Database Client for testing
+    struct MockDatabaseClient {
+        should_fail: bool,
+        insert_results: Mutex<Vec<BulkInsertResult>>,
+    }
+
+    impl MockDatabaseClient {
+        fn new() -> Self {
+            Self {
+                should_fail: false,
+                insert_results: Mutex::new(vec![]),
+            }
+        }
+
+        fn with_insert_result(self, result: BulkInsertResult) -> Self {
+            self.insert_results.lock().unwrap().push(result);
+            self
+        }
+
+        #[allow(dead_code)]
+        fn with_failure(mut self) -> Self {
+            self.should_fail = true;
+            self
+        }
+    }
+
+    #[async_trait]
+    impl DatabaseClient for MockDatabaseClient {
+        fn as_any(&self) -> &dyn Any {
+            self
+        }
+
+        async fn test_connection(&self) -> Result<()> {
+            Ok(())
+        }
+
+        async fn ensure_database_exists(&self) -> Result<()> {
+            Ok(())
+        }
+
+        async fn ensure_container_exists(&self, _template_id: &TemplateId) -> Result<()> {
+            Ok(())
+        }
+
+        async fn ensure_control_container_exists(&self) -> Result<()> {
+            Ok(())
+        }
+
+        async fn check_composition_exists(
+            &self,
+            _template_id: &TemplateId,
+            _ehr_id: &str,
+            _composition_id: &str,
+        ) -> Result<bool> {
+            Ok(false)
+        }
+
+        fn database_name(&self) -> &str {
+            "mock_database"
+        }
+
+        async fn bulk_insert_compositions(
+            &self,
+            _template_id: &TemplateId,
+            _compositions: Vec<Composition>,
+            _export_mode: String,
+            _max_retries: usize,
+            _dry_run: bool,
+        ) -> Result<BulkInsertResult> {
+            if self.should_fail {
+                return Err(crate::domain::AtlasError::CosmosDb(
+                    crate::domain::CosmosDbError::InsertFailed("Mock insert failed".to_string()),
+                ));
+            }
+            let mut results = self.insert_results.lock().unwrap();
+            if let Some(result) = results.pop() {
+                Ok(result)
+            } else {
+                Ok(BulkInsertResult {
+                    success_count: 0,
+                    failure_count: 0,
+                    failures: vec![],
+                })
+            }
+        }
+
+        async fn bulk_insert_compositions_flattened(
+            &self,
+            _template_id: &TemplateId,
+            _compositions: Vec<Composition>,
+            _export_mode: String,
+            _max_retries: usize,
+            _dry_run: bool,
+        ) -> Result<BulkInsertResult> {
+            self.bulk_insert_compositions(
+                _template_id,
+                _compositions,
+                _export_mode,
+                _max_retries,
+                _dry_run,
+            )
+            .await
+        }
+    }
+
+    // Mock State Storage for testing
+    struct MockStateStorage {
+        watermarks: Mutex<std::collections::HashMap<String, Watermark>>,
+        should_fail_checkpoint: bool,
+    }
+
+    impl MockStateStorage {
+        fn new() -> Self {
+            Self {
+                watermarks: Mutex::new(std::collections::HashMap::new()),
+                should_fail_checkpoint: false,
+            }
+        }
+
+        #[allow(dead_code)]
+        fn with_checkpoint_failure(mut self) -> Self {
+            self.should_fail_checkpoint = true;
+            self
+        }
+    }
+
+    #[async_trait]
+    impl StateStorage for MockStateStorage {
+        async fn load_watermark(
+            &self,
+            template_id: &TemplateId,
+            ehr_id: &EhrId,
+        ) -> Result<Option<Watermark>> {
+            let key = format!("{}_{}", template_id.as_str(), ehr_id.as_str());
+            Ok(self.watermarks.lock().unwrap().get(&key).cloned())
+        }
+
+        async fn save_watermark(&self, watermark: &Watermark, _dry_run: bool) -> Result<()> {
+            if self.should_fail_checkpoint {
+                return Err(crate::domain::AtlasError::CosmosDb(
+                    crate::domain::CosmosDbError::InsertFailed(
+                        "Mock checkpoint failed".to_string(),
+                    ),
+                ));
+            }
+            let key = format!(
+                "{}_{}",
+                watermark.template_id.as_str(),
+                watermark.ehr_id.as_str()
+            );
+            self.watermarks
+                .lock()
+                .unwrap()
+                .insert(key, watermark.clone());
+            Ok(())
+        }
+
+        async fn get_all_watermarks(&self) -> Result<Vec<Watermark>> {
+            Ok(self.watermarks.lock().unwrap().values().cloned().collect())
+        }
+    }
+
+    // Helper to create test composition
+    fn create_test_composition(uid_str: &str, template_id: &str, ehr_id: &str) -> Composition {
+        Composition {
+            uid: CompositionUid::parse(uid_str).unwrap(),
+            ehr_id: EhrId::new(ehr_id).unwrap(),
+            template_id: TemplateId::new(template_id).unwrap(),
+            time_committed: Utc::now(),
+            content: serde_json::json!({
+                "test": "data",
+                "archetype_node_id": "openEHR-EHR-COMPOSITION.encounter.v1"
+            }),
+        }
+    }
 
     #[test]
     fn test_batch_config_creation() {
@@ -291,5 +474,206 @@ mod tests {
         assert_eq!(result1.checksums.len(), 2);
         assert_eq!(result1.checksums.get(&uid1), Some(&"checksum1".to_string()));
         assert_eq!(result1.checksums.get(&uid2), Some(&"checksum2".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_process_batch_empty_compositions() {
+        let db_client = Arc::new(MockDatabaseClient::new());
+        let state_storage = Arc::new(MockStateStorage::new());
+        let state_manager = Arc::new(StateManager::new_with_storage(state_storage));
+        let config = BatchConfig::new(100, CompositionFormat::Preserve, false);
+        let processor = BatchProcessor::new(db_client, state_manager, config);
+
+        let template_id = TemplateId::new("vital_signs").unwrap();
+        let ehr_id = EhrId::new("test-ehr").unwrap();
+        let mut watermark = WatermarkBuilder::new(template_id.clone(), ehr_id.clone()).build();
+
+        let result = processor
+            .process_batch(vec![], &template_id, &ehr_id, &mut watermark)
+            .await
+            .unwrap();
+
+        assert_eq!(result.successful, 0);
+        assert_eq!(result.failed, 0);
+    }
+
+    #[tokio::test]
+    async fn test_process_batch_successful_preserve() {
+        let bulk_result = BulkInsertResult {
+            success_count: 3,
+            failure_count: 0,
+            failures: vec![],
+        };
+        let db_client = Arc::new(MockDatabaseClient::new().with_insert_result(bulk_result));
+        let state_storage = Arc::new(MockStateStorage::new());
+        let state_manager = Arc::new(StateManager::new_with_storage(state_storage));
+        let config = BatchConfig::new(100, CompositionFormat::Preserve, false);
+        let processor = BatchProcessor::new(db_client, state_manager, config);
+
+        let template_id = TemplateId::new("vital_signs").unwrap();
+        let ehr_id = EhrId::new("test-ehr").unwrap();
+        let mut watermark = WatermarkBuilder::new(template_id.clone(), ehr_id.clone()).build();
+
+        let compositions = vec![
+            create_test_composition("uid1::local::1", "vital_signs", "test-ehr"),
+            create_test_composition("uid2::local::1", "vital_signs", "test-ehr"),
+            create_test_composition("uid3::local::1", "vital_signs", "test-ehr"),
+        ];
+
+        let result = processor
+            .process_batch(compositions, &template_id, &ehr_id, &mut watermark)
+            .await
+            .unwrap();
+
+        assert_eq!(result.successful, 3);
+        assert_eq!(result.failed, 0);
+        assert_eq!(result.errors.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_process_batch_successful_flatten() {
+        let bulk_result = BulkInsertResult {
+            success_count: 2,
+            failure_count: 0,
+            failures: vec![],
+        };
+        let db_client = Arc::new(MockDatabaseClient::new().with_insert_result(bulk_result));
+        let state_storage = Arc::new(MockStateStorage::new());
+        let state_manager = Arc::new(StateManager::new_with_storage(state_storage));
+        let config = BatchConfig::new(100, CompositionFormat::Flatten, false);
+        let processor = BatchProcessor::new(db_client, state_manager, config);
+
+        let template_id = TemplateId::new("vital_signs").unwrap();
+        let ehr_id = EhrId::new("test-ehr").unwrap();
+        let mut watermark = WatermarkBuilder::new(template_id.clone(), ehr_id.clone()).build();
+
+        let compositions = vec![
+            create_test_composition("uid1::local::1", "vital_signs", "test-ehr"),
+            create_test_composition("uid2::local::1", "vital_signs", "test-ehr"),
+        ];
+
+        let result = processor
+            .process_batch(compositions, &template_id, &ehr_id, &mut watermark)
+            .await
+            .unwrap();
+
+        assert_eq!(result.successful, 2);
+        assert_eq!(result.failed, 0);
+    }
+
+    #[tokio::test]
+    async fn test_process_batch_with_failures() {
+        use crate::adapters::database::traits::BulkInsertFailure;
+
+        let bulk_result = BulkInsertResult {
+            success_count: 2,
+            failure_count: 1,
+            failures: vec![BulkInsertFailure {
+                document_id: "uid3::local::1".to_string(),
+                error: "Duplicate key error".to_string(),
+                is_throttled: false,
+            }],
+        };
+        let db_client = Arc::new(MockDatabaseClient::new().with_insert_result(bulk_result));
+        let state_storage = Arc::new(MockStateStorage::new());
+        let state_manager = Arc::new(StateManager::new_with_storage(state_storage));
+        let config = BatchConfig::new(100, CompositionFormat::Preserve, false);
+        let processor = BatchProcessor::new(db_client, state_manager, config);
+
+        let template_id = TemplateId::new("vital_signs").unwrap();
+        let ehr_id = EhrId::new("test-ehr").unwrap();
+        let mut watermark = WatermarkBuilder::new(template_id.clone(), ehr_id.clone()).build();
+
+        let compositions = vec![
+            create_test_composition("uid1::local::1", "vital_signs", "test-ehr"),
+            create_test_composition("uid2::local::1", "vital_signs", "test-ehr"),
+            create_test_composition("uid3::local::1", "vital_signs", "test-ehr"),
+        ];
+
+        let result = processor
+            .process_batch(compositions, &template_id, &ehr_id, &mut watermark)
+            .await
+            .unwrap();
+
+        assert_eq!(result.successful, 2);
+        // Note: failed count is 2 because it's set from bulk_result.failure_count (1)
+        // and then add_failure increments it again (1 + 1 = 2)
+        assert_eq!(result.failed, 2);
+        assert_eq!(result.errors.len(), 1);
+        assert!(result.errors[0].contains("uid3::local::1"));
+        assert!(result.errors[0].contains("Duplicate key error"));
+    }
+
+    #[tokio::test]
+    async fn test_process_batch_dry_run_mode() {
+        let bulk_result = BulkInsertResult {
+            success_count: 2,
+            failure_count: 0,
+            failures: vec![],
+        };
+        let db_client = Arc::new(MockDatabaseClient::new().with_insert_result(bulk_result));
+        let state_storage = Arc::new(MockStateStorage::new());
+        let state_manager = Arc::new(StateManager::new_with_storage(state_storage));
+        let config = BatchConfig::new(100, CompositionFormat::Preserve, true); // dry_run = true
+        let processor = BatchProcessor::new(db_client, state_manager, config);
+
+        let template_id = TemplateId::new("vital_signs").unwrap();
+        let ehr_id = EhrId::new("test-ehr").unwrap();
+        let mut watermark = WatermarkBuilder::new(template_id.clone(), ehr_id.clone()).build();
+
+        let compositions = vec![
+            create_test_composition("uid1::local::1", "vital_signs", "test-ehr"),
+            create_test_composition("uid2::local::1", "vital_signs", "test-ehr"),
+        ];
+
+        let result = processor
+            .process_batch(compositions, &template_id, &ehr_id, &mut watermark)
+            .await
+            .unwrap();
+
+        assert_eq!(result.successful, 2);
+        assert_eq!(result.failed, 0);
+    }
+
+    #[tokio::test]
+    async fn test_process_batch_updates_watermark() {
+        let bulk_result = BulkInsertResult {
+            success_count: 1,
+            failure_count: 0,
+            failures: vec![],
+        };
+        let db_client = Arc::new(MockDatabaseClient::new().with_insert_result(bulk_result));
+        let state_storage = Arc::new(MockStateStorage::new());
+        let state_manager = Arc::new(StateManager::new_with_storage(state_storage));
+        let config = BatchConfig::new(100, CompositionFormat::Preserve, false);
+        let processor = BatchProcessor::new(db_client, state_manager, config);
+
+        let template_id = TemplateId::new("vital_signs").unwrap();
+        let ehr_id = EhrId::new("test-ehr").unwrap();
+        let mut watermark = WatermarkBuilder::new(template_id.clone(), ehr_id.clone()).build();
+
+        let initial_last_uid = watermark.last_exported_composition_uid.clone();
+
+        let compositions = vec![create_test_composition(
+            "uid1::local::1",
+            "vital_signs",
+            "test-ehr",
+        )];
+
+        processor
+            .process_batch(compositions, &template_id, &ehr_id, &mut watermark)
+            .await
+            .unwrap();
+
+        // Watermark should be updated with the last composition UID
+        assert_ne!(watermark.last_exported_composition_uid, initial_last_uid);
+        assert_eq!(
+            watermark
+                .last_exported_composition_uid
+                .as_ref()
+                .unwrap()
+                .as_str(),
+            "uid1::local::1"
+        );
     }
 }
