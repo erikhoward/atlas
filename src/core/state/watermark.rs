@@ -17,6 +17,8 @@ pub enum ExportStatus {
     Completed,
     /// Export failed with an error
     Failed,
+    /// Export was interrupted by user signal (SIGTERM/SIGINT)
+    Interrupted,
     /// Export was never started
     #[default]
     NotStarted,
@@ -129,6 +131,15 @@ impl Watermark {
     pub fn mark_failed(&mut self) {
         self.last_export_completed_at = Some(Utc::now());
         self.last_export_status = ExportStatus::Failed;
+    }
+
+    /// Mark the export as interrupted by user signal (SIGTERM/SIGINT)
+    ///
+    /// This status indicates the export was cleanly interrupted by a user signal
+    /// and can be safely resumed from the last checkpoint.
+    pub fn mark_interrupted(&mut self) {
+        self.last_export_completed_at = Some(Utc::now());
+        self.last_export_status = ExportStatus::Interrupted;
     }
 
     /// Update the watermark after successfully exporting a composition

@@ -356,6 +356,13 @@ pub struct ExportConfig {
     /// Retry backoff intervals in milliseconds
     #[serde(default = "default_retry_backoff_ms")]
     pub retry_backoff_ms: Vec<u64>,
+
+    /// Graceful shutdown timeout in seconds (default: 30)
+    /// This is the maximum time to wait for the current batch to complete
+    /// before forcing shutdown. Should align with container orchestration
+    /// grace periods (e.g., Kubernetes default is 30s).
+    #[serde(default = "default_shutdown_timeout_secs")]
+    pub shutdown_timeout_secs: u64,
 }
 
 impl ExportConfig {
@@ -733,6 +740,10 @@ fn default_retry_backoff_ms() -> Vec<u64> {
     vec![1000, 2000, 4000]
 }
 
+fn default_shutdown_timeout_secs() -> u64 {
+    30
+}
+
 fn default_control_container() -> String {
     "atlas_control".to_string()
 }
@@ -872,6 +883,7 @@ mod tests {
             export_composition_format: "preserve".to_string(),
             max_retries: 3,
             retry_backoff_ms: vec![1000, 2000, 4000],
+            shutdown_timeout_secs: 30,
         };
 
         assert!(config.validate().is_ok());

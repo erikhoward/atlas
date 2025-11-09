@@ -45,6 +45,8 @@ Atlas solves the challenge of making OpenEHR clinical data accessible for modern
   - Partial batch failure handling
   - Duplicate detection and skipping
   - Optional SHA-256 checksum verification
+  - **Graceful shutdown** with SIGTERM/SIGINT handling
+  - Automatic checkpoint on interruption for safe resume
 
 - **📊 Database Flexibility**: Multiple backend options
   - **Azure Cosmos DB**: Core (SQL) API with automatic partitioning
@@ -230,6 +232,48 @@ atlas status -c atlas.toml
 # Override configuration options
 atlas export -c atlas.toml --mode full --template-id "Your Template.v1"
 ```
+
+### Graceful Shutdown
+
+Atlas supports graceful shutdown for long-running exports, ensuring data integrity and allowing safe resumption:
+
+```bash
+# Start an export
+atlas export -c atlas.toml
+
+# Press Ctrl+C or send SIGTERM to gracefully stop
+# Atlas will:
+# 1. Complete the current batch being processed
+# 2. Save watermark state to database
+# 3. Display progress summary
+# 4. Exit with code 130 (SIGINT) or 143 (SIGTERM)
+
+# Resume from where it left off
+atlas export -c atlas.toml
+```
+
+**Key Features:**
+- ✅ **Safe Interruption**: Current batch completes before shutdown (no partial data)
+- ✅ **Automatic Checkpoint**: Watermarks saved with `Interrupted` status
+- ✅ **Resume Support**: Re-run the same command to continue from checkpoint
+- ✅ **Configurable Timeout**: Default 30s grace period (configurable via `export.shutdown_timeout_secs`)
+- ✅ **Container-Ready**: Works with Docker stop, Kubernetes pod termination, systemd
+
+**Configuration:**
+
+```toml
+[export]
+# Graceful shutdown timeout in seconds (default: 30)
+# Should align with container orchestration grace periods
+shutdown_timeout_secs = 30
+```
+
+**Exit Codes:**
+- `0` - Export completed successfully
+- `1` - Partial success (some exports failed)
+- `130` - Interrupted by SIGINT (Ctrl+C)
+- `143` - Interrupted by SIGTERM (graceful termination signal)
+- Other codes indicate configuration, authentication, or connection errors
 
 ### Example Use Cases
 

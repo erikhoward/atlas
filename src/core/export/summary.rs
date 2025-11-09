@@ -59,6 +59,12 @@ pub struct ExportSummary {
 
     /// Verification report (if verification was run)
     pub verification_report: Option<VerificationReport>,
+
+    /// Whether the export was interrupted by user signal (SIGTERM/SIGINT)
+    pub interrupted: bool,
+
+    /// Reason for shutdown (if interrupted)
+    pub shutdown_reason: Option<String>,
 }
 
 impl ExportSummary {
@@ -74,6 +80,8 @@ impl ExportSummary {
             errors: Vec::new(),
             exported_compositions: Vec::new(),
             verification_report: None,
+            interrupted: false,
+            shutdown_reason: None,
         }
     }
 
@@ -123,16 +131,30 @@ impl ExportSummary {
 
     /// Log the summary
     pub fn log_summary(&self) {
-        tracing::info!(
-            total_ehrs = self.total_ehrs,
-            total_compositions = self.total_compositions,
-            successful = self.successful_exports,
-            failed = self.failed_exports,
-            duplicates_skipped = self.duplicates_skipped,
-            duration_secs = self.duration.as_secs(),
-            success_rate = format!("{:.2}%", self.success_rate()),
-            "Export completed"
-        );
+        if self.interrupted {
+            tracing::warn!(
+                total_ehrs = self.total_ehrs,
+                total_compositions = self.total_compositions,
+                successful = self.successful_exports,
+                failed = self.failed_exports,
+                duplicates_skipped = self.duplicates_skipped,
+                duration_secs = self.duration.as_secs(),
+                success_rate = format!("{:.2}%", self.success_rate()),
+                shutdown_reason = self.shutdown_reason.as_deref().unwrap_or("Unknown"),
+                "Export interrupted by user signal"
+            );
+        } else {
+            tracing::info!(
+                total_ehrs = self.total_ehrs,
+                total_compositions = self.total_compositions,
+                successful = self.successful_exports,
+                failed = self.failed_exports,
+                duplicates_skipped = self.duplicates_skipped,
+                duration_secs = self.duration.as_secs(),
+                success_rate = format!("{:.2}%", self.success_rate()),
+                "Export completed"
+            );
+        }
 
         if !self.errors.is_empty() {
             tracing::warn!(

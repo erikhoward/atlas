@@ -198,6 +198,7 @@ export_composition_format = "preserve"
 database_target = "cosmosdb"  # or "postgresql"
 max_retries = 3
 retry_backoff_ms = [1000, 2000, 4000]
+shutdown_timeout_secs = 30
 ```
 
 | Option | Type | Default | Description |
@@ -207,6 +208,7 @@ retry_backoff_ms = [1000, 2000, 4000]
 | `database_target` | string | **required** | Database backend: `cosmosdb` or `postgresql` |
 | `max_retries` | integer | 3 | Maximum retry attempts for failed exports (0-10) |
 | `retry_backoff_ms` | array[integer] | [1000, 2000, 4000] | Retry delay intervals in milliseconds |
+| `shutdown_timeout_secs` | integer | 30 | Graceful shutdown timeout in seconds. Maximum time to wait for current batch to complete when SIGTERM/SIGINT is received. Should align with container orchestration grace periods (e.g., Kubernetes default is 30s) |
 
 **Export Modes:**
 

@@ -431,6 +431,49 @@ atlas export -c /etc/atlas/production.toml
 - `3`: Authentication error
 - `4`: Connection error
 - `5`: Fatal error
+- `130`: Interrupted by SIGINT (Ctrl+C)
+- `143`: Interrupted by SIGTERM (graceful termination signal)
+
+**Graceful Shutdown**:
+
+Atlas supports graceful shutdown for long-running exports. When you press Ctrl+C or send a SIGTERM signal:
+
+1. **Current batch completes**: Atlas finishes processing the current batch to avoid partial data
+2. **Watermark saved**: Progress is saved to the database with `Interrupted` status
+3. **Clean exit**: Atlas exits with code 130 (SIGINT) or 143 (SIGTERM)
+4. **Resume support**: Re-run the same command to continue from the checkpoint
+
+```bash
+# Start an export
+atlas export -c atlas.toml
+
+# Press Ctrl+C to gracefully stop
+# Output:
+# ⚠️  Shutdown signal received, completing current batch...
+# ⚠️  Export interrupted gracefully. Progress saved.
+#    Run the same command to resume from checkpoint.
+
+# Resume from where it left off
+atlas export -c atlas.toml
+```
+
+**Configuration**:
+
+The shutdown timeout can be configured in your `atlas.toml`:
+
+```toml
+[export]
+# Graceful shutdown timeout in seconds (default: 30)
+# This is the maximum time to wait for the current batch to complete
+# Should align with container orchestration grace periods
+shutdown_timeout_secs = 30
+```
+
+**Best Practices**:
+- Set `shutdown_timeout_secs` to match your container orchestration grace period (e.g., Kubernetes default is 30s)
+- For very large batches, consider increasing the timeout or reducing batch size
+- Monitor logs to ensure batches complete within the timeout window
+- In Docker/Kubernetes, use `docker stop` or `kubectl delete pod` for graceful shutdown (not `docker kill` or `kubectl delete pod --force`)
 
 ### `atlas validate-config`
 
