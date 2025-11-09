@@ -16,22 +16,26 @@ base_url = "https://ehrbase.example.com/ehrbase/rest/openehr/v1"
 vendor = "ehrbase"                                               # Vendor-specific implementation
 
 # Authentication
+# Security: Credentials are securely handled in memory and never logged
 auth_type = "basic"                    # basic | openid (future)
 username = "atlas_user"
-password = "${ATLAS_OPENEHR_PASSWORD}" # Env var substitution
+password = "${ATLAS_OPENEHR_PASSWORD}" # Env var substitution recommended
 
 # TLS settings
 tls_verify = true
 # tls_ca_cert = "/path/to/ca.crt"  # Optional
 
 [openehr.query]
-time_range_end = null                                                        # null = nowtemplate_ids = ["IDCR - Adverse Reaction List.v1", "IDCR - Problem List.v1"]# Export filters
+# Export filters
+template_ids = ["IDCR - Adverse Reaction List.v1", "IDCR - Problem List.v1"]
 ehr_ids = []                              # Empty = all EHRs
 time_range_start = "2024-01-01T00:00:00Z" # ISO 8601 or null
+time_range_end = null                     # null = now
 
 # Batch processing
 batch_size = 1000 # 100-5000
 parallel_ehrs = 8 # Concurrent EHR processing
+
 [export]
 mode = "incremental"                   # full | incremental
 export_composition_format = "preserve" # preserve | flatten
@@ -42,8 +46,9 @@ retry_backoff_ms = [1000, 2000, 4000] # Exponential backoff
 
 [cosmosdb]
 # Connection
+# Security: Cosmos DB key is securely handled in memory and never logged
 endpoint = "https://myaccount.documents.azure.com:443/"
-key = "${ATLAS_COSMOS_KEY}"
+key = "${ATLAS_COSMOS_KEY}"  # Use environment variable for security
 database_name = "openehr_data"
 
 # Container settings
@@ -74,10 +79,11 @@ local_rotation = "daily"      # daily | size
 local_max_size_mb = 100
 
 # Azure Log Analytics (optional)
+# Security: Azure client secret is securely handled in memory and never logged
 azure_enabled = false
 # azure_tenant_id = "${AZURE_TENANT_ID}"
 # azure_client_id = "${AZURE_CLIENT_ID}"
-# azure_client_secret = "${AZURE_CLIENT_SECRET}"
+# azure_client_secret = "${AZURE_CLIENT_SECRET}"  # Use environment variable for security
 # azure_log_analytics_workspace_id = "${AZURE_LOG_ANALYTICS_WORKSPACE_ID}"
 # azure_dcr_immutable_id = "${AZURE_DCR_IMMUTABLE_ID}"
 # azure_dce_endpoint = "${AZURE_DCE_ENDPOINT}"

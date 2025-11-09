@@ -891,10 +891,14 @@ Example cron with error notification:
 
 ### 4. Security
 
+- **Credential Protection**: Atlas automatically protects credentials in memory and never logs them
+  - All passwords, keys, and secrets are zeroized when no longer needed
+  - Debug output shows `Secret([REDACTED])` instead of actual values
+  - Use environment variables for all sensitive values
 - **Least privilege**: Use read-only OpenEHR credentials
 - **Key rotation**: Rotate Cosmos DB keys regularly
 - **TLS verification**: Keep `tls_verify = true` in production
-- **Log sanitization**: Ensure PHI/PII is not logged
+- **Log sanitization**: PHI/PII and credentials are automatically excluded from logs
 
 ### 5. Data Quality
 

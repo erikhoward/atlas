@@ -224,12 +224,20 @@ database_name = "test_db"
 
     let config = load_config(temp_file.path()).expect("Failed to load config");
 
-    assert_eq!(config.openehr.password, Some("secret_pass".to_string()));
+    use secrecy::ExposeSecret;
+    assert_eq!(
+        config
+            .openehr
+            .password
+            .as_ref()
+            .map(|s| s.expose_secret().as_str()),
+        Some("secret_pass")
+    );
     let cosmosdb = config
         .cosmosdb
         .as_ref()
         .expect("CosmosDB config should be present");
-    assert_eq!(cosmosdb.key, "secret_key");
+    assert_eq!(cosmosdb.key.expose_secret(), "secret_key");
 
     std::env::remove_var("TEST_OPENEHR_PASSWORD");
     std::env::remove_var("TEST_COSMOS_KEY");

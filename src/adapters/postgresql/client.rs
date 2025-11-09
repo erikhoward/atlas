@@ -32,10 +32,15 @@ impl PostgreSQLClient {
     ///
     /// Returns an error if the client cannot be created or the connection fails.
     pub async fn new(config: PostgreSQLConfig) -> Result<Self> {
+        use secrecy::ExposeSecret;
+
+        // Get the connection string (we need to expose it to use it)
+        let conn_str = config.connection_string.expose_secret();
+
         // Log connection attempt (without password)
         tracing::debug!(
             "Creating PostgreSQL client with connection string (password hidden): {}",
-            config.connection_string.replace(
+            conn_str.as_ref().replace(
                 |c: char| c != '@'
                     && c != ':'
                     && c != '/'
@@ -49,7 +54,7 @@ impl PostgreSQLClient {
         );
 
         // Parse connection string
-        let pg_config: tokio_postgres::Config = config.connection_string.parse().map_err(|e| {
+        let pg_config: tokio_postgres::Config = conn_str.as_ref().parse().map_err(|e| {
             AtlasError::Configuration(format!("Invalid PostgreSQL connection string: {e}"))
         })?;
 
@@ -86,7 +91,7 @@ impl PostgreSQLClient {
             })?;
         let test_tls = MakeTlsConnector::new(test_tls_connector);
 
-        match tokio_postgres::connect(&config.connection_string, test_tls).await {
+        match tokio_postgres::connect(conn_str.as_ref(), test_tls).await {
             Ok((client, connection)) => {
                 // Spawn the connection handler
                 tokio::spawn(async move {
@@ -155,11 +160,7 @@ impl PostgreSQLClient {
                     \nError: {}\n\
                     \nConnection target: {}{}",
                     full_error,
-                    config
-                        .connection_string
-                        .split('@')
-                        .next_back()
-                        .unwrap_or("unknown"),
+                    conn_str.split('@').next_back().unwrap_or("unknown"),
                     error_hint
                 )));
             }
@@ -388,9 +389,11 @@ impl PostgreSQLClient {
 
     /// Get the connection string (without password)
     pub fn connection_string_safe(&self) -> String {
+        use secrecy::ExposeSecret;
         // Redact password from connection string
         self.config
             .connection_string
+            .expose_secret()
             .split('@')
             .next_back()
             .map(|s| format!("postgresql://***@{s}"))
@@ -410,8 +413,13 @@ mod tests {
 
     #[test]
     fn test_connection_string_safe() {
+        use crate::config::secret::SecretValue;
+        use secrecy::{ExposeSecret, Secret};
+
         let config = PostgreSQLConfig {
-            connection_string: "postgresql://user:password@localhost:5432/atlas".to_string(),
+            connection_string: Secret::new(SecretValue::from(
+                "postgresql://user:password@localhost:5432/atlas".to_string(),
+            )),
             max_connections: 10,
             connection_timeout_seconds: 30,
             statement_timeout_seconds: 60,
@@ -420,7 +428,7 @@ mod tests {
 
         let client = PostgreSQLClient {
             pool: Pool::builder(Manager::from_config(
-                config.connection_string.parse().unwrap(),
+                config.connection_string.expose_secret().parse().unwrap(),
                 NoTls,
                 ManagerConfig {
                     recycling_method: RecyclingMethod::Fast,

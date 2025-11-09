@@ -129,13 +129,15 @@ impl OpenEhrClient {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::secret::SecretValue;
+    use secrecy::Secret;
 
     #[tokio::test]
     async fn test_client_creation_with_ehrbase() {
         let config = OpenEhrConfig {
             vendor_type: "ehrbase".to_string(),
             username: Some("test".to_string()),
-            password: Some("test".to_string()),
+            password: Some(Secret::new(SecretValue::from("test".to_string()))),
             ..Default::default()
         };
 

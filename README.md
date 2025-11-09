@@ -466,12 +466,37 @@ See [Configuration Guide](docs/configuration.md) for complete reference.
 
 ## 🔒 Security
 
+Atlas implements comprehensive security measures to protect sensitive healthcare data and credentials:
+
+### Credential Protection
+
+- **Memory Security**: All credentials (passwords, keys, secrets) are automatically zeroized in memory when no longer needed
+- **No Credential Logging**: Credentials are never written to log files or exposed in debug output
+- **Redacted Debug Output**: Debug representations show `Secret([REDACTED])` instead of actual values
+- **Environment Variables**: Secure credential management using environment variables, never hardcoded
+- **Explicit Access Control**: Code must explicitly call `expose_secret()` to access credentials, enabling easy security audits
+
+**Protected Credentials:**
+- OpenEHR passwords
+- Cosmos DB keys
+- PostgreSQL connection strings (including embedded passwords)
+- Azure client secrets
+
+### Network & Access Security
+
 - **TLS 1.2+**: All connections encrypted in transit
-- **Credential Management**: Environment variables, never hardcoded
+- **Certificate Verification**: TLS certificate validation enabled by default
 - **Least Privilege**: Read-only OpenEHR access recommended
 - **Azure RBAC**: Integrate with Azure role-based access control
+
+### Compliance & Audit
+
 - **Audit Logging**: All operations logged with timestamps
 - **PHI/PII Protection**: Sanitized logging, compliance-ready
+- **HIPAA-Ready**: Designed for healthcare compliance requirements
+- **Data Verification**: Optional SHA-256 checksums for data integrity
+
+For detailed security best practices, see the [Configuration Guide](docs/configuration.md#security-best-practices).
 
 ## 🤝 Contributing
 

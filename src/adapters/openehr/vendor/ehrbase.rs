@@ -94,13 +94,15 @@ impl EhrBaseVendor {
 
     /// Build authorization header value
     fn auth_header_value(&self) -> Option<String> {
+        use secrecy::ExposeSecret;
+
         if let Some(ref token) = self.auth_token {
             Some(format!("Bearer {token}"))
         } else if let (Some(ref username), Some(ref password)) =
             (&self.config.username, &self.config.password)
         {
             // Basic auth
-            let credentials = format!("{username}:{password}");
+            let credentials = format!("{username}:{}", password.expose_secret());
             let encoded = general_purpose::STANDARD.encode(credentials.as_bytes());
             Some(format!("Basic {encoded}"))
         } else {
@@ -461,9 +463,12 @@ mod tests {
 
     #[test]
     fn test_ehrbase_vendor_with_credentials() {
+        use crate::config::secret::SecretValue;
+        use secrecy::Secret;
+
         let config = OpenEhrConfig {
             username: Some("test_user".to_string()),
-            password: Some("test_pass".to_string()),
+            password: Some(Secret::new(SecretValue::from("test_pass".to_string()))),
             ..Default::default()
         };
 

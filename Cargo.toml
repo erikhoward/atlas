@@ -35,6 +35,10 @@ toml = "0.8"
 config = "0.14"
 dotenvy = "0.15"
 
+# Security - Credential protection (Feature #11)
+secrecy = { version = "0.8", features = ["serde", "alloc"] }
+zeroize = { version = "1.8", features = ["derive"] }
+
 # CLI (FR-4.1 - FR-4.5)
 clap = { version = "4", features = ["derive", "env"] }
 

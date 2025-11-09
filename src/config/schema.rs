@@ -2,6 +2,7 @@
 //!
 //! This module defines the configuration structure for Atlas following TR-4.1.
 
+use crate::config::SecretString;
 use serde::{Deserialize, Serialize};
 
 /// Database target selection
@@ -185,8 +186,9 @@ pub struct OpenEhrConfig {
     pub username: Option<String>,
 
     /// Password for authentication (optional)
+    /// Stored securely in memory and automatically zeroized on drop
     #[serde(default)]
-    pub password: Option<String>,
+    pub password: Option<SecretString>,
 
     /// TLS verification enabled
     #[serde(default = "default_true")]
@@ -214,6 +216,8 @@ pub struct OpenEhrConfig {
 
 impl OpenEhrConfig {
     fn validate(&self) -> Result<(), String> {
+        use secrecy::ExposeSecret;
+
         if self.base_url.is_empty() {
             return Err("openehr.base_url cannot be empty".to_string());
         }
@@ -233,7 +237,11 @@ impl OpenEhrConfig {
             }
 
             if self.password.is_none()
-                || self.password.as_ref().map(|s| s.is_empty()).unwrap_or(true)
+                || self
+                    .password
+                    .as_ref()
+                    .map(|s| s.expose_secret().is_empty())
+                    .unwrap_or(true)
             {
                 return Err(
                     "openehr.password cannot be empty when auth_type is 'basic'".to_string()
@@ -410,7 +418,8 @@ pub struct CosmosDbConfig {
     pub endpoint: String,
 
     /// Cosmos DB access key
-    pub key: String,
+    /// Stored securely in memory and automatically zeroized on drop
+    pub key: SecretString,
 
     /// Database name
     pub database_name: String,
@@ -438,6 +447,8 @@ pub struct CosmosDbConfig {
 
 impl CosmosDbConfig {
     fn validate(&self) -> Result<(), String> {
+        use secrecy::ExposeSecret;
+
         if self.endpoint.is_empty() {
             return Err("cosmosdb.endpoint cannot be empty".to_string());
         }
@@ -446,7 +457,7 @@ impl CosmosDbConfig {
             return Err("cosmosdb.endpoint must start with https://".to_string());
         }
 
-        if self.key.is_empty() {
+        if self.key.expose_secret().is_empty() {
             return Err("cosmosdb.key cannot be empty".to_string());
         }
 
@@ -470,7 +481,8 @@ impl CosmosDbConfig {
 pub struct PostgreSQLConfig {
     /// PostgreSQL connection string
     /// Format: postgresql://user:password@host:port/database
-    pub connection_string: String,
+    /// Stored securely in memory and automatically zeroized on drop
+    pub connection_string: SecretString,
 
     /// Maximum number of connections in the pool
     #[serde(default = "default_pg_max_connections")]
@@ -491,13 +503,15 @@ pub struct PostgreSQLConfig {
 
 impl PostgreSQLConfig {
     fn validate(&self) -> Result<(), String> {
-        if self.connection_string.is_empty() {
+        use secrecy::ExposeSecret;
+
+        let conn_str = self.connection_string.expose_secret();
+
+        if conn_str.is_empty() {
             return Err("postgresql.connection_string cannot be empty".to_string());
         }
 
-        if !self.connection_string.starts_with("postgresql://")
-            && !self.connection_string.starts_with("postgres://")
-        {
+        if !conn_str.starts_with("postgresql://") && !conn_str.starts_with("postgres://") {
             return Err(
                 "postgresql.connection_string must start with postgresql:// or postgres://"
                     .to_string(),
@@ -598,8 +612,9 @@ pub struct LoggingConfig {
     pub azure_client_id: Option<String>,
 
     /// Azure AD client secret (from App Registration)
+    /// Stored securely in memory and automatically zeroized on drop
     #[serde(default)]
-    pub azure_client_secret: Option<String>,
+    pub azure_client_secret: Option<SecretString>,
 
     /// Log Analytics workspace ID
     #[serde(default)]
@@ -806,6 +821,8 @@ fn default_pg_ssl_mode() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::secret::SecretValue;
+    use secrecy::Secret;
 
     #[test]
     fn test_application_config_validation() {
@@ -864,7 +881,7 @@ mod tests {
             vendor_type: "ehrbase".to_string(),
             auth_type: "basic".to_string(),
             username: Some("user".to_string()),
-            password: Some("pass".to_string()),
+            password: Some(Secret::new(SecretValue::from("pass".to_string()))),
             tls_verify: true,
             tls_verify_certificates: true,
             timeout_seconds: 60,
@@ -912,7 +929,7 @@ mod tests {
     fn test_cosmosdb_config_validation() {
         let config = CosmosDbConfig {
             endpoint: "https://myaccount.documents.azure.com:443/".to_string(),
-            key: "test-key".to_string(),
+            key: Secret::new(SecretValue::from("test-key".to_string())),
             database_name: "openehr_data".to_string(),
             control_container: "atlas_control".to_string(),
             data_container_prefix: "compositions".to_string(),
