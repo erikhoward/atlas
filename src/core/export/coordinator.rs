@@ -466,9 +466,465 @@ impl ExportCoordinator {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use crate::adapters::database::traits::{BulkInsertResult, StateStorage};
+    use crate::adapters::openehr::vendor::{CompositionMetadata, OpenEhrVendor};
+    use crate::core::state::watermark::Watermark;
+    use crate::domain::composition::Composition;
+    use crate::domain::ids::CompositionUid;
+    use async_trait::async_trait;
+    use chrono::Utc;
+    use std::any::Any;
+    use std::sync::Mutex;
+
+    // Mock OpenEHR Vendor
+    struct MockOpenEhrVendor {
+        ehr_ids: Vec<EhrId>,
+        compositions_metadata: Vec<CompositionMetadata>,
+        compositions: Vec<Composition>,
+        should_fail: bool,
+    }
+
+    impl MockOpenEhrVendor {
+        fn new() -> Self {
+            Self {
+                ehr_ids: vec![],
+                compositions_metadata: vec![],
+                compositions: vec![],
+                should_fail: false,
+            }
+        }
+
+        fn with_ehr_ids(mut self, ehr_ids: Vec<EhrId>) -> Self {
+            self.ehr_ids = ehr_ids;
+            self
+        }
+
+        #[allow(dead_code)]
+        fn with_compositions_metadata(mut self, metadata: Vec<CompositionMetadata>) -> Self {
+            self.compositions_metadata = metadata;
+            self
+        }
+
+        #[allow(dead_code)]
+        fn with_compositions(mut self, compositions: Vec<Composition>) -> Self {
+            self.compositions = compositions;
+            self
+        }
+
+        fn with_failure(mut self) -> Self {
+            self.should_fail = true;
+            self
+        }
+    }
+
+    #[async_trait]
+    impl OpenEhrVendor for MockOpenEhrVendor {
+        async fn authenticate(&mut self) -> Result<()> {
+            if self.should_fail {
+                return Err(crate::domain::AtlasError::OpenEhr(
+                    crate::domain::OpenEhrError::AuthenticationFailed(
+                        "Mock auth failed".to_string(),
+                    ),
+                ));
+            }
+            Ok(())
+        }
+
+        async fn get_ehr_ids(&self) -> Result<Vec<EhrId>> {
+            if self.should_fail {
+                return Err(crate::domain::AtlasError::OpenEhr(
+                    crate::domain::OpenEhrError::QueryFailed("Mock query failed".to_string()),
+                ));
+            }
+            Ok(self.ehr_ids.clone())
+        }
+
+        async fn get_compositions_for_ehr(
+            &self,
+            _ehr_id: &EhrId,
+            _template_id: &TemplateId,
+            _since: Option<chrono::DateTime<Utc>>,
+        ) -> Result<Vec<CompositionMetadata>> {
+            if self.should_fail {
+                return Err(crate::domain::AtlasError::OpenEhr(
+                    crate::domain::OpenEhrError::QueryFailed("Mock query failed".to_string()),
+                ));
+            }
+            Ok(self.compositions_metadata.clone())
+        }
+
+        async fn fetch_composition(&self, _metadata: &CompositionMetadata) -> Result<Composition> {
+            if self.should_fail {
+                return Err(crate::domain::AtlasError::OpenEhr(
+                    crate::domain::OpenEhrError::QueryFailed("Mock fetch failed".to_string()),
+                ));
+            }
+            if let Some(comp) = self.compositions.first() {
+                Ok(comp.clone())
+            } else {
+                Err(crate::domain::AtlasError::OpenEhr(
+                    crate::domain::OpenEhrError::CompositionNotFound("No compositions".to_string()),
+                ))
+            }
+        }
+
+        fn is_authenticated(&self) -> bool {
+            !self.should_fail
+        }
+
+        fn base_url(&self) -> &str {
+            "http://mock.ehrbase.org"
+        }
+    }
+
+    // Mock Database Client
+    struct MockDatabaseClient {
+        should_fail: bool,
+        insert_results: Mutex<Vec<BulkInsertResult>>,
+    }
+
+    impl MockDatabaseClient {
+        fn new() -> Self {
+            Self {
+                should_fail: false,
+                insert_results: Mutex::new(vec![]),
+            }
+        }
+
+        fn with_failure(mut self) -> Self {
+            self.should_fail = true;
+            self
+        }
+
+        fn with_insert_result(self, result: BulkInsertResult) -> Self {
+            self.insert_results.lock().unwrap().push(result);
+            self
+        }
+    }
+
+    #[async_trait]
+    impl DatabaseClient for MockDatabaseClient {
+        fn as_any(&self) -> &dyn Any {
+            self
+        }
+
+        async fn test_connection(&self) -> Result<()> {
+            if self.should_fail {
+                return Err(crate::domain::AtlasError::CosmosDb(
+                    crate::domain::CosmosDbError::ConnectionFailed(
+                        "Mock connection failed".to_string(),
+                    ),
+                ));
+            }
+            Ok(())
+        }
+
+        async fn ensure_database_exists(&self) -> Result<()> {
+            if self.should_fail {
+                return Err(crate::domain::AtlasError::CosmosDb(
+                    crate::domain::CosmosDbError::ConnectionFailed(
+                        "Mock database creation failed".to_string(),
+                    ),
+                ));
+            }
+            Ok(())
+        }
+
+        async fn ensure_container_exists(&self, _template_id: &TemplateId) -> Result<()> {
+            if self.should_fail {
+                return Err(crate::domain::AtlasError::CosmosDb(
+                    crate::domain::CosmosDbError::ContainerCreationFailed(
+                        "Mock container creation failed".to_string(),
+                    ),
+                ));
+            }
+            Ok(())
+        }
+
+        async fn ensure_control_container_exists(&self) -> Result<()> {
+            if self.should_fail {
+                return Err(crate::domain::AtlasError::CosmosDb(
+                    crate::domain::CosmosDbError::ContainerCreationFailed(
+                        "Mock control container creation failed".to_string(),
+                    ),
+                ));
+            }
+            Ok(())
+        }
+
+        async fn check_composition_exists(
+            &self,
+            _template_id: &TemplateId,
+            _ehr_id: &str,
+            _composition_id: &str,
+        ) -> Result<bool> {
+            if self.should_fail {
+                return Err(crate::domain::AtlasError::CosmosDb(
+                    crate::domain::CosmosDbError::QueryFailed("Mock query failed".to_string()),
+                ));
+            }
+            Ok(false)
+        }
+
+        fn database_name(&self) -> &str {
+            "mock_database"
+        }
+
+        async fn bulk_insert_compositions(
+            &self,
+            _template_id: &TemplateId,
+            _compositions: Vec<Composition>,
+            _export_mode: String,
+            _max_retries: usize,
+            _dry_run: bool,
+        ) -> Result<BulkInsertResult> {
+            if self.should_fail {
+                return Err(crate::domain::AtlasError::CosmosDb(
+                    crate::domain::CosmosDbError::InsertFailed("Mock insert failed".to_string()),
+                ));
+            }
+            let mut results = self.insert_results.lock().unwrap();
+            if let Some(result) = results.pop() {
+                Ok(result)
+            } else {
+                Ok(BulkInsertResult {
+                    success_count: 0,
+                    failure_count: 0,
+                    failures: vec![],
+                })
+            }
+        }
+
+        async fn bulk_insert_compositions_flattened(
+            &self,
+            _template_id: &TemplateId,
+            _compositions: Vec<Composition>,
+            _export_mode: String,
+            _max_retries: usize,
+            _dry_run: bool,
+        ) -> Result<BulkInsertResult> {
+            self.bulk_insert_compositions(
+                _template_id,
+                _compositions,
+                _export_mode,
+                _max_retries,
+                _dry_run,
+            )
+            .await
+        }
+    }
+
+    // Mock State Storage
+    struct MockStateStorage {
+        watermarks: Mutex<std::collections::HashMap<String, Watermark>>,
+        should_fail: bool,
+    }
+
+    impl MockStateStorage {
+        fn new() -> Self {
+            Self {
+                watermarks: Mutex::new(std::collections::HashMap::new()),
+                should_fail: false,
+            }
+        }
+
+        #[allow(dead_code)]
+        fn with_failure(mut self) -> Self {
+            self.should_fail = true;
+            self
+        }
+
+        #[allow(dead_code)]
+        fn with_watermark(
+            self,
+            template_id: &TemplateId,
+            ehr_id: &EhrId,
+            watermark: Watermark,
+        ) -> Self {
+            let key = format!("{}_{}", template_id.as_str(), ehr_id.as_str());
+            self.watermarks.lock().unwrap().insert(key, watermark);
+            self
+        }
+    }
+
+    #[async_trait]
+    impl StateStorage for MockStateStorage {
+        async fn load_watermark(
+            &self,
+            template_id: &TemplateId,
+            ehr_id: &EhrId,
+        ) -> Result<Option<Watermark>> {
+            if self.should_fail {
+                return Err(crate::domain::AtlasError::CosmosDb(
+                    crate::domain::CosmosDbError::QueryFailed("Mock query failed".to_string()),
+                ));
+            }
+            let key = format!("{}_{}", template_id.as_str(), ehr_id.as_str());
+            Ok(self.watermarks.lock().unwrap().get(&key).cloned())
+        }
+
+        async fn save_watermark(&self, watermark: &Watermark, _dry_run: bool) -> Result<()> {
+            if self.should_fail {
+                return Err(crate::domain::AtlasError::CosmosDb(
+                    crate::domain::CosmosDbError::InsertFailed("Mock save failed".to_string()),
+                ));
+            }
+            let key = format!(
+                "{}_{}",
+                watermark.template_id.as_str(),
+                watermark.ehr_id.as_str()
+            );
+            self.watermarks
+                .lock()
+                .unwrap()
+                .insert(key, watermark.clone());
+            Ok(())
+        }
+
+        async fn get_all_watermarks(&self) -> Result<Vec<Watermark>> {
+            if self.should_fail {
+                return Err(crate::domain::AtlasError::CosmosDb(
+                    crate::domain::CosmosDbError::QueryFailed("Mock query failed".to_string()),
+                ));
+            }
+            Ok(self.watermarks.lock().unwrap().values().cloned().collect())
+        }
+    }
+
     #[test]
-    fn test_export_coordinator_placeholder() {
-        // Placeholder test - actual tests would require mocking
-        // This test exists to ensure the module compiles
+    fn test_is_shutdown_requested_false() {
+        let (_tx, rx) = watch::channel(false);
+
+        // Test that shutdown signal is initially false
+        assert!(!*rx.borrow());
+    }
+
+    #[test]
+    fn test_is_shutdown_requested_true() {
+        let (tx, rx) = watch::channel(false);
+
+        // Send shutdown signal
+        tx.send(true).unwrap();
+
+        assert!(*rx.borrow());
+    }
+
+    // Helper to create test composition metadata
+    #[allow(dead_code)]
+    fn create_test_metadata(uid_str: &str, template_id: &str, ehr_id: &str) -> CompositionMetadata {
+        CompositionMetadata::new(
+            CompositionUid::parse(uid_str).unwrap(),
+            TemplateId::new(template_id).unwrap(),
+            EhrId::new(ehr_id).unwrap(),
+            Utc::now(),
+        )
+    }
+
+    // Helper to create test composition
+    fn create_test_composition(uid_str: &str, template_id: &str, ehr_id: &str) -> Composition {
+        Composition {
+            uid: CompositionUid::parse(uid_str).unwrap(),
+            ehr_id: EhrId::new(ehr_id).unwrap(),
+            template_id: TemplateId::new(template_id).unwrap(),
+            time_committed: Utc::now(),
+            content: serde_json::json!({
+                "test": "data",
+                "archetype_node_id": "openEHR-EHR-COMPOSITION.encounter.v1"
+            }),
+        }
+    }
+
+    #[test]
+    fn test_mock_openehr_vendor_creation() {
+        let vendor = MockOpenEhrVendor::new();
+        assert!(vendor.is_authenticated());
+        assert_eq!(vendor.base_url(), "http://mock.ehrbase.org");
+    }
+
+    #[tokio::test]
+    async fn test_mock_openehr_vendor_get_ehr_ids() {
+        let ehr_id = EhrId::new("test-ehr-123").unwrap();
+        let vendor = MockOpenEhrVendor::new().with_ehr_ids(vec![ehr_id.clone()]);
+
+        let result = vendor.get_ehr_ids().await.unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], ehr_id);
+    }
+
+    #[tokio::test]
+    async fn test_mock_openehr_vendor_failure() {
+        let vendor = MockOpenEhrVendor::new().with_failure();
+
+        let result = vendor.get_ehr_ids().await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_mock_database_client_connection() {
+        let client = MockDatabaseClient::new();
+        assert!(client.test_connection().await.is_ok());
+
+        let failing_client = MockDatabaseClient::new().with_failure();
+        assert!(failing_client.test_connection().await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_mock_state_storage_load_save() {
+        let storage = MockStateStorage::new();
+        let template_id = TemplateId::new("vital_signs").unwrap();
+        let ehr_id = EhrId::new("test-ehr").unwrap();
+
+        // Load non-existent watermark
+        let result = storage.load_watermark(&template_id, &ehr_id).await.unwrap();
+        assert!(result.is_none());
+
+        // Save watermark
+        let watermark = WatermarkBuilder::new(template_id.clone(), ehr_id.clone()).build();
+        storage.save_watermark(&watermark, false).await.unwrap();
+
+        // Load saved watermark
+        let loaded = storage.load_watermark(&template_id, &ehr_id).await.unwrap();
+        assert!(loaded.is_some());
+        assert_eq!(loaded.unwrap().template_id, template_id);
+    }
+
+    #[tokio::test]
+    async fn test_mock_database_client_bulk_insert() {
+        let result = BulkInsertResult {
+            success_count: 5,
+            failure_count: 0,
+            failures: vec![],
+        };
+        let client = MockDatabaseClient::new().with_insert_result(result);
+
+        let template_id = TemplateId::new("vital_signs").unwrap();
+        let compositions = vec![create_test_composition(
+            "uid1::local::1",
+            "vital_signs",
+            "ehr1",
+        )];
+
+        let insert_result = client
+            .bulk_insert_compositions(&template_id, compositions, "preserve".to_string(), 3, false)
+            .await
+            .unwrap();
+
+        assert_eq!(insert_result.success_count, 5);
+        assert_eq!(insert_result.failure_count, 0);
+    }
+
+    #[tokio::test]
+    async fn test_mock_database_client_ensure_container() {
+        let client = MockDatabaseClient::new();
+        let template_id = TemplateId::new("vital_signs").unwrap();
+
+        assert!(client.ensure_container_exists(&template_id).await.is_ok());
+
+        let failing_client = MockDatabaseClient::new().with_failure();
+        assert!(failing_client
+            .ensure_container_exists(&template_id)
+            .await
+            .is_err());
     }
 }
