@@ -64,6 +64,9 @@ async fn test_azure_logger_disabled() {
 
 #[tokio::test]
 async fn test_azure_logger_enabled_with_log_analytics() {
+    use atlas::config::secret::SecretValue;
+    use secrecy::Secret;
+
     let config = LoggingConfig {
         local_enabled: true,
         local_path: "/tmp/atlas".to_string(),
@@ -72,7 +75,9 @@ async fn test_azure_logger_enabled_with_log_analytics() {
         azure_enabled: true,
         azure_tenant_id: Some("test-tenant-id".to_string()),
         azure_client_id: Some("test-client-id".to_string()),
-        azure_client_secret: Some("test-client-secret".to_string()),
+        azure_client_secret: Some(Secret::new(SecretValue::from(
+            "test-client-secret".to_string(),
+        ))),
         azure_log_analytics_workspace_id: Some("test-workspace-id".to_string()),
         azure_dcr_immutable_id: Some("dcr-test123".to_string()),
         azure_dce_endpoint: Some("https://test-dce.monitor.azure.com".to_string()),

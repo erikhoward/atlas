@@ -98,7 +98,17 @@ azure_enabled = false
     );
     assert_eq!(config.openehr.vendor, "ehrbase");
     assert_eq!(config.openehr.username, Some("test_user".to_string()));
-    assert_eq!(config.openehr.password, Some("test_pass".to_string()));
+
+    // Verify password (using expose_secret to access the protected value)
+    use secrecy::ExposeSecret;
+    assert_eq!(
+        config
+            .openehr
+            .password
+            .as_ref()
+            .map(|s| s.expose_secret().as_ref()),
+        Some("test_pass")
+    );
 
     // Verify query config
     assert_eq!(config.openehr.query.template_ids.len(), 2);
@@ -230,7 +240,7 @@ database_name = "test_db"
             .openehr
             .password
             .as_ref()
-            .map(|s| s.expose_secret().as_str()),
+            .map(|s| s.expose_secret().as_ref()),
         Some("secret_pass")
     );
     let cosmosdb = config
