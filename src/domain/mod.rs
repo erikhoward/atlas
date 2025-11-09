@@ -65,6 +65,7 @@
 //! ```
 
 pub mod composition;
+pub mod context;
 pub mod ehr;
 pub mod errors;
 pub mod ids;
@@ -73,6 +74,7 @@ pub mod template;
 
 // Re-export commonly used types for convenience
 pub use composition::{Composition, CompositionBuilder, CompositionMetadata};
+pub use context::ResultExt;
 pub use ehr::{Ehr, EhrBuilder};
 pub use errors::{AtlasError, CosmosDbError, ExportErrorDetail, OpenEhrError};
 pub use ids::{CompositionUid, EhrId, TemplateId};
