@@ -175,9 +175,7 @@ impl PostgreSQLClient {
         let pool = Pool::builder(manager)
             .max_size(config.max_connections)
             .build()
-            .map_err(|e| {
-                AtlasError::Database(format!("Failed to create connection pool: {e}"))
-            })?;
+            .map_err(|e| AtlasError::Database(format!("Failed to create connection pool: {e}")))?;
 
         // Test the connection immediately to get better error messages
         tracing::debug!("Testing PostgreSQL connection...");
