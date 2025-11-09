@@ -60,9 +60,9 @@ impl Verifier {
             "Starting post-export verification"
         );
 
-        // If no compositions were exported with checksums, skip verification
+        // If no compositions were exported, skip verification
         if total_to_verify == 0 {
-            tracing::info!("No compositions to verify (checksums not enabled or no exports)");
+            tracing::info!("No compositions to verify");
             let duration = start.elapsed();
             report.set_duration(duration.as_millis() as u64);
             return Ok(report);
@@ -75,7 +75,6 @@ impl Verifier {
                     &exported_comp.composition_uid,
                     &exported_comp.ehr_id,
                     &exported_comp.template_id,
-                    "N/A", // Checksum not used anymore
                 )
                 .await
             {
@@ -111,7 +110,6 @@ impl Verifier {
     /// * `composition_uid` - The composition UID
     /// * `ehr_id` - The EHR ID (partition key)
     /// * `template_id` - The template ID
-    /// * `expected_checksum` - Not used (kept for compatibility)
     ///
     /// # Returns
     ///
@@ -121,7 +119,6 @@ impl Verifier {
         composition_uid: &CompositionUid,
         ehr_id: &EhrId,
         template_id: &TemplateId,
-        _expected_checksum: &str,
     ) -> std::result::Result<(), VerificationFailure> {
         tracing::debug!(
             composition_uid = %composition_uid.as_str(),

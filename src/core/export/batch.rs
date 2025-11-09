@@ -231,8 +231,6 @@ mod tests {
 
     #[test]
     fn test_batch_result_operations() {
-        use std::str::FromStr;
-
         let mut result = BatchResult::new();
 
         assert_eq!(result.successful, 0);
@@ -250,12 +248,6 @@ mod tests {
 
         result.add_duplicate();
         assert_eq!(result.duplicates_skipped, 1);
-
-        // Test checksum tracking
-        let uid = CompositionUid::from_str("84d7c3f5::local.ehrbase.org::1").unwrap();
-        result.add_checksum(uid.clone(), "abc123".to_string());
-        assert_eq!(result.checksums.len(), 1);
-        assert_eq!(result.checksums.get(&uid), Some(&"abc123".to_string()));
     }
 
     #[test]

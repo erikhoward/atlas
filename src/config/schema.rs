@@ -539,7 +539,7 @@ impl StateConfig {
 }
 
 /// Data verification configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct VerificationConfig {
     /// Enable verification
     #[serde(default)]
@@ -549,14 +549,6 @@ pub struct VerificationConfig {
 impl VerificationConfig {
     fn validate(&self) -> Result<(), String> {
         Ok(())
-    }
-}
-
-impl Default for VerificationConfig {
-    fn default() -> Self {
-        Self {
-            enable_verification: false,
-        }
     }
 }
 

@@ -1,12 +1,10 @@
-//! Data verification and checksum validation
+//! Data verification for post-export validation
 //!
 //! This module provides functionality for verifying exported data integrity
-//! through checksum calculation and validation.
+//! by checking that compositions exist in the database.
 
-pub mod checksum;
 pub mod report;
 pub mod verify;
 
-pub use checksum::calculate_checksum;
 pub use report::{VerificationFailure, VerificationReport};
 pub use verify::Verifier;
