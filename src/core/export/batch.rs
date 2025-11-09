@@ -232,7 +232,7 @@ mod tests {
 
         assert_eq!(config.batch_size, 1000);
         assert_eq!(config.composition_format, CompositionFormat::Preserve);
-        assert_eq!(config.dry_run, false);
+        assert!(!config.dry_run);
     }
 
     #[test]
@@ -241,7 +241,7 @@ mod tests {
 
         assert_eq!(config.batch_size, 500);
         assert_eq!(config.composition_format, CompositionFormat::Flatten);
-        assert_eq!(config.dry_run, false);
+        assert!(!config.dry_run);
     }
 
     #[test]
