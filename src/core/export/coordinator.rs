@@ -107,6 +107,45 @@ impl ExportCoordinator {
         *self.shutdown_signal.borrow()
     }
 
+    /// Validate configuration and parse template IDs
+    ///
+    /// # Arguments
+    ///
+    /// * `summary` - Export summary to update with errors if validation fails
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(Some(template_ids))` if validation succeeds and template IDs are valid,
+    /// `Ok(None)` if validation fails (error added to summary), or `Err` for unexpected errors
+    fn validate_and_prepare_export(
+        &self,
+        summary: &mut ExportSummary,
+    ) -> Result<Option<Vec<TemplateId>>> {
+        // Validate configuration
+        if let Err(e) = self.config.validate() {
+            let error = ExportError::new(ExportErrorType::Configuration, e);
+            summary.add_error(error);
+            return Ok(None);
+        }
+
+        // Get template IDs to process
+        let template_ids: Vec<TemplateId> = self
+            .config
+            .openehr
+            .query
+            .template_ids
+            .iter()
+            .filter_map(|id| TemplateId::from_str(id).ok())
+            .collect();
+
+        if template_ids.is_empty() {
+            tracing::warn!("No valid template IDs to process");
+            return Ok(None);
+        }
+
+        Ok(Some(template_ids))
+    }
+
     /// Execute the export
     ///
     /// This is the main entry point for the export process. It:
@@ -128,27 +167,11 @@ impl ExportCoordinator {
 
         tracing::info!("Starting export process");
 
-        // Validate configuration
-        if let Err(e) = self.config.validate() {
-            let error = ExportError::new(ExportErrorType::Configuration, e);
-            summary.add_error(error);
-            return Ok(summary.with_duration(start_time.elapsed()));
-        }
-
-        // Get template IDs to process
-        let template_ids: Vec<TemplateId> = self
-            .config
-            .openehr
-            .query
-            .template_ids
-            .iter()
-            .filter_map(|id| TemplateId::from_str(id).ok())
-            .collect();
-
-        if template_ids.is_empty() {
-            tracing::warn!("No valid template IDs to process");
-            return Ok(summary.with_duration(start_time.elapsed()));
-        }
+        // Validate configuration and get template IDs
+        let template_ids = match self.validate_and_prepare_export(&mut summary)? {
+            Some(ids) => ids,
+            None => return Ok(summary.with_duration(start_time.elapsed())),
+        };
 
         // Get EHR IDs to process
         let ehr_ids = self.get_ehr_ids_to_process().await?;
