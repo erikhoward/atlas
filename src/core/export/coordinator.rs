@@ -146,6 +146,134 @@ impl ExportCoordinator {
         Ok(Some(template_ids))
     }
 
+    /// Process all templates for all EHRs
+    ///
+    /// # Arguments
+    ///
+    /// * `template_ids` - List of template IDs to process
+    /// * `ehr_ids` - List of EHR IDs to process
+    /// * `summary` - Export summary to update with results
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(true)` if processing completed normally,
+    /// `Ok(false)` if shutdown was requested, or `Err` for unexpected errors
+    async fn process_templates(
+        &self,
+        template_ids: &[TemplateId],
+        ehr_ids: &[EhrId],
+        summary: &mut ExportSummary,
+    ) -> Result<bool> {
+        for template_id in template_ids {
+            // Check for shutdown signal before processing each template
+            if self.is_shutdown_requested() {
+                tracing::info!("Shutdown signal received, stopping export");
+                summary.interrupted = true;
+                summary.shutdown_reason = Some("User signal (SIGTERM/SIGINT)".to_string());
+                return Ok(false);
+            }
+
+            tracing::info!(
+                template_id = %template_id.as_str(),
+                "Processing template"
+            );
+
+            // Ensure container exists for this template
+            if let Err(e) = self
+                .database_client
+                .ensure_container_exists(template_id)
+                .await
+            {
+                tracing::error!(
+                    template_id = %template_id.as_str(),
+                    error = %e,
+                    "Failed to create container"
+                );
+                summary.add_error(
+                    ExportError::new(
+                        ExportErrorType::Storage,
+                        format!("Failed to create container: {e}"),
+                    )
+                    .with_context(format!("template_id={}", template_id.as_str())),
+                );
+                continue;
+            }
+
+            // Process each EHR for this template
+            if !self
+                .process_ehrs_for_template(template_id, ehr_ids, summary)
+                .await?
+            {
+                return Ok(false); // Shutdown requested
+            }
+        }
+
+        Ok(true)
+    }
+
+    /// Process all EHRs for a single template
+    ///
+    /// # Arguments
+    ///
+    /// * `template_id` - Template ID to process
+    /// * `ehr_ids` - List of EHR IDs to process
+    /// * `summary` - Export summary to update with results
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(true)` if processing completed normally,
+    /// `Ok(false)` if shutdown was requested, or `Err` for unexpected errors
+    async fn process_ehrs_for_template(
+        &self,
+        template_id: &TemplateId,
+        ehr_ids: &[EhrId],
+        summary: &mut ExportSummary,
+    ) -> Result<bool> {
+        for ehr_id in ehr_ids {
+            // Check for shutdown signal before processing each EHR
+            if self.is_shutdown_requested() {
+                tracing::info!("Shutdown signal received, stopping export");
+                summary.interrupted = true;
+                summary.shutdown_reason = Some("User signal (SIGTERM/SIGINT)".to_string());
+                return Ok(false);
+            }
+
+            match self
+                .process_ehr_for_template(template_id, ehr_id, summary)
+                .await
+            {
+                Ok(_) => {
+                    tracing::debug!(
+                        template_id = %template_id.as_str(),
+                        ehr_id = %ehr_id.as_str(),
+                        "Completed processing EHR"
+                    );
+                }
+                Err(e) => {
+                    tracing::error!(
+                        template_id = %template_id.as_str(),
+                        ehr_id = %ehr_id.as_str(),
+                        error = %e,
+                        "Failed to process EHR"
+                    );
+                    summary.add_error(
+                        ExportError::new(
+                            ExportErrorType::Unknown,
+                            format!("Failed to process EHR: {e}"),
+                        )
+                        .with_context(format!(
+                            "template_id={}, ehr_id={}",
+                            template_id.as_str(),
+                            ehr_id.as_str()
+                        )),
+                    );
+                }
+            }
+        }
+
+        Ok(true)
+    }
+
     /// Execute the export
     ///
     /// This is the main entry point for the export process. It:
@@ -183,84 +311,12 @@ impl ExportCoordinator {
             "Processing templates and EHRs"
         );
 
-        // Process each template
-        for template_id in &template_ids {
-            // Check for shutdown signal before processing each template
-            if self.is_shutdown_requested() {
-                tracing::info!("Shutdown signal received, stopping export");
-                summary.interrupted = true;
-                summary.shutdown_reason = Some("User signal (SIGTERM/SIGINT)".to_string());
-                return Ok(summary.with_duration(start_time.elapsed()));
-            }
-
-            tracing::info!(
-                template_id = %template_id.as_str(),
-                "Processing template"
-            );
-
-            // Ensure container exists for this template
-            if let Err(e) = self
-                .database_client
-                .ensure_container_exists(template_id)
-                .await
-            {
-                tracing::error!(
-                    template_id = %template_id.as_str(),
-                    error = %e,
-                    "Failed to create container"
-                );
-                summary.add_error(
-                    ExportError::new(
-                        ExportErrorType::Storage,
-                        format!("Failed to create container: {e}"),
-                    )
-                    .with_context(format!("template_id={}", template_id.as_str())),
-                );
-                continue;
-            }
-
-            // Process each EHR for this template
-            for ehr_id in &ehr_ids {
-                // Check for shutdown signal before processing each EHR
-                if self.is_shutdown_requested() {
-                    tracing::info!("Shutdown signal received, stopping export");
-                    summary.interrupted = true;
-                    summary.shutdown_reason = Some("User signal (SIGTERM/SIGINT)".to_string());
-                    return Ok(summary.with_duration(start_time.elapsed()));
-                }
-
-                match self
-                    .process_ehr_for_template(template_id, ehr_id, &mut summary)
-                    .await
-                {
-                    Ok(_) => {
-                        tracing::debug!(
-                            template_id = %template_id.as_str(),
-                            ehr_id = %ehr_id.as_str(),
-                            "Completed processing EHR"
-                        );
-                    }
-                    Err(e) => {
-                        tracing::error!(
-                            template_id = %template_id.as_str(),
-                            ehr_id = %ehr_id.as_str(),
-                            error = %e,
-                            "Failed to process EHR"
-                        );
-                        summary.add_error(
-                            ExportError::new(
-                                ExportErrorType::Unknown,
-                                format!("Failed to process EHR: {e}"),
-                            )
-                            .with_context(format!(
-                                "template_id={}, ehr_id={}",
-                                template_id.as_str(),
-                                ehr_id.as_str()
-                            )),
-                        );
-                    }
-                }
-            }
+        // Process all templates
+        if !self
+            .process_templates(&template_ids, &ehr_ids, &mut summary)
+            .await?
+        {
+            return Ok(summary.with_duration(start_time.elapsed()));
         }
 
         // Run verification if enabled and cosmos client is available
