@@ -16,16 +16,23 @@ env:
 
 jobs:
   create-release:
-    name: Create GitHub Release
+    name: Create GitHub Release (Draft)
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.create-release.outputs.version }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Create GitHub Release
+      - name: Create GitHub Release (Draft)
+        id: create-release
         uses: taiki-e/create-gh-release-action@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          changelog: CHANGELOG.md
+          # Create as draft first to support immutable releases
+          # Assets will be uploaded while in draft state, then published
+          draft: true
 
   upload-assets:
     name: Upload ${{ matrix.target }}
@@ -102,3 +109,21 @@ jobs:
       - name: Image digest
         run: echo "Image pushed with digest ${{ steps.docker-build-and-push.outputs.digest }}"
 
+  publish-release:
+    name: Publish Release
+    needs: [upload-assets, docker-build-and-push]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish the draft release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Extract tag name from GITHUB_REF (refs/tags/v1.0.0 → v1.0.0)
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+
+          echo "Publishing release ${TAG_NAME}..."
+
+          # Publish the draft release (make it immutable)
+          # This is done after all assets have been uploaded to ensure
+          # compatibility with immutable releases
+          gh release edit "${TAG_NAME}" --draft=false --repo ${{ github.repository }}
