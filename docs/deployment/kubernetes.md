@@ -285,7 +285,7 @@ spec:
               limits:
                 memory: "4Gi"
                 cpu: "2000m"
-            
+
             securityContext:
               allowPrivilegeEscalation: false
               runAsNonRoot: true
@@ -294,6 +294,11 @@ spec:
               capabilities:
                 drop:
                 - ALL
+
+          # Graceful shutdown configuration
+          # Allow 30 seconds for Atlas to complete current batch and save watermarks
+          # This should match export.shutdown_timeout_secs in atlas.toml
+          terminationGracePeriodSeconds: 30
           
           volumes:
           - name: config
@@ -571,6 +576,86 @@ kubectl patch cronjob atlas-export -n atlas -p '{"spec":{"suspend":true}}'
 # Resume
 kubectl patch cronjob atlas-export -n atlas -p '{"spec":{"suspend":false}}'
 ```
+
+### Graceful Shutdown
+
+Atlas supports graceful shutdown in Kubernetes, ensuring data integrity when pods are terminated:
+
+**How It Works:**
+
+1. Kubernetes sends SIGTERM to the Atlas container
+2. Atlas completes the current batch being processed
+3. Watermarks are saved to the database with `Interrupted` status
+4. Atlas exits with code 143 (SIGTERM)
+5. Next job run resumes from the checkpoint
+
+**Configuration:**
+
+The `terminationGracePeriodSeconds` in your pod spec should match the `shutdown_timeout_secs` in your Atlas configuration:
+
+```yaml
+spec:
+  template:
+    spec:
+      # Allow 30 seconds for graceful shutdown
+      terminationGracePeriodSeconds: 30
+
+      containers:
+      - name: atlas
+        # ... other config ...
+```
+
+In your `atlas.toml`:
+
+```toml
+[export]
+# Should match terminationGracePeriodSeconds
+shutdown_timeout_secs = 30
+```
+
+**Best Practices:**
+
+- **Match timeouts**: Ensure `terminationGracePeriodSeconds` ≥ `shutdown_timeout_secs`
+- **Monitor batch size**: Large batches may not complete within the grace period
+- **Check logs**: Verify batches complete before timeout expires
+- **Use preStop hook** (optional): Add a delay before SIGTERM for additional safety
+
+```yaml
+lifecycle:
+  preStop:
+    exec:
+      command: ["/bin/sh", "-c", "sleep 5"]
+```
+
+**Handling Pod Deletion:**
+
+```bash
+# Graceful deletion (recommended)
+kubectl delete pod atlas-export-12345-abcde -n atlas
+# Waits up to terminationGracePeriodSeconds for pod to exit
+
+# Force deletion (NOT recommended - may lose progress)
+kubectl delete pod atlas-export-12345-abcde -n atlas --force --grace-period=0
+# Immediately kills pod without saving watermarks
+```
+
+**Exit Codes:**
+
+Monitor job exit codes to detect interruptions:
+
+```bash
+# Check job status
+kubectl get jobs -n atlas
+
+# View pod exit code
+kubectl describe pod atlas-export-12345-abcde -n atlas | grep "Exit Code"
+```
+
+Exit codes:
+- `0` - Success
+- `1` - Partial success (some exports failed)
+- `130` - Interrupted by SIGINT (Ctrl+C)
+- `143` - Interrupted by SIGTERM (Kubernetes pod termination)
 
 ## Monitoring and Logging
 
