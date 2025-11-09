@@ -7,6 +7,127 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2025-11-09
+
+### Added
+
+- **Standardized Error Handling** (Feature #29)
+  - Created `ResultExt` trait for adding context to errors
+  - Added `.context()` and `.with_context()` methods similar to anyhow
+  - Maintains `Result<T, AtlasError>` for library code
+  - Keeps `anyhow::Result` only in CLI layer
+  - Added comprehensive error handling guidelines to CONTRIBUTING.md
+  - Added 6 new unit tests for error conversions
+
+- **Secure Credential Handling** (Feature #11)
+  - All credentials now wrapped in `Secret<SecretValue>` type with automatic memory zeroization
+  - Debug output shows `Secret([REDACTED])` instead of actual values
+  - Credentials never appear in logs or error messages
+  - Explicit `expose_secret()` calls required for access (easy to audit)
+  - Protected credentials: OpenEHR password, Cosmos DB key, PostgreSQL connection string, Azure client secret
+  - Added `secrecy` (0.8) and `zeroize` (1.8) dependencies
+
+- **Complete Dry-Run Validation** (Feature #7)
+  - Added `dry_run` field to `ExportConfig` and `BatchConfig`
+  - Skip all database writes (compositions and watermarks) in dry-run mode
+  - Added `dry_run` field to `ExportSummary` with clear logging
+  - Added 14 comprehensive integration tests for dry-run mode
+  - Updated user guide with dedicated dry-run section
+
+- **Graceful Shutdown Handling** (Feature #2)
+  - Added SIGTERM and SIGINT signal handlers
+  - Created shutdown signal channel using `tokio::sync::watch`
+  - Check shutdown signal between templates and EHRs
+  - Added `Interrupted` status to `ExportStatus` enum
+  - Added `interrupted` flag and `shutdown_reason` to `ExportSummary`
+  - Configurable shutdown timeout (default: 30s via `shutdown_timeout_secs`)
+  - Return exit code 130 for interrupted exports
+  - Complete current batch before shutdown (no mid-batch interruption)
+  - Added 12 comprehensive integration tests for graceful shutdown
+  - Documentation for Docker and Kubernetes graceful shutdown best practices
+
+- **Comprehensive Unit Tests**
+  - Added mock implementations for `DatabaseClient` and `StateStorage`
+  - Added 6 new unit tests for `BatchProcessor` covering empty compositions, successful processing (preserve/flatten), failures, dry-run mode, and watermark updates
+  - Added 9 baseline unit tests for `ExportCoordinator` covering shutdown signals and basic functionality
+
+- **Security Policy**
+  - Added `SECURITY.md` with vulnerability reporting guidelines
+  - Documented security best practices for credential handling
+
+### Changed
+
+- **Large Functions Refactoring** (Feature #30)
+  - Refactored `execute_export` from 176 lines to 39 lines (now acts as clean orchestrator)
+  - Created `validate_and_prepare_export()` helper for config validation
+  - Created `process_templates()` and `process_ehrs_for_template()` helpers for iteration logic
+  - Created `run_post_export_verification()` helper for verification logic
+  - Refactored `process_ehr_for_template` from 135 lines to 54 lines
+  - Created `load_or_create_watermark()`, `fetch_compositions_for_ehr()`, and `process_and_update_summary()` helpers
+  - All helper functions are under 50 lines
+  - All coordinator and batch processor tests pass
+
+- **Documentation Improvements**
+  - Cleanup and architecture updates
+  - Removed SHA-256 checksum references from README.md
+  - Updated architecture diagrams to show both Cosmos DB and PostgreSQL backends
+  - Cleaned up Future Enhancements section
+  - Updated `docs/README.md` with hyperlinks and better organization
+  - Updated `docs/architecture.md` to match dual-backend architecture
+  - Enhanced `docs/configuration.md` with credential protection section
+  - Updated `docs/user-guide.md` security best practices
+  - Expanded README.md security section
+
+### Fixed
+
+- Updated all 53 failing doctests to match current API
+  - Fixed config loading from `AtlasConfig::from_file()` to `load_config()`
+  - Fixed `init_logging()` calls to include both `log_level_str` and config parameters
+  - Updated `StateManager::new()` to `StateManager::new_with_storage()`
+  - Fixed transform function signatures to use `String` for `export_mode`
+  - Fixed `SecretString` usage to use `Secret::new(SecretValue::from(...))`
+  - Fixed ID type conversions to use proper error handling
+  - Updated field names in `ExportSummary`
+  - Re-enabled doctests in CI workflow
+
+- Updated integration tests for secure credential handling
+  - Fixed password assertions to use `expose_secret().as_ref()`
+  - Updated `azure_client_secret` to use `Secret::new(SecretValue::from(...))`
+
+- Resolved clippy warnings for boolean assertions
+  - Replaced `assert_eq!(bool, false)` with `assert!(!bool)`
+
+### Removed
+
+- **Checksum Verification Complexity**
+  - Removed checksum calculation and validation from verification process
+  - Simplified verification to existence-only checks
+  - Deleted `src/core/verification/checksum.rs` file
+  - Removed `checksum_algorithm` from `VerificationConfig`
+  - Removed `checksum` field from `ExportedCompositionInfo`
+  - Removed `enable_checksum` parameter from transform functions and database methods
+  - Removed 8 checksum-related tests
+  - Updated documentation to reflect existence-based verification
+
+- Removed test configuration files (`test-minimal.toml`, `test-examples.toml`)
+
+## [2.0.0] - 2025-11-08
+
+### Added
+
+- PostgreSQL backend support as alternative to Cosmos DB
+- Dual-backend architecture with database abstraction layer
+- Complete migration system for PostgreSQL schema management
+- Connection pooling for PostgreSQL using `deadpool-postgres`
+- Comprehensive PostgreSQL adapter with full feature parity
+- Example configurations for PostgreSQL deployments
+
+### Changed
+
+- Refactored database layer to support multiple backends
+- Updated configuration schema to support database target selection
+- Enhanced documentation for multi-backend deployment scenarios
+
 ## [1.0.0] - 2025-11-04
 
 ### Added

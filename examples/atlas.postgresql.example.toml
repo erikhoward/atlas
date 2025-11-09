@@ -3,7 +3,7 @@
 
 [application]
 name = "atlas"
-version = "2.0.0"
+version = "2.1.0"
 log_level = "info" # trace, debug, info, warn, error
 dry_run = false
 
