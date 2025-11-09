@@ -84,8 +84,6 @@ impl InitArgs {
 database_target = "cosmosdb"  # cosmosdb | postgresql
 
 [application]
-name = "atlas"
-version = "2.1.0"
 log_level = "info"
 dry_run = false
 
@@ -172,12 +170,6 @@ database_target = "cosmosdb"  # cosmosdb | postgresql
 # Application Settings
 # ============================================================================
 [application]
-# Application name (used in logging and telemetry)
-name = "atlas"
-
-# Application version
-version = "2.1.0"
-
 # Log level (trace, debug, info, warn, error)
 log_level = "info"
 

@@ -216,6 +216,85 @@ max_connections = 20
 
 See `examples/atlas.example.toml` for CosmosDB configuration and `examples/atlas.postgresql.example.toml` for PostgreSQL configuration.
 
+#### 12-Factor App Configuration
+
+Atlas supports comprehensive environment variable overrides for all configuration options, enabling containerized deployments and 12-factor app compliance:
+
+```bash
+# Override any configuration value using ATLAS_<SECTION>_<KEY> pattern
+export ATLAS_DATABASE_TARGET=postgresql
+export ATLAS_APPLICATION_LOG_LEVEL=debug
+export ATLAS_OPENEHR_BASE_URL=https://prod-ehrbase.com
+export ATLAS_OPENEHR_USERNAME=atlas_prod
+export ATLAS_OPENEHR_PASSWORD=secret
+export ATLAS_OPENEHR_QUERY_BATCH_SIZE=2000
+export ATLAS_EXPORT_MODE=incremental
+export ATLAS_POSTGRESQL_CONNECTION_STRING="postgresql://user:pass@postgres:5432/db"
+export ATLAS_POSTGRESQL_MAX_CONNECTIONS=20
+
+# Arrays support JSON or comma-separated format
+export ATLAS_OPENEHR_QUERY_TEMPLATE_IDS='["IDCR - Vital Signs.v1","IDCR - Lab Report.v1"]'
+export ATLAS_OPENEHR_QUERY_EHR_IDS="ehr-123,ehr-456,ehr-789"
+
+# Run with minimal TOML file (or even no TOML file with all env vars set)
+atlas export -c minimal.toml
+```
+
+**Docker Example**:
+
+```bash
+docker run -d \
+  -e ATLAS_DATABASE_TARGET=postgresql \
+  -e ATLAS_OPENEHR_BASE_URL=https://ehrbase.example.com \
+  -e ATLAS_OPENEHR_USERNAME=atlas \
+  -e ATLAS_OPENEHR_PASSWORD="${OPENEHR_PASSWORD}" \
+  -e ATLAS_OPENEHR_QUERY_TEMPLATE_IDS='["IDCR - Vital Signs.v1"]' \
+  -e ATLAS_POSTGRESQL_CONNECTION_STRING="${PG_CONNECTION_STRING}" \
+  -e ATLAS_EXPORT_MODE=incremental \
+  atlas:latest
+```
+
+**Kubernetes Example**:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: atlas-config
+data:
+  ATLAS_DATABASE_TARGET: "postgresql"
+  ATLAS_OPENEHR_BASE_URL: "https://ehrbase.example.com"
+  ATLAS_OPENEHR_QUERY_TEMPLATE_IDS: '["IDCR - Vital Signs.v1"]'
+  ATLAS_EXPORT_MODE: "incremental"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: atlas-secrets
+type: Opaque
+stringData:
+  ATLAS_OPENEHR_PASSWORD: "secret"
+  ATLAS_POSTGRESQL_CONNECTION_STRING: "postgresql://user:pass@postgres:5432/db"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: atlas
+spec:
+  template:
+    spec:
+      containers:
+      - name: atlas
+        image: atlas:latest
+        envFrom:
+        - configMapRef:
+            name: atlas-config
+        - secretRef:
+            name: atlas-secrets
+```
+
+See [Configuration Guide](docs/configuration.md#environment-variable-overrides) for complete list of supported environment variables.
+
 ### Basic Usage
 
 ```bash

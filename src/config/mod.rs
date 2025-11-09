@@ -47,7 +47,6 @@
 //!
 //! ```toml
 //! [application]
-//! name = "atlas"
 //! log_level = "info"
 //!
 //! [openehr]
@@ -71,12 +70,73 @@
 //!
 //! # Environment Variables
 //!
-//! Use `${VAR_NAME}` syntax for environment variable substitution:
+//! Atlas supports comprehensive environment variable overrides for 12-factor app compliance.
+//!
+//! ## Substitution Syntax
+//!
+//! Use `${VAR_NAME}` in TOML files for environment variable substitution:
 //!
 //! ```bash
-//! export ATLAS_OPENEHR_PASSWORD="secret-password"
-//! export ATLAS_COSMOS_KEY="secret-key"
+//! export OPENEHR_PASSWORD="secret-password"
+//! export COSMOS_KEY="secret-key"
 //! ```
+//!
+//! ```toml
+//! [openehr]
+//! password = "${OPENEHR_PASSWORD}"
+//!
+//! [cosmosdb]
+//! key = "${COSMOS_KEY}"
+//! ```
+//!
+//! ## Override Syntax
+//!
+//! Use `ATLAS_<SECTION>_<KEY>` environment variables to override any configuration value:
+//!
+//! ```bash
+//! # Database selection
+//! export ATLAS_DATABASE_TARGET=postgresql
+//!
+//! # Application settings
+//! export ATLAS_APPLICATION_LOG_LEVEL=debug
+//! export ATLAS_APPLICATION_DRY_RUN=true
+//!
+//! # OpenEHR connection
+//! export ATLAS_OPENEHR_BASE_URL=https://prod-ehrbase.com
+//! export ATLAS_OPENEHR_USERNAME=atlas_user
+//! export ATLAS_OPENEHR_PASSWORD=secret
+//! export ATLAS_OPENEHR_TIMEOUT_SECONDS=120
+//!
+//! # Query settings (arrays support JSON or comma-separated)
+//! export ATLAS_OPENEHR_QUERY_BATCH_SIZE=2000
+//! export ATLAS_OPENEHR_QUERY_TEMPLATE_IDS='["IDCR - Vital Signs.v1","IDCR - Lab Report.v1"]'
+//! export ATLAS_OPENEHR_QUERY_EHR_IDS="ehr-123,ehr-456,ehr-789"
+//!
+//! # Export settings
+//! export ATLAS_EXPORT_MODE=full
+//! export ATLAS_EXPORT_DRY_RUN=false
+//! export ATLAS_EXPORT_RETRY_BACKOFF_MS="1000,2000,4000"
+//!
+//! # PostgreSQL
+//! export ATLAS_POSTGRESQL_CONNECTION_STRING="postgresql://user:pass@localhost/db"
+//! export ATLAS_POSTGRESQL_MAX_CONNECTIONS=20
+//! export ATLAS_POSTGRESQL_SSL_MODE=require
+//!
+//! # Cosmos DB
+//! export ATLAS_COSMOSDB_ENDPOINT=https://myaccount.documents.azure.com:443/
+//! export ATLAS_COSMOSDB_KEY=secret-key
+//! export ATLAS_COSMOSDB_DATABASE_NAME=prod_openehr
+//!
+//! # Logging
+//! export ATLAS_LOGGING_LOCAL_ENABLED=true
+//! export ATLAS_LOGGING_LOCAL_PATH=/var/log/atlas
+//! export ATLAS_LOGGING_LOCAL_ROTATION=daily
+//! ```
+//!
+//! Environment variable overrides take precedence over TOML file values, enabling
+//! containerized deployments without modifying configuration files.
+//!
+//! See [`loader`] module documentation for complete list of supported variables.
 //!
 //! # Validation
 //!

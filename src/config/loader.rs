@@ -1,6 +1,82 @@
 //! Configuration loader with TOML parsing and environment variable overrides
 //!
-//! This module implements configuration loading following TR-4.2.
+//! This module implements configuration loading following TR-4.2 and 12-factor app principles.
+//!
+//! # Environment Variable Support
+//!
+//! Atlas supports comprehensive environment variable overrides for all configuration options,
+//! enabling 12-factor app compliance and containerized deployments.
+//!
+//! ## Two Types of Environment Variable Support
+//!
+//! ### 1. Substitution Syntax (`${VAR}`)
+//!
+//! Use `${VAR_NAME}` in TOML files for environment variable substitution:
+//!
+//! ```toml
+//! [openehr]
+//! password = "${OPENEHR_PASSWORD}"
+//!
+//! [cosmosdb]
+//! key = "${COSMOS_KEY}"
+//! ```
+//!
+//! ### 2. Override Syntax (`ATLAS_*`)
+//!
+//! Use `ATLAS_<SECTION>_<KEY>` environment variables to override any configuration value:
+//!
+//! ```bash
+//! # Database selection
+//! ATLAS_DATABASE_TARGET=postgresql
+//!
+//! # Application settings
+//! ATLAS_APPLICATION_LOG_LEVEL=debug
+//! ATLAS_APPLICATION_DRY_RUN=true
+//!
+//! # OpenEHR connection
+//! ATLAS_OPENEHR_BASE_URL=https://prod-ehrbase.com
+//! ATLAS_OPENEHR_USERNAME=atlas_user
+//! ATLAS_OPENEHR_PASSWORD=secret
+//!
+//! # Query settings
+//! ATLAS_OPENEHR_QUERY_BATCH_SIZE=2000
+//! ATLAS_OPENEHR_QUERY_TEMPLATE_IDS='["IDCR - Vital Signs.v1","IDCR - Lab Report.v1"]'
+//!
+//! # Export settings
+//! ATLAS_EXPORT_MODE=full
+//! ATLAS_EXPORT_DRY_RUN=false
+//!
+//! # PostgreSQL
+//! ATLAS_POSTGRESQL_CONNECTION_STRING="postgresql://user:pass@localhost/db"
+//! ATLAS_POSTGRESQL_MAX_CONNECTIONS=20
+//!
+//! # Cosmos DB
+//! ATLAS_COSMOSDB_ENDPOINT=https://myaccount.documents.azure.com:443/
+//! ATLAS_COSMOSDB_KEY=secret-key
+//! ```
+//!
+//! ## Array Format Support
+//!
+//! Array fields support both JSON and comma-separated formats:
+//!
+//! ```bash
+//! # JSON format (recommended for complex values)
+//! ATLAS_OPENEHR_QUERY_TEMPLATE_IDS='["IDCR - Vital Signs.v1","IDCR - Lab Report.v1"]'
+//!
+//! # Comma-separated format (simpler)
+//! ATLAS_OPENEHR_QUERY_EHR_IDS="ehr-123,ehr-456,ehr-789"
+//!
+//! # Numeric arrays
+//! ATLAS_EXPORT_RETRY_BACKOFF_MS="1000,2000,4000"
+//! ATLAS_EXPORT_RETRY_BACKOFF_MS='[1000,2000,4000]'
+//! ```
+//!
+//! Empty string clears the array:
+//! ```bash
+//! ATLAS_OPENEHR_QUERY_EHR_IDS=""  # Clears the EHR IDs list
+//! ```
+//!
+//! See the `apply_env_overrides` function documentation for a complete list of supported variables.
 
 use super::schema::AtlasConfig;
 use crate::domain::errors::AtlasError;
@@ -135,15 +211,152 @@ fn substitute_env_vars(input: &str) -> Result<String> {
     Ok(result)
 }
 
+/// Parses a string array from environment variable
+///
+/// Supports two formats:
+/// 1. JSON array: `["item1", "item2"]`
+/// 2. Comma-separated: `item1,item2`
+///
+/// Empty string returns an empty vector.
+fn parse_string_array(value: &str) -> Vec<String> {
+    let trimmed = value.trim();
+
+    // Empty string clears the array
+    if trimmed.is_empty() {
+        return vec![];
+    }
+
+    // Try JSON format first
+    if let Ok(arr) = serde_json::from_str::<Vec<String>>(trimmed) {
+        return arr;
+    }
+
+    // Fallback to comma-separated
+    trimmed
+        .split(',')
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect()
+}
+
+/// Parses a u64 array from environment variable
+///
+/// Supports two formats:
+/// 1. JSON array: `[1000, 2000, 4000]`
+/// 2. Comma-separated: `1000,2000,4000`
+///
+/// Empty string returns an empty vector.
+fn parse_u64_array(value: &str) -> Option<Vec<u64>> {
+    let trimmed = value.trim();
+
+    // Empty string clears the array
+    if trimmed.is_empty() {
+        return Some(vec![]);
+    }
+
+    // Try JSON format first
+    if let Ok(arr) = serde_json::from_str::<Vec<u64>>(trimmed) {
+        return Some(arr);
+    }
+
+    // Fallback to comma-separated
+    let result: std::result::Result<Vec<u64>, _> = trimmed
+        .split(',')
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.parse::<u64>())
+        .collect();
+
+    result.ok()
+}
+
 /// Applies environment variable overrides using ATLAS_* prefix
 ///
 /// Environment variables follow the pattern: ATLAS_<SECTION>_<KEY>
 /// For example: ATLAS_OPENEHR_BASE_URL, ATLAS_EXPORT_MODE
 ///
+/// Supported environment variables:
+/// - ATLAS_DATABASE_TARGET: Database target (cosmosdb or postgresql)
+/// - ATLAS_APPLICATION_LOG_LEVEL: Log level
+/// - ATLAS_APPLICATION_DRY_RUN: Dry run mode (true/false)
+/// - ATLAS_OPENEHR_BASE_URL: OpenEHR server base URL
+/// - ATLAS_OPENEHR_USERNAME: OpenEHR username
+/// - ATLAS_OPENEHR_PASSWORD: OpenEHR password
+/// - ATLAS_OPENEHR_VENDOR: OpenEHR vendor
+/// - ATLAS_OPENEHR_AUTH_TYPE: Authentication type
+/// - ATLAS_OPENEHR_TLS_VERIFY: TLS verification (true/false)
+/// - ATLAS_OPENEHR_TLS_VERIFY_CERTIFICATES: TLS certificate verification (true/false)
+/// - ATLAS_OPENEHR_TLS_CA_CERT: TLS CA certificate path
+/// - ATLAS_OPENEHR_TIMEOUT_SECONDS: Request timeout in seconds
+/// - ATLAS_OPENEHR_RETRY_MAX_RETRIES: Maximum retry attempts
+/// - ATLAS_OPENEHR_RETRY_INITIAL_DELAY_MS: Initial retry delay in milliseconds
+/// - ATLAS_OPENEHR_RETRY_MAX_DELAY_MS: Maximum retry delay in milliseconds
+/// - ATLAS_OPENEHR_RETRY_BACKOFF_MULTIPLIER: Retry backoff multiplier
+/// - ATLAS_OPENEHR_QUERY_TEMPLATE_IDS: Template IDs (JSON array or comma-separated)
+/// - ATLAS_OPENEHR_QUERY_EHR_IDS: EHR IDs (JSON array or comma-separated)
+/// - ATLAS_OPENEHR_QUERY_TIME_RANGE_START: Query time range start (ISO 8601)
+/// - ATLAS_OPENEHR_QUERY_TIME_RANGE_END: Query time range end (ISO 8601)
+/// - ATLAS_OPENEHR_QUERY_BATCH_SIZE: Query batch size
+/// - ATLAS_OPENEHR_QUERY_PARALLEL_EHRS: Parallel EHR processing count
+/// - ATLAS_EXPORT_MODE: Export mode (full or incremental)
+/// - ATLAS_EXPORT_COMPOSITION_FORMAT: Composition format (preserve or flatten)
+/// - ATLAS_EXPORT_MAX_RETRIES: Maximum export retries
+/// - ATLAS_EXPORT_RETRY_BACKOFF_MS: Retry backoff delays (JSON array or comma-separated)
+/// - ATLAS_EXPORT_SHUTDOWN_TIMEOUT_SECS: Shutdown timeout in seconds
+/// - ATLAS_EXPORT_DRY_RUN: Export dry run mode (true/false)
+/// - ATLAS_COSMOSDB_ENDPOINT: Cosmos DB endpoint URL
+/// - ATLAS_COSMOSDB_KEY: Cosmos DB access key
+/// - ATLAS_COSMOSDB_DATABASE_NAME: Cosmos DB database name
+/// - ATLAS_COSMOSDB_CONTROL_CONTAINER: Cosmos DB control container name
+/// - ATLAS_COSMOSDB_DATA_CONTAINER_PREFIX: Cosmos DB data container prefix
+/// - ATLAS_COSMOSDB_PARTITION_KEY: Cosmos DB partition key
+/// - ATLAS_COSMOSDB_MAX_CONCURRENCY: Cosmos DB max concurrency
+/// - ATLAS_COSMOSDB_REQUEST_TIMEOUT_SECONDS: Cosmos DB request timeout
+/// - ATLAS_POSTGRESQL_CONNECTION_STRING: PostgreSQL connection string
+/// - ATLAS_POSTGRESQL_MAX_CONNECTIONS: PostgreSQL max connections
+/// - ATLAS_POSTGRESQL_CONNECTION_TIMEOUT_SECONDS: PostgreSQL connection timeout
+/// - ATLAS_POSTGRESQL_STATEMENT_TIMEOUT_SECONDS: PostgreSQL statement timeout
+/// - ATLAS_POSTGRESQL_SSL_MODE: PostgreSQL SSL mode
+/// - ATLAS_STATE_BACKEND: State backend (file or database)
+/// - ATLAS_STATE_FILE_PATH: State file path
+/// - ATLAS_STATE_ENABLE_CHECKPOINTING: Enable checkpointing (true/false)
+/// - ATLAS_STATE_CHECKPOINT_INTERVAL_SECONDS: Checkpoint interval in seconds
+/// - ATLAS_VERIFICATION_ENABLE_VERIFICATION: Enable verification (true/false)
+/// - ATLAS_LOGGING_LOCAL_ENABLED: Enable local logging (true/false)
+/// - ATLAS_LOGGING_LOCAL_PATH: Local log file path
+/// - ATLAS_LOGGING_LOCAL_ROTATION: Log rotation strategy (daily or size)
+/// - ATLAS_LOGGING_LOCAL_MAX_SIZE_MB: Maximum log file size in MB
+/// - ATLAS_LOGGING_AZURE_ENABLED: Enable Azure logging (true/false)
+/// - ATLAS_LOGGING_AZURE_TENANT_ID: Azure tenant ID
+/// - ATLAS_LOGGING_AZURE_CLIENT_ID: Azure client ID
+/// - ATLAS_LOGGING_AZURE_CLIENT_SECRET: Azure client secret
+/// - ATLAS_LOGGING_AZURE_LOG_ANALYTICS_WORKSPACE_ID: Log Analytics workspace ID
+/// - ATLAS_LOGGING_AZURE_DCR_IMMUTABLE_ID: Data Collection Rule immutable ID
+/// - ATLAS_LOGGING_AZURE_DCE_ENDPOINT: Data Collection Endpoint URL
+/// - ATLAS_LOGGING_AZURE_STREAM_NAME: Azure stream name
+///
 /// # Arguments
 ///
 /// * `config` - Mutable reference to the configuration to update
+///
+/// # Errors
+///
+/// Returns an error if critical environment variable values are invalid
 fn apply_env_overrides(config: &mut AtlasConfig) -> Result<()> {
+    use crate::config::schema::DatabaseTarget;
+
+    // Database target override (must be first)
+    if let Ok(val) = std::env::var("ATLAS_DATABASE_TARGET") {
+        match val.to_lowercase().as_str() {
+            "cosmosdb" => config.database_target = DatabaseTarget::CosmosDB,
+            "postgresql" => config.database_target = DatabaseTarget::PostgreSQL,
+            _ => {
+                return Err(AtlasError::Configuration(format!(
+                    "Invalid ATLAS_DATABASE_TARGET value '{val}'. Must be 'cosmosdb' or 'postgresql'"
+                )));
+            }
+        }
+    }
     // Application overrides
     if let Ok(val) = std::env::var("ATLAS_APPLICATION_LOG_LEVEL") {
         config.application.log_level = val;
@@ -174,8 +387,53 @@ fn apply_env_overrides(config: &mut AtlasConfig) -> Result<()> {
     if let Ok(val) = std::env::var("ATLAS_OPENEHR_TLS_VERIFY") {
         config.openehr.tls_verify = val.parse().unwrap_or(true);
     }
+    if let Ok(val) = std::env::var("ATLAS_OPENEHR_TLS_VERIFY_CERTIFICATES") {
+        config.openehr.tls_verify_certificates = val.parse().unwrap_or(true);
+    }
+    if let Ok(val) = std::env::var("ATLAS_OPENEHR_TLS_CA_CERT") {
+        config.openehr.tls_ca_cert = Some(val);
+    }
+    if let Ok(val) = std::env::var("ATLAS_OPENEHR_TIMEOUT_SECONDS") {
+        if let Ok(timeout) = val.parse() {
+            config.openehr.timeout_seconds = timeout;
+        }
+    }
+
+    // OpenEHR Retry overrides
+    if let Ok(val) = std::env::var("ATLAS_OPENEHR_RETRY_MAX_RETRIES") {
+        if let Ok(retries) = val.parse() {
+            config.openehr.retry.max_retries = retries;
+        }
+    }
+    if let Ok(val) = std::env::var("ATLAS_OPENEHR_RETRY_INITIAL_DELAY_MS") {
+        if let Ok(delay) = val.parse() {
+            config.openehr.retry.initial_delay_ms = delay;
+        }
+    }
+    if let Ok(val) = std::env::var("ATLAS_OPENEHR_RETRY_MAX_DELAY_MS") {
+        if let Ok(delay) = val.parse() {
+            config.openehr.retry.max_delay_ms = delay;
+        }
+    }
+    if let Ok(val) = std::env::var("ATLAS_OPENEHR_RETRY_BACKOFF_MULTIPLIER") {
+        if let Ok(multiplier) = val.parse() {
+            config.openehr.retry.backoff_multiplier = multiplier;
+        }
+    }
 
     // Query overrides
+    if let Ok(val) = std::env::var("ATLAS_OPENEHR_QUERY_TEMPLATE_IDS") {
+        config.openehr.query.template_ids = parse_string_array(&val);
+    }
+    if let Ok(val) = std::env::var("ATLAS_OPENEHR_QUERY_EHR_IDS") {
+        config.openehr.query.ehr_ids = parse_string_array(&val);
+    }
+    if let Ok(val) = std::env::var("ATLAS_OPENEHR_QUERY_TIME_RANGE_START") {
+        config.openehr.query.time_range_start = Some(val);
+    }
+    if let Ok(val) = std::env::var("ATLAS_OPENEHR_QUERY_TIME_RANGE_END") {
+        config.openehr.query.time_range_end = Some(val);
+    }
     if let Ok(val) = std::env::var("ATLAS_OPENEHR_QUERY_BATCH_SIZE") {
         if let Ok(size) = val.parse() {
             config.openehr.query.batch_size = size;
@@ -199,6 +457,21 @@ fn apply_env_overrides(config: &mut AtlasConfig) -> Result<()> {
             config.export.max_retries = retries;
         }
     }
+    if let Ok(val) = std::env::var("ATLAS_EXPORT_RETRY_BACKOFF_MS") {
+        if let Some(backoff) = parse_u64_array(&val) {
+            config.export.retry_backoff_ms = backoff;
+        } else {
+            eprintln!("Warning: Invalid ATLAS_EXPORT_RETRY_BACKOFF_MS value '{val}', keeping existing value");
+        }
+    }
+    if let Ok(val) = std::env::var("ATLAS_EXPORT_SHUTDOWN_TIMEOUT_SECS") {
+        if let Ok(timeout) = val.parse() {
+            config.export.shutdown_timeout_secs = timeout;
+        }
+    }
+    if let Ok(val) = std::env::var("ATLAS_EXPORT_DRY_RUN") {
+        config.export.dry_run = val.parse().unwrap_or(false);
+    }
 
     // Cosmos DB overrides (only if CosmosDB is configured)
     if let Some(ref mut cosmos_config) = config.cosmosdb {
@@ -219,10 +492,45 @@ fn apply_env_overrides(config: &mut AtlasConfig) -> Result<()> {
         if let Ok(val) = std::env::var("ATLAS_COSMOSDB_DATA_CONTAINER_PREFIX") {
             cosmos_config.data_container_prefix = val;
         }
+        if let Ok(val) = std::env::var("ATLAS_COSMOSDB_PARTITION_KEY") {
+            cosmos_config.partition_key = val;
+        }
         if let Ok(val) = std::env::var("ATLAS_COSMOSDB_MAX_CONCURRENCY") {
             if let Ok(concurrency) = val.parse() {
                 cosmos_config.max_concurrency = concurrency;
             }
+        }
+        if let Ok(val) = std::env::var("ATLAS_COSMOSDB_REQUEST_TIMEOUT_SECONDS") {
+            if let Ok(timeout) = val.parse() {
+                cosmos_config.request_timeout_seconds = timeout;
+            }
+        }
+    }
+
+    // PostgreSQL overrides (only if PostgreSQL is configured)
+    if let Some(ref mut pg_config) = config.postgresql {
+        if let Ok(val) = std::env::var("ATLAS_POSTGRESQL_CONNECTION_STRING") {
+            use crate::config::secret::SecretValue;
+            use secrecy::Secret;
+            pg_config.connection_string = Secret::new(SecretValue::from(val));
+        }
+        if let Ok(val) = std::env::var("ATLAS_POSTGRESQL_MAX_CONNECTIONS") {
+            if let Ok(max_conn) = val.parse() {
+                pg_config.max_connections = max_conn;
+            }
+        }
+        if let Ok(val) = std::env::var("ATLAS_POSTGRESQL_CONNECTION_TIMEOUT_SECONDS") {
+            if let Ok(timeout) = val.parse() {
+                pg_config.connection_timeout_seconds = timeout;
+            }
+        }
+        if let Ok(val) = std::env::var("ATLAS_POSTGRESQL_STATEMENT_TIMEOUT_SECONDS") {
+            if let Ok(timeout) = val.parse() {
+                pg_config.statement_timeout_seconds = timeout;
+            }
+        }
+        if let Ok(val) = std::env::var("ATLAS_POSTGRESQL_SSL_MODE") {
+            pg_config.ssl_mode = val;
         }
     }
 
@@ -247,6 +555,14 @@ fn apply_env_overrides(config: &mut AtlasConfig) -> Result<()> {
     }
     if let Ok(val) = std::env::var("ATLAS_LOGGING_LOCAL_PATH") {
         config.logging.local_path = val;
+    }
+    if let Ok(val) = std::env::var("ATLAS_LOGGING_LOCAL_ROTATION") {
+        config.logging.local_rotation = val;
+    }
+    if let Ok(val) = std::env::var("ATLAS_LOGGING_LOCAL_MAX_SIZE_MB") {
+        if let Ok(size) = val.parse() {
+            config.logging.local_max_size_mb = size;
+        }
     }
     if let Ok(val) = std::env::var("ATLAS_LOGGING_AZURE_ENABLED") {
         config.logging.azure_enabled = val.parse().unwrap_or(false);
@@ -281,6 +597,7 @@ fn apply_env_overrides(config: &mut AtlasConfig) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::schema::DatabaseTarget;
     use std::io::Write;
     use tempfile::NamedTempFile;
 
@@ -309,11 +626,13 @@ mod tests {
 
     #[test]
     fn test_load_config_valid() {
+        // Clean up any environment variables from other tests
+        std::env::remove_var("ATLAS_APPLICATION_NAME");
+        std::env::remove_var("ATLAS_DATABASE_TARGET");
+
         let toml_content = r#"database_target = "cosmosdb"
 
 [application]
-name = "atlas"
-version = "1.0.0"
 log_level = "info"
 
 [openehr]
@@ -341,10 +660,349 @@ enable_checkpointing = true
         temp_file.flush().unwrap();
 
         let result = load_config(temp_file.path());
+        if let Err(e) = &result {
+            eprintln!("Config load error: {e}");
+        }
         assert!(result.is_ok());
 
         let config = result.unwrap();
-        assert_eq!(config.application.name, "atlas");
         assert_eq!(config.openehr.base_url, "https://ehrbase.example.com");
+    }
+
+    #[test]
+    fn test_parse_string_array_json() {
+        let result = parse_string_array(r#"["item1","item2","item3"]"#);
+        assert_eq!(result, vec!["item1", "item2", "item3"]);
+    }
+
+    #[test]
+    fn test_parse_string_array_csv() {
+        let result = parse_string_array("item1,item2,item3");
+        assert_eq!(result, vec!["item1", "item2", "item3"]);
+    }
+
+    #[test]
+    fn test_parse_string_array_csv_with_spaces() {
+        let result = parse_string_array("item1, item2 , item3");
+        assert_eq!(result, vec!["item1", "item2", "item3"]);
+    }
+
+    #[test]
+    fn test_parse_string_array_empty_string() {
+        let result = parse_string_array("");
+        assert_eq!(result, Vec::<String>::new());
+    }
+
+    #[test]
+    fn test_parse_string_array_whitespace() {
+        let result = parse_string_array("   ");
+        assert_eq!(result, Vec::<String>::new());
+    }
+
+    #[test]
+    fn test_parse_u64_array_json() {
+        let result = parse_u64_array("[1000,2000,4000]");
+        assert_eq!(result, Some(vec![1000, 2000, 4000]));
+    }
+
+    #[test]
+    fn test_parse_u64_array_csv() {
+        let result = parse_u64_array("1000,2000,4000");
+        assert_eq!(result, Some(vec![1000, 2000, 4000]));
+    }
+
+    #[test]
+    fn test_parse_u64_array_empty_string() {
+        let result = parse_u64_array("");
+        assert_eq!(result, Some(vec![]));
+    }
+
+    #[test]
+    fn test_parse_u64_array_invalid() {
+        let result = parse_u64_array("not,a,number");
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_env_override_database_target() {
+        // Clean up any environment variables from other tests
+        std::env::remove_var("ATLAS_APPLICATION_NAME");
+        std::env::remove_var("ATLAS_APPLICATION_VERSION");
+        std::env::remove_var("ATLAS_APPLICATION_LOG_LEVEL");
+        std::env::remove_var("ATLAS_APPLICATION_DRY_RUN");
+
+        std::env::set_var("ATLAS_DATABASE_TARGET", "postgresql");
+
+        let toml_content = r#"database_target = "cosmosdb"
+[application]
+[openehr]
+base_url = "https://ehrbase.example.com"
+username = "user"
+password = "pass"
+[openehr.query]
+template_ids = ["template1"]
+[export]
+mode = "incremental"
+[postgresql]
+connection_string = "postgresql://localhost/test"
+[state]
+enable_checkpointing = true
+"#;
+
+        let mut temp_file = NamedTempFile::new().unwrap();
+        temp_file.write_all(toml_content.as_bytes()).unwrap();
+        temp_file.flush().unwrap();
+
+        let result = load_config(temp_file.path());
+        if let Err(e) = &result {
+            eprintln!("Config load error: {e}");
+        }
+        assert!(result.is_ok());
+
+        let config = result.unwrap();
+        assert_eq!(config.database_target, DatabaseTarget::PostgreSQL);
+
+        std::env::remove_var("ATLAS_DATABASE_TARGET");
+    }
+
+    #[test]
+    fn test_env_override_application_fields() {
+        // Clean up any environment variables from other tests
+        std::env::remove_var("ATLAS_DATABASE_TARGET");
+        std::env::remove_var("ATLAS_APPLICATION_LOG_LEVEL");
+        std::env::remove_var("ATLAS_APPLICATION_DRY_RUN");
+
+        std::env::set_var("ATLAS_APPLICATION_LOG_LEVEL", "debug");
+        std::env::set_var("ATLAS_APPLICATION_DRY_RUN", "true");
+
+        let toml_content = r#"database_target = "cosmosdb"
+[application]
+log_level = "info"
+[openehr]
+base_url = "https://ehrbase.example.com"
+username = "user"
+password = "pass"
+[openehr.query]
+template_ids = ["template1"]
+[export]
+mode = "incremental"
+[cosmosdb]
+endpoint = "https://test.documents.azure.com:443/"
+key = "test-key"
+database_name = "test_db"
+[state]
+enable_checkpointing = true
+"#;
+
+        let mut temp_file = NamedTempFile::new().unwrap();
+        temp_file.write_all(toml_content.as_bytes()).unwrap();
+        temp_file.flush().unwrap();
+
+        let result = load_config(temp_file.path());
+        if let Err(e) = &result {
+            eprintln!("Config load error: {e}");
+        }
+        assert!(result.is_ok());
+
+        let config = result.unwrap();
+        assert_eq!(config.application.log_level, "debug");
+        assert!(config.application.dry_run);
+
+        std::env::remove_var("ATLAS_APPLICATION_LOG_LEVEL");
+        std::env::remove_var("ATLAS_APPLICATION_DRY_RUN");
+    }
+
+    #[test]
+    fn test_env_override_openehr_fields() {
+        std::env::set_var("ATLAS_OPENEHR_BASE_URL", "https://prod-ehrbase.com");
+        std::env::set_var("ATLAS_OPENEHR_USERNAME", "prod_user");
+        std::env::set_var("ATLAS_OPENEHR_PASSWORD", "prod_pass");
+        std::env::set_var("ATLAS_OPENEHR_TIMEOUT_SECONDS", "120");
+        std::env::set_var("ATLAS_OPENEHR_TLS_VERIFY_CERTIFICATES", "false");
+
+        let toml_content = r#"database_target = "cosmosdb"
+[application]
+[openehr]
+base_url = "https://ehrbase.example.com"
+username = "user"
+password = "pass"
+timeout_seconds = 60
+[openehr.query]
+template_ids = ["template1"]
+[export]
+mode = "incremental"
+[cosmosdb]
+endpoint = "https://test.documents.azure.com:443/"
+key = "test-key"
+database_name = "test_db"
+[state]
+enable_checkpointing = true
+"#;
+
+        let mut temp_file = NamedTempFile::new().unwrap();
+        temp_file.write_all(toml_content.as_bytes()).unwrap();
+        temp_file.flush().unwrap();
+
+        let result = load_config(temp_file.path());
+        assert!(result.is_ok());
+
+        let config = result.unwrap();
+        assert_eq!(config.openehr.base_url, "https://prod-ehrbase.com");
+        assert_eq!(config.openehr.username, Some("prod_user".to_string()));
+        assert_eq!(config.openehr.timeout_seconds, 120);
+        assert!(!config.openehr.tls_verify_certificates);
+
+        std::env::remove_var("ATLAS_OPENEHR_BASE_URL");
+        std::env::remove_var("ATLAS_OPENEHR_USERNAME");
+        std::env::remove_var("ATLAS_OPENEHR_PASSWORD");
+        std::env::remove_var("ATLAS_OPENEHR_TIMEOUT_SECONDS");
+        std::env::remove_var("ATLAS_OPENEHR_TLS_VERIFY_CERTIFICATES");
+    }
+
+    #[test]
+    fn test_env_override_query_arrays() {
+        std::env::set_var(
+            "ATLAS_OPENEHR_QUERY_TEMPLATE_IDS",
+            r#"["IDCR - Vital Signs.v1","IDCR - Lab Report.v1"]"#,
+        );
+        std::env::set_var("ATLAS_OPENEHR_QUERY_EHR_IDS", "ehr-123,ehr-456,ehr-789");
+        std::env::set_var("ATLAS_OPENEHR_QUERY_BATCH_SIZE", "2000");
+
+        let toml_content = r#"database_target = "cosmosdb"
+[application]
+[openehr]
+base_url = "https://ehrbase.example.com"
+username = "user"
+password = "pass"
+[openehr.query]
+template_ids = ["template1"]
+batch_size = 1000
+[export]
+mode = "incremental"
+[cosmosdb]
+endpoint = "https://test.documents.azure.com:443/"
+key = "test-key"
+database_name = "test_db"
+[state]
+enable_checkpointing = true
+"#;
+
+        let mut temp_file = NamedTempFile::new().unwrap();
+        temp_file.write_all(toml_content.as_bytes()).unwrap();
+        temp_file.flush().unwrap();
+
+        let result = load_config(temp_file.path());
+        assert!(result.is_ok());
+
+        let config = result.unwrap();
+        assert_eq!(
+            config.openehr.query.template_ids,
+            vec!["IDCR - Vital Signs.v1", "IDCR - Lab Report.v1"]
+        );
+        assert_eq!(
+            config.openehr.query.ehr_ids,
+            vec![
+                "ehr-123".to_string(),
+                "ehr-456".to_string(),
+                "ehr-789".to_string()
+            ]
+        );
+        assert_eq!(config.openehr.query.batch_size, 2000);
+
+        std::env::remove_var("ATLAS_OPENEHR_QUERY_TEMPLATE_IDS");
+        std::env::remove_var("ATLAS_OPENEHR_QUERY_EHR_IDS");
+        std::env::remove_var("ATLAS_OPENEHR_QUERY_BATCH_SIZE");
+    }
+
+    #[test]
+    fn test_env_override_export_retry_backoff() {
+        // Clean up any environment variables from other tests
+        std::env::remove_var("ATLAS_DATABASE_TARGET");
+
+        std::env::set_var("ATLAS_EXPORT_RETRY_BACKOFF_MS", "1000,2000,4000,8000");
+        std::env::set_var("ATLAS_EXPORT_MODE", "full");
+        std::env::set_var("ATLAS_EXPORT_DRY_RUN", "true");
+
+        let toml_content = r#"database_target = "cosmosdb"
+[application]
+[openehr]
+base_url = "https://ehrbase.example.com"
+username = "user"
+password = "pass"
+[openehr.query]
+template_ids = ["template1"]
+[export]
+mode = "incremental"
+[cosmosdb]
+endpoint = "https://test.documents.azure.com:443/"
+key = "test-key"
+database_name = "test_db"
+[state]
+enable_checkpointing = true
+"#;
+
+        let mut temp_file = NamedTempFile::new().unwrap();
+        temp_file.write_all(toml_content.as_bytes()).unwrap();
+        temp_file.flush().unwrap();
+
+        let result = load_config(temp_file.path());
+        if let Err(e) = &result {
+            eprintln!("Config load error: {e}");
+        }
+        assert!(result.is_ok());
+
+        let config = result.unwrap();
+        assert_eq!(config.export.retry_backoff_ms, vec![1000, 2000, 4000, 8000]);
+        assert_eq!(config.export.mode, "full");
+        assert!(config.export.dry_run);
+
+        std::env::remove_var("ATLAS_EXPORT_RETRY_BACKOFF_MS");
+        std::env::remove_var("ATLAS_EXPORT_MODE");
+        std::env::remove_var("ATLAS_EXPORT_DRY_RUN");
+    }
+
+    #[test]
+    fn test_env_override_postgresql_fields() {
+        std::env::set_var(
+            "ATLAS_POSTGRESQL_CONNECTION_STRING",
+            "postgresql://prod:pass@prod-db:5432/openehr",
+        );
+        std::env::set_var("ATLAS_POSTGRESQL_MAX_CONNECTIONS", "50");
+        std::env::set_var("ATLAS_POSTGRESQL_SSL_MODE", "verify-full");
+
+        let toml_content = r#"database_target = "postgresql"
+[application]
+[openehr]
+base_url = "https://ehrbase.example.com"
+username = "user"
+password = "pass"
+[openehr.query]
+template_ids = ["template1"]
+[export]
+mode = "incremental"
+[postgresql]
+connection_string = "postgresql://localhost/test"
+max_connections = 10
+[state]
+enable_checkpointing = true
+"#;
+
+        let mut temp_file = NamedTempFile::new().unwrap();
+        temp_file.write_all(toml_content.as_bytes()).unwrap();
+        temp_file.flush().unwrap();
+
+        let result = load_config(temp_file.path());
+        assert!(result.is_ok());
+
+        let config = result.unwrap();
+        assert_eq!(config.postgresql.as_ref().unwrap().max_connections, 50);
+        assert_eq!(
+            config.postgresql.as_ref().unwrap().ssl_mode,
+            "verify-full".to_string()
+        );
+
+        std::env::remove_var("ATLAS_POSTGRESQL_CONNECTION_STRING");
+        std::env::remove_var("ATLAS_POSTGRESQL_MAX_CONNECTIONS");
+        std::env::remove_var("ATLAS_POSTGRESQL_SSL_MODE");
     }
 }
