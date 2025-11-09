@@ -38,8 +38,8 @@ impl ValidateArgs {
                 println!("✅ Configuration is valid");
                 println!();
                 println!("Configuration Summary:");
-                println!("  Application: {}", config.application.name);
-                println!("  Version: {}", config.application.version);
+                println!("  Application: {}", env!("CARGO_PKG_NAME"));
+                println!("  Version: {}", env!("CARGO_PKG_VERSION"));
                 println!("  Log Level: {}", config.application.log_level);
                 println!("  OpenEHR Server: {}", config.openehr.base_url);
                 println!("  OpenEHR Vendor: {}", config.openehr.vendor);

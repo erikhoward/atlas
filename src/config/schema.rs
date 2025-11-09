@@ -63,7 +63,9 @@ impl AtlasConfig {
         self.openehr.validate()?;
         self.export.validate()?;
 
-        // Validate that the correct database config is present
+        // Validate that the correct database config is present and valid
+        // Note: Both database configurations can be present in the TOML file for 12-factor app compliance,
+        // but only the active one (based on database_target) is validated
         match self.database_target {
             DatabaseTarget::CosmosDB => {
                 if let Some(ref config) = self.cosmosdb {
@@ -74,9 +76,6 @@ impl AtlasConfig {
                             .to_string(),
                     );
                 }
-                if self.postgresql.is_some() {
-                    return Err("postgresql configuration should not be present when database_target = 'cosmosdb'".to_string());
-                }
             }
             DatabaseTarget::PostgreSQL => {
                 if let Some(ref config) = self.postgresql {
@@ -86,9 +85,6 @@ impl AtlasConfig {
                         "postgresql configuration is required when database_target = 'postgresql'"
                             .to_string(),
                     );
-                }
-                if self.cosmosdb.is_some() {
-                    return Err("cosmosdb configuration should not be present when database_target = 'postgresql'".to_string());
                 }
             }
         }
@@ -103,12 +99,6 @@ impl AtlasConfig {
 /// Application-level configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApplicationConfig {
-    /// Application name
-    pub name: String,
-
-    /// Application version
-    pub version: String,
-
     /// Log level (trace, debug, info, warn, error)
     #[serde(default = "default_log_level")]
     pub log_level: String,
@@ -827,8 +817,6 @@ mod tests {
     #[test]
     fn test_application_config_validation() {
         let mut config = ApplicationConfig {
-            name: "atlas".to_string(),
-            version: "1.0.0".to_string(),
             log_level: "info".to_string(),
             dry_run: false,
         };

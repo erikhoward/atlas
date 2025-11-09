@@ -101,15 +101,11 @@ Application-level settings that control Atlas behavior.
 
 ```toml
 [application]
-name = "atlas"
-version = "1.0.0"
 log_level = "info"
 ```
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `name` | string | "atlas" | Application name for logging and identification |
-| `version` | string | "1.0.0" | Application version |
 | `log_level` | string | "info" | Log verbosity: `trace`, `debug`, `info`, `warn`, `error` |
 
 ### OpenEHR
@@ -405,6 +401,211 @@ azure_enabled = false
 - Logs export operations, errors, and performance metrics
 - Recommended for production deployments
 - See Azure setup guide for detailed configuration instructions
+
+## Environment Variable Overrides
+
+Atlas supports comprehensive environment variable overrides for all configuration options, enabling 12-factor app compliance and containerized deployments.
+
+### Overview
+
+All configuration values can be overridden using environment variables with the `ATLAS_<SECTION>_<KEY>` pattern. Environment variable overrides take precedence over TOML file values.
+
+### Array Format Support
+
+Array fields support both JSON and comma-separated formats:
+
+```bash
+# JSON format (recommended for complex values with spaces or special characters)
+export ATLAS_OPENEHR_QUERY_TEMPLATE_IDS='["IDCR - Vital Signs.v1","IDCR - Lab Report.v1"]'
+
+# Comma-separated format (simpler for basic values)
+export ATLAS_OPENEHR_QUERY_EHR_IDS="ehr-123,ehr-456,ehr-789"
+
+# Numeric arrays
+export ATLAS_EXPORT_RETRY_BACKOFF_MS="1000,2000,4000"
+export ATLAS_EXPORT_RETRY_BACKOFF_MS='[1000,2000,4000]'  # JSON also works
+
+# Empty string clears the array
+export ATLAS_OPENEHR_QUERY_EHR_IDS=""
+```
+
+### Complete Environment Variable Reference
+
+#### Database Selection
+
+| Environment Variable | Type | Description | Example |
+|---------------------|------|-------------|---------|
+| `ATLAS_DATABASE_TARGET` | string | Database target: `cosmosdb` or `postgresql` | `postgresql` |
+
+#### Application
+
+| Environment Variable | Type | Description | Example |
+|---------------------|------|-------------|---------|
+| `ATLAS_APPLICATION_LOG_LEVEL` | string | Log level: `trace`, `debug`, `info`, `warn`, `error` | `debug` |
+| `ATLAS_APPLICATION_DRY_RUN` | boolean | Dry run mode (no database writes) | `true` |
+
+#### OpenEHR Connection
+
+| Environment Variable | Type | Description | Example |
+|---------------------|------|-------------|---------|
+| `ATLAS_OPENEHR_BASE_URL` | string | OpenEHR server base URL | `https://ehrbase.example.com` |
+| `ATLAS_OPENEHR_USERNAME` | string | OpenEHR username | `atlas_user` |
+| `ATLAS_OPENEHR_PASSWORD` | string | OpenEHR password (sensitive) | `secret` |
+| `ATLAS_OPENEHR_VENDOR` | string | OpenEHR vendor: `ehrbase`, `better`, `oceanehr` | `ehrbase` |
+| `ATLAS_OPENEHR_AUTH_TYPE` | string | Authentication type: `basic`, `oauth2` | `basic` |
+| `ATLAS_OPENEHR_TLS_VERIFY` | boolean | Enable TLS verification | `true` |
+| `ATLAS_OPENEHR_TLS_VERIFY_CERTIFICATES` | boolean | Verify TLS certificates | `true` |
+| `ATLAS_OPENEHR_TLS_CA_CERT` | string | Path to custom CA certificate | `/path/to/ca.pem` |
+| `ATLAS_OPENEHR_TIMEOUT_SECONDS` | integer | Request timeout in seconds | `120` |
+
+#### OpenEHR Retry
+
+| Environment Variable | Type | Description | Example |
+|---------------------|------|-------------|---------|
+| `ATLAS_OPENEHR_RETRY_MAX_RETRIES` | integer | Maximum retry attempts (0-10) | `5` |
+| `ATLAS_OPENEHR_RETRY_INITIAL_DELAY_MS` | integer | Initial retry delay in milliseconds | `2000` |
+| `ATLAS_OPENEHR_RETRY_MAX_DELAY_MS` | integer | Maximum retry delay in milliseconds | `60000` |
+| `ATLAS_OPENEHR_RETRY_BACKOFF_MULTIPLIER` | float | Retry backoff multiplier | `2.5` |
+
+#### Query Configuration
+
+| Environment Variable | Type | Description | Example |
+|---------------------|------|-------------|---------|
+| `ATLAS_OPENEHR_QUERY_TEMPLATE_IDS` | array | Template IDs to query (JSON or CSV) | `["IDCR - Vital Signs.v1"]` |
+| `ATLAS_OPENEHR_QUERY_EHR_IDS` | array | Specific EHR IDs to query (JSON or CSV) | `ehr-123,ehr-456` |
+| `ATLAS_OPENEHR_QUERY_TIME_RANGE_START` | string | Query time range start (ISO 8601) | `2024-01-01T00:00:00Z` |
+| `ATLAS_OPENEHR_QUERY_TIME_RANGE_END` | string | Query time range end (ISO 8601) | `2024-12-31T23:59:59Z` |
+| `ATLAS_OPENEHR_QUERY_BATCH_SIZE` | integer | Query batch size (100-5000) | `2000` |
+| `ATLAS_OPENEHR_QUERY_PARALLEL_EHRS` | integer | Parallel EHR processing (1-100) | `16` |
+
+#### Export Configuration
+
+| Environment Variable | Type | Description | Example |
+|---------------------|------|-------------|---------|
+| `ATLAS_EXPORT_MODE` | string | Export mode: `full` or `incremental` | `incremental` |
+| `ATLAS_EXPORT_COMPOSITION_FORMAT` | string | Composition format: `preserve` or `flatten` | `flatten` |
+| `ATLAS_EXPORT_MAX_RETRIES` | integer | Maximum export retries (0-10) | `5` |
+| `ATLAS_EXPORT_RETRY_BACKOFF_MS` | array | Retry backoff delays in ms (JSON or CSV) | `1000,2000,4000` |
+| `ATLAS_EXPORT_SHUTDOWN_TIMEOUT_SECS` | integer | Shutdown timeout in seconds | `60` |
+| `ATLAS_EXPORT_DRY_RUN` | boolean | Export dry run mode | `false` |
+
+#### Cosmos DB
+
+| Environment Variable | Type | Description | Example |
+|---------------------|------|-------------|---------|
+| `ATLAS_COSMOSDB_ENDPOINT` | string | Cosmos DB endpoint URL | `https://myaccount.documents.azure.com:443/` |
+| `ATLAS_COSMOSDB_KEY` | string | Cosmos DB access key (sensitive) | `secret-key` |
+| `ATLAS_COSMOSDB_DATABASE_NAME` | string | Cosmos DB database name | `openehr_data` |
+| `ATLAS_COSMOSDB_CONTROL_CONTAINER` | string | Control container name | `atlas_control` |
+| `ATLAS_COSMOSDB_DATA_CONTAINER_PREFIX` | string | Data container prefix | `compositions` |
+| `ATLAS_COSMOSDB_PARTITION_KEY` | string | Partition key path | `/ehr_id` |
+| `ATLAS_COSMOSDB_MAX_CONCURRENCY` | integer | Maximum concurrent operations | `20` |
+| `ATLAS_COSMOSDB_REQUEST_TIMEOUT_SECONDS` | integer | Request timeout in seconds | `90` |
+
+#### PostgreSQL
+
+| Environment Variable | Type | Description | Example |
+|---------------------|------|-------------|---------|
+| `ATLAS_POSTGRESQL_CONNECTION_STRING` | string | PostgreSQL connection string (sensitive) | `postgresql://user:pass@localhost/db` |
+| `ATLAS_POSTGRESQL_MAX_CONNECTIONS` | integer | Maximum connections (1-100) | `20` |
+| `ATLAS_POSTGRESQL_CONNECTION_TIMEOUT_SECONDS` | integer | Connection timeout in seconds | `60` |
+| `ATLAS_POSTGRESQL_STATEMENT_TIMEOUT_SECONDS` | integer | Statement timeout in seconds | `120` |
+| `ATLAS_POSTGRESQL_SSL_MODE` | string | SSL mode: `disable`, `allow`, `prefer`, `require`, `verify-ca`, `verify-full` | `require` |
+
+#### State Management
+
+| Environment Variable | Type | Description | Example |
+|---------------------|------|-------------|---------|
+| `ATLAS_STATE_ENABLE_CHECKPOINTING` | boolean | Enable checkpointing | `true` |
+| `ATLAS_STATE_CHECKPOINT_INTERVAL_SECONDS` | integer | Checkpoint interval in seconds | `60` |
+
+#### Verification
+
+| Environment Variable | Type | Description | Example |
+|---------------------|------|-------------|---------|
+| `ATLAS_VERIFICATION_ENABLE_VERIFICATION` | boolean | Enable data verification | `true` |
+
+#### Logging
+
+| Environment Variable | Type | Description | Example |
+|---------------------|------|-------------|---------|
+| `ATLAS_LOGGING_LOCAL_ENABLED` | boolean | Enable local file logging | `true` |
+| `ATLAS_LOGGING_LOCAL_PATH` | string | Local log file path | `/var/log/atlas` |
+| `ATLAS_LOGGING_LOCAL_ROTATION` | string | Log rotation: `daily` or `size` | `daily` |
+| `ATLAS_LOGGING_LOCAL_MAX_SIZE_MB` | integer | Maximum log file size in MB | `200` |
+| `ATLAS_LOGGING_AZURE_ENABLED` | boolean | Enable Azure Log Analytics | `false` |
+| `ATLAS_LOGGING_AZURE_TENANT_ID` | string | Azure AD tenant ID | `00000000-0000-0000-0000-000000000000` |
+| `ATLAS_LOGGING_AZURE_CLIENT_ID` | string | Azure AD client ID | `00000000-0000-0000-0000-000000000000` |
+| `ATLAS_LOGGING_AZURE_CLIENT_SECRET` | string | Azure AD client secret (sensitive) | `secret` |
+| `ATLAS_LOGGING_AZURE_LOG_ANALYTICS_WORKSPACE_ID` | string | Log Analytics workspace ID | `00000000-0000-0000-0000-000000000000` |
+| `ATLAS_LOGGING_AZURE_DCR_IMMUTABLE_ID` | string | Data Collection Rule immutable ID | `dcr-00000000000000000000000000000000` |
+| `ATLAS_LOGGING_AZURE_DCE_ENDPOINT` | string | Data Collection Endpoint URL | `https://my-dce.eastus-1.ingest.monitor.azure.com` |
+| `ATLAS_LOGGING_AZURE_STREAM_NAME` | string | Azure stream name | `Custom-AtlasExport_CL` |
+
+### Example: Containerized Deployment
+
+```bash
+# Docker run with environment variables
+docker run -d \
+  -e ATLAS_DATABASE_TARGET=postgresql \
+  -e ATLAS_APPLICATION_LOG_LEVEL=info \
+  -e ATLAS_OPENEHR_BASE_URL=https://prod-ehrbase.com \
+  -e ATLAS_OPENEHR_USERNAME=atlas_prod \
+  -e ATLAS_OPENEHR_PASSWORD="${OPENEHR_PASSWORD}" \
+  -e ATLAS_OPENEHR_QUERY_TEMPLATE_IDS='["IDCR - Vital Signs.v1"]' \
+  -e ATLAS_OPENEHR_QUERY_BATCH_SIZE=2000 \
+  -e ATLAS_EXPORT_MODE=incremental \
+  -e ATLAS_POSTGRESQL_CONNECTION_STRING="${PG_CONNECTION_STRING}" \
+  -e ATLAS_POSTGRESQL_MAX_CONNECTIONS=20 \
+  -e ATLAS_POSTGRESQL_SSL_MODE=require \
+  -e ATLAS_LOGGING_LOCAL_ENABLED=true \
+  -e ATLAS_LOGGING_LOCAL_PATH=/var/log/atlas \
+  atlas:latest
+```
+
+### Example: Kubernetes ConfigMap and Secret
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: atlas-config
+data:
+  ATLAS_DATABASE_TARGET: "postgresql"
+  ATLAS_APPLICATION_LOG_LEVEL: "info"
+  ATLAS_OPENEHR_BASE_URL: "https://prod-ehrbase.com"
+  ATLAS_OPENEHR_USERNAME: "atlas_prod"
+  ATLAS_OPENEHR_QUERY_TEMPLATE_IDS: '["IDCR - Vital Signs.v1","IDCR - Lab Report.v1"]'
+  ATLAS_OPENEHR_QUERY_BATCH_SIZE: "2000"
+  ATLAS_EXPORT_MODE: "incremental"
+  ATLAS_POSTGRESQL_MAX_CONNECTIONS: "20"
+  ATLAS_POSTGRESQL_SSL_MODE: "require"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: atlas-secrets
+type: Opaque
+stringData:
+  ATLAS_OPENEHR_PASSWORD: "secret-password"
+  ATLAS_POSTGRESQL_CONNECTION_STRING: "postgresql://user:pass@postgres:5432/openehr"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: atlas
+spec:
+  template:
+    spec:
+      containers:
+      - name: atlas
+        image: atlas:latest
+        envFrom:
+        - configMapRef:
+            name: atlas-config
+        - secretRef:
+            name: atlas-secrets
+```
 
 ## Complete Example
 
