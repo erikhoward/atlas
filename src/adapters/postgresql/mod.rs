@@ -10,4 +10,3 @@ pub mod models;
 pub use adapter::PostgreSQLAdapter;
 pub use client::PostgreSQLClient;
 pub use models::{PostgreSQLComposition, PostgreSQLWatermark};
-

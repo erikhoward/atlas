@@ -160,4 +160,3 @@ pub async fn create_database_and_state(
         }
     }
 }
-
