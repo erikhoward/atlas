@@ -13,7 +13,7 @@
 //! use atlas::config::LoggingConfig;
 //!
 //! let config = LoggingConfig::default();
-//! let _guard = init_logging(&config).expect("Failed to initialize logging");
+//! let _guard = init_logging("info", &config).expect("Failed to initialize logging");
 //!
 //! // Use tracing macros for logging
 //! tracing::info!("Application started");

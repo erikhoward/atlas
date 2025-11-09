@@ -10,7 +10,7 @@
 //! use atlas::config::LoggingConfig;
 //!
 //! let config = LoggingConfig::default();
-//! init_logging(&config).expect("Failed to initialize logging");
+//! init_logging("info", &config).expect("Failed to initialize logging");
 //! ```
 
 use crate::config::LoggingConfig;

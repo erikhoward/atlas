@@ -24,22 +24,25 @@
 //! # Example
 //!
 //! ```rust,no_run
-//! use atlas::config::AtlasConfig;
+//! use atlas::config::load_config;
 //! use atlas::core::export::ExportCoordinator;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Load configuration
-//! let config = AtlasConfig::from_file("atlas.toml")?;
+//! let config = load_config("atlas.toml")?;
+//!
+//! // Create shutdown signal
+//! let (_shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
 //!
 //! // Create export coordinator
-//! let coordinator = ExportCoordinator::new(&config).await?;
+//! let coordinator = ExportCoordinator::new(config, shutdown_rx).await?;
 //!
 //! // Execute export
 //! let summary = coordinator.execute_export().await?;
 //!
 //! println!("Total: {}", summary.total_compositions);
-//! println!("Successful: {}", summary.successful_compositions);
-//! println!("Failed: {}", summary.failed_compositions);
+//! println!("Successful: {}", summary.successful_exports);
+//! println!("Failed: {}", summary.failed_exports);
 //! # Ok(())
 //! # }
 //! ```

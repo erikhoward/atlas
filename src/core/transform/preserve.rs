@@ -28,13 +28,12 @@ use serde_json::Value;
 /// use atlas::core::transform::preserve::preserve_composition;
 /// use atlas::domain::composition::CompositionBuilder;
 /// use atlas::domain::ids::{CompositionUid, EhrId, TemplateId};
-/// use std::str::FromStr;
 ///
-/// # fn example() -> atlas::domain::Result<()> {
+/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// let composition = CompositionBuilder::new()
-///     .uid(CompositionUid::from_str("84d7c3f5::local.ehrbase.org::1")?)
-///     .ehr_id(EhrId::from_str("7d44b88c-4199-4bad-97dc-d78268e01398")?)
-///     .template_id(TemplateId::from_str("vital_signs.v1")?)
+///     .uid(CompositionUid::new("84d7c3f5::local.ehrbase.org::1")?)
+///     .ehr_id(EhrId::new("7d44b88c-4199-4bad-97dc-d78268e01398")?)
+///     .template_id(TemplateId::new("vital_signs.v1")?)
 ///     .build()?;
 ///
 /// let result = preserve_composition(composition, "full".to_string())?;
