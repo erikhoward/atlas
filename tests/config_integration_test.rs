@@ -13,6 +13,7 @@ static ENV_MUTEX: Mutex<()> = Mutex::new(());
 
 /// Helper function to clean up environment variables
 fn cleanup_env_vars() {
+    std::env::remove_var("ATLAS_ENVIRONMENT");
     std::env::remove_var("ATLAS_DATABASE_TARGET");
     std::env::remove_var("ATLAS_APPLICATION_NAME");
     std::env::remove_var("ATLAS_APPLICATION_VERSION");
@@ -48,6 +49,7 @@ fn cleanup_env_vars() {
 fn test_load_complete_config() {
     cleanup_env_vars();
     let toml_content = r#"database_target = "cosmosdb"
+environment = "development"
 
 [application]
 log_level = "debug"
@@ -166,6 +168,7 @@ fn test_load_minimal_config_with_defaults() {
     cleanup_env_vars();
 
     let toml_content = r#"database_target = "cosmosdb"
+environment = "development"
 
 [application]
 
@@ -221,6 +224,7 @@ fn test_env_var_substitution() {
     std::env::set_var("TEST_COSMOS_KEY", "secret_key");
 
     let toml_content = r#"database_target = "cosmosdb"
+environment = "development"
 
 [application]
 
@@ -276,6 +280,7 @@ fn test_env_var_overrides() {
     std::env::set_var("ATLAS_OPENEHR_QUERY_BATCH_SIZE", "2000");
 
     let toml_content = r#"database_target = "cosmosdb"
+environment = "development"
 
 [application]
 log_level = "info"
@@ -321,6 +326,7 @@ fn test_invalid_config_validation() {
     cleanup_env_vars();
 
     let toml_content = r#"database_target = "cosmosdb"
+environment = "development"
 
 [application]
 log_level = "invalid_level"
@@ -362,6 +368,7 @@ fn test_env_override_database_target_switch() {
     );
 
     let toml_content = r#"database_target = "cosmosdb"
+environment = "development"
 
 [application]
 
@@ -412,6 +419,7 @@ fn test_env_override_comprehensive_application_config() {
     std::env::set_var("ATLAS_APPLICATION_DRY_RUN", "true");
 
     let toml_content = r#"database_target = "cosmosdb"
+environment = "development"
 
 [application]
 log_level = "info"
@@ -459,6 +467,7 @@ fn test_env_override_openehr_connection_settings() {
     std::env::set_var("ATLAS_OPENEHR_TLS_VERIFY_CERTIFICATES", "false");
 
     let toml_content = r#"database_target = "cosmosdb"
+environment = "development"
 
 [application]
 
@@ -511,6 +520,7 @@ fn test_env_override_query_arrays_json_format() {
     );
 
     let toml_content = r#"database_target = "cosmosdb"
+environment = "development"
 
 [application]
 
@@ -570,6 +580,7 @@ fn test_env_override_query_arrays_csv_format() {
     std::env::set_var("ATLAS_OPENEHR_QUERY_EHR_IDS", "ehr-123,ehr-456,ehr-789");
 
     let toml_content = r#"database_target = "cosmosdb"
+environment = "development"
 
 [application]
 
@@ -623,6 +634,7 @@ fn test_env_override_export_retry_backoff_array() {
     std::env::set_var("ATLAS_EXPORT_DRY_RUN", "true");
 
     let toml_content = r#"database_target = "cosmosdb"
+environment = "development"
 
 [application]
 

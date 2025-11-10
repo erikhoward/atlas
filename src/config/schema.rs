@@ -15,6 +15,24 @@ pub enum DatabaseTarget {
     CosmosDB,
 }
 
+/// Runtime environment
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Environment {
+    /// Development environment
+    Development,
+    /// Staging environment
+    Staging,
+    /// Production environment
+    Production,
+}
+
+impl Default for Environment {
+    fn default() -> Self {
+        Self::Development
+    }
+}
+
 /// Main Atlas configuration
 ///
 /// This is the root configuration structure that maps to the TOML file.
@@ -22,6 +40,10 @@ pub enum DatabaseTarget {
 pub struct AtlasConfig {
     /// Application-level settings
     pub application: ApplicationConfig,
+
+    /// Runtime environment (development, staging, production)
+    #[serde(default)]
+    pub environment: Environment,
 
     /// OpenEHR server configuration
     pub openehr: OpenEhrConfig,
@@ -60,7 +82,7 @@ impl AtlasConfig {
     /// Returns an error if any configuration values are invalid
     pub fn validate(&self) -> Result<(), String> {
         self.application.validate()?;
-        self.openehr.validate()?;
+        self.openehr.validate(&self.environment)?;
         self.export.validate()?;
 
         // Validate that the correct database config is present and valid
@@ -180,11 +202,25 @@ pub struct OpenEhrConfig {
     #[serde(default)]
     pub password: Option<SecretString>,
 
-    /// TLS verification enabled
+    /// TLS certificate verification enabled
+    ///
+    /// **SECURITY WARNING**: Disabling TLS verification (setting to `false`) exposes the application
+    /// to man-in-the-middle attacks and should ONLY be used in development/testing environments.
+    ///
+    /// - In **production** environments, this MUST be set to `true` (enforced by validation)
+    /// - For self-signed certificates, use `tls_ca_cert` to specify a custom CA certificate
+    /// - Default: `true`
     #[serde(default = "default_true")]
     pub tls_verify: bool,
 
     /// TLS certificate verification (alias for tls_verify)
+    ///
+    /// **SECURITY WARNING**: Disabling TLS verification (setting to `false`) exposes the application
+    /// to man-in-the-middle attacks and should ONLY be used in development/testing environments.
+    ///
+    /// - In **production** environments, this MUST be set to `true` (enforced by validation)
+    /// - For self-signed certificates, use `tls_ca_cert` to specify a custom CA certificate
+    /// - Default: `true`
     #[serde(default = "default_true")]
     pub tls_verify_certificates: bool,
 
@@ -192,7 +228,11 @@ pub struct OpenEhrConfig {
     #[serde(default = "default_timeout_seconds")]
     pub timeout_seconds: u64,
 
-    /// Optional TLS CA certificate path
+    /// Optional TLS CA certificate path for custom/self-signed certificates
+    ///
+    /// Use this to specify a custom CA certificate file when connecting to OpenEHR servers
+    /// with self-signed certificates or certificates from a private CA. This is the recommended
+    /// approach for production environments instead of disabling TLS verification.
     #[serde(default)]
     pub tls_ca_cert: Option<String>,
 
@@ -205,7 +245,7 @@ pub struct OpenEhrConfig {
 }
 
 impl OpenEhrConfig {
-    fn validate(&self) -> Result<(), String> {
+    fn validate(&self, environment: &Environment) -> Result<(), String> {
         use secrecy::ExposeSecret;
 
         if self.base_url.is_empty() {
@@ -246,6 +286,19 @@ impl OpenEhrConfig {
                 self.auth_type,
                 valid_auth_types.join(", ")
             ));
+        }
+
+        // Security: Enforce TLS verification in production environments
+        // Disabling TLS verification exposes the application to man-in-the-middle attacks
+        if *environment == Environment::Production
+            && (!self.tls_verify || !self.tls_verify_certificates)
+        {
+            return Err(
+                "TLS certificate verification cannot be disabled in production environments. \
+                This is a critical security requirement to prevent man-in-the-middle attacks. \
+                Either set 'tls_verify = true' or provide a custom CA certificate using 'tls_ca_cert'. \
+                For development/testing environments, set 'environment = \"development\"' or 'environment = \"staging\"'.".to_string()
+            );
         }
 
         self.query.validate()?;
@@ -885,7 +938,93 @@ mod tests {
             },
         };
 
-        assert!(config.validate().is_ok());
+        // Test with development environment
+        assert!(config.validate(&Environment::Development).is_ok());
+
+        // Test with production environment
+        assert!(config.validate(&Environment::Production).is_ok());
+    }
+
+    #[test]
+    fn test_openehr_tls_verification_in_production() {
+        // Test that TLS verification cannot be disabled in production
+        let mut config = OpenEhrConfig {
+            base_url: "https://ehrbase.example.com".to_string(),
+            vendor: "ehrbase".to_string(),
+            vendor_type: "ehrbase".to_string(),
+            auth_type: "basic".to_string(),
+            username: Some("user".to_string()),
+            password: Some(Secret::new(SecretValue::from("pass".to_string()))),
+            tls_verify: false, // Disabled
+            tls_verify_certificates: true,
+            timeout_seconds: 60,
+            tls_ca_cert: None,
+            retry: RetryConfig::default(),
+            query: QueryConfig {
+                template_ids: vec!["template1".to_string()],
+                ehr_ids: vec![],
+                time_range_start: None,
+                time_range_end: None,
+                batch_size: 1000,
+                parallel_ehrs: 8,
+            },
+        };
+
+        // Should fail in production environment
+        let result = config.validate(&Environment::Production);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .contains("TLS certificate verification cannot be disabled in production"));
+
+        // Should succeed in development environment
+        assert!(config.validate(&Environment::Development).is_ok());
+
+        // Should succeed in staging environment
+        assert!(config.validate(&Environment::Staging).is_ok());
+
+        // Test with tls_verify_certificates disabled
+        config.tls_verify = true;
+        config.tls_verify_certificates = false;
+
+        // Should fail in production
+        let result = config.validate(&Environment::Production);
+        assert!(result.is_err());
+
+        // Should succeed in development
+        assert!(config.validate(&Environment::Development).is_ok());
+    }
+
+    #[test]
+    fn test_openehr_tls_verification_both_disabled() {
+        // Test that validation fails when both TLS flags are disabled in production
+        let config = OpenEhrConfig {
+            base_url: "https://ehrbase.example.com".to_string(),
+            vendor: "ehrbase".to_string(),
+            vendor_type: "ehrbase".to_string(),
+            auth_type: "basic".to_string(),
+            username: Some("user".to_string()),
+            password: Some(Secret::new(SecretValue::from("pass".to_string()))),
+            tls_verify: false,
+            tls_verify_certificates: false,
+            timeout_seconds: 60,
+            tls_ca_cert: None,
+            retry: RetryConfig::default(),
+            query: QueryConfig {
+                template_ids: vec!["template1".to_string()],
+                ehr_ids: vec![],
+                time_range_start: None,
+                time_range_end: None,
+                batch_size: 1000,
+                parallel_ehrs: 8,
+            },
+        };
+
+        // Should fail in production
+        assert!(config.validate(&Environment::Production).is_err());
+
+        // Should succeed in development
+        assert!(config.validate(&Environment::Development).is_ok());
     }
 
     #[test]

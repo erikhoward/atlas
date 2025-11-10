@@ -230,15 +230,73 @@ The export summary tracks detailed statistics about the export process:
 
 ### TLS Certificate Verification
 
-Atlas supports both `tls_verify` and `tls_verify_certificates` configuration options (they are aliases):
+Atlas implements security-focused TLS certificate verification with environment-aware enforcement.
+
+#### Configuration
+
+Both `tls_verify` and `tls_verify_certificates` are supported as aliases for backward compatibility:
+
+```rust
+// In src/config/schema.rs
+pub struct OpenEhrConfig {
+    pub tls_verify: bool,
+    pub tls_verify_certificates: bool,
+    // ...
+}
+```
+
+#### Runtime Warning
+
+When TLS verification is disabled, a security warning is logged at WARN level during client initialization:
 
 ```rust
 // In src/adapters/openehr/vendor/ehrbase.rs
-let danger_accept_invalid_certs = !config.tls_verify.unwrap_or(true)
-    || !config.tls_verify_certificates.unwrap_or(true);
+if !config.tls_verify || !config.tls_verify_certificates {
+    tracing::warn!(
+        "⚠️  SECURITY WARNING: TLS certificate verification is DISABLED for OpenEHR server at {}. \
+        This configuration is INSECURE and should only be used in development/testing environments. \
+        The application is vulnerable to man-in-the-middle attacks. \
+        For production use, either enable TLS verification (tls_verify = true) or provide a custom CA certificate (tls_ca_cert).",
+        config.base_url
+    );
+    client_builder = client_builder.danger_accept_invalid_certs(true);
+}
 ```
 
-This allows users to disable certificate verification for development environments with self-signed certificates while maintaining backward compatibility with both configuration field names.
+#### Production Enforcement
+
+Configuration validation enforces TLS verification in production environments:
+
+```rust
+// In src/config/schema.rs - OpenEhrConfig::validate()
+if *environment == Environment::Production
+    && (!self.tls_verify || !self.tls_verify_certificates)
+{
+    return Err(
+        "TLS certificate verification cannot be disabled in production environments. \
+        This is a critical security requirement to prevent man-in-the-middle attacks. \
+        Either set 'tls_verify = true' or provide a custom CA certificate using 'tls_ca_cert'. \
+        For development/testing environments, set 'environment = \"development\"' or 'environment = \"staging\"'.".to_string()
+    );
+}
+```
+
+#### Environment Configuration
+
+The `environment` field in `AtlasConfig` controls security policies:
+
+```rust
+pub enum Environment {
+    Development,  // TLS verification optional (with warning)
+    Staging,      // TLS verification optional (with warning)
+    Production,   // TLS verification required (enforced)
+}
+```
+
+This three-tier approach ensures:
+1. **Development flexibility**: Developers can work with self-signed certificates
+2. **Security awareness**: Warnings alert users to insecure configurations
+3. **Production safety**: Insecure configurations are blocked in production
 
 ## Code Organization
 

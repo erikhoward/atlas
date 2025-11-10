@@ -14,6 +14,11 @@ version = "2.1.0"
 log_level = "info"
 dry_run = false
 
+# Runtime environment - CRITICAL for security enforcement
+# Options: development, staging, production
+# Production environments enforce TLS verification and other security policies
+environment = "production"
+
 # ============================================================================
 # OpenEHR Configuration
 # ============================================================================
@@ -30,7 +35,10 @@ auth_type = "basic"
 username = "ml_user"
 password = "${ATLAS_OPENEHR_PASSWORD}"
 
-# TLS verification
+# ⚠️ SECURITY: TLS Certificate Verification
+# REQUIRED in production environments - cannot be disabled when environment = "production"
+# Disabling TLS verification exposes the application to man-in-the-middle attacks
+# For self-signed certificates, use tls_ca_cert instead of disabling verification
 tls_verify = true
 
 # Request timeout (longer for large queries)

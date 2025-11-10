@@ -276,6 +276,7 @@ fn parse_u64_array(value: &str) -> Option<Vec<u64>> {
 /// For example: ATLAS_OPENEHR_BASE_URL, ATLAS_EXPORT_MODE
 ///
 /// Supported environment variables:
+/// - ATLAS_ENVIRONMENT: Runtime environment (development, staging, production)
 /// - ATLAS_DATABASE_TARGET: Database target (cosmosdb or postgresql)
 /// - ATLAS_APPLICATION_LOG_LEVEL: Log level
 /// - ATLAS_APPLICATION_DRY_RUN: Dry run mode (true/false)
@@ -343,7 +344,21 @@ fn parse_u64_array(value: &str) -> Option<Vec<u64>> {
 ///
 /// Returns an error if critical environment variable values are invalid
 fn apply_env_overrides(config: &mut AtlasConfig) -> Result<()> {
-    use crate::config::schema::DatabaseTarget;
+    use crate::config::schema::{DatabaseTarget, Environment};
+
+    // Environment override
+    if let Ok(val) = std::env::var("ATLAS_ENVIRONMENT") {
+        match val.to_lowercase().as_str() {
+            "development" => config.environment = Environment::Development,
+            "staging" => config.environment = Environment::Staging,
+            "production" => config.environment = Environment::Production,
+            _ => {
+                return Err(AtlasError::Configuration(format!(
+                    "Invalid ATLAS_ENVIRONMENT value '{val}'. Must be 'development', 'staging', or 'production'"
+                )));
+            }
+        }
+    }
 
     // Database target override (must be first)
     if let Ok(val) = std::env::var("ATLAS_DATABASE_TARGET") {
@@ -599,10 +614,15 @@ mod tests {
     use super::*;
     use crate::config::schema::DatabaseTarget;
     use std::io::Write;
+    use std::sync::Mutex;
     use tempfile::NamedTempFile;
+
+    // Mutex to serialize tests that modify environment variables
+    static ENV_MUTEX: Mutex<()> = Mutex::new(());
 
     #[test]
     fn test_substitute_env_vars() {
+        let _lock = ENV_MUTEX.lock().unwrap();
         std::env::set_var("TEST_VAR", "test_value");
         let input = "password = \"${TEST_VAR}\"";
         let result = substitute_env_vars(input).unwrap();
@@ -612,6 +632,7 @@ mod tests {
 
     #[test]
     fn test_substitute_env_vars_missing() {
+        let _lock = ENV_MUTEX.lock().unwrap();
         std::env::remove_var("MISSING_VAR");
         let input = "password = \"${MISSING_VAR}\"";
         let result = substitute_env_vars(input);
@@ -626,11 +647,17 @@ mod tests {
 
     #[test]
     fn test_load_config_valid() {
+        let _lock = ENV_MUTEX.lock().unwrap();
         // Clean up any environment variables from other tests
         std::env::remove_var("ATLAS_APPLICATION_NAME");
         std::env::remove_var("ATLAS_DATABASE_TARGET");
+        std::env::remove_var("ATLAS_ENVIRONMENT");
+        std::env::remove_var("ATLAS_OPENEHR_BASE_URL");
+        std::env::remove_var("ATLAS_OPENEHR_USERNAME");
+        std::env::remove_var("ATLAS_OPENEHR_PASSWORD");
 
         let toml_content = r#"database_target = "cosmosdb"
+environment = "development"
 
 [application]
 log_level = "info"
@@ -725,15 +752,18 @@ enable_checkpointing = true
 
     #[test]
     fn test_env_override_database_target() {
+        let _lock = ENV_MUTEX.lock().unwrap();
         // Clean up any environment variables from other tests
         std::env::remove_var("ATLAS_APPLICATION_NAME");
         std::env::remove_var("ATLAS_APPLICATION_VERSION");
         std::env::remove_var("ATLAS_APPLICATION_LOG_LEVEL");
         std::env::remove_var("ATLAS_APPLICATION_DRY_RUN");
+        std::env::remove_var("ATLAS_ENVIRONMENT");
 
         std::env::set_var("ATLAS_DATABASE_TARGET", "postgresql");
 
         let toml_content = r#"database_target = "cosmosdb"
+environment = "development"
 [application]
 [openehr]
 base_url = "https://ehrbase.example.com"
@@ -767,8 +797,10 @@ enable_checkpointing = true
 
     #[test]
     fn test_env_override_application_fields() {
+        let _lock = ENV_MUTEX.lock().unwrap();
         // Clean up any environment variables from other tests
         std::env::remove_var("ATLAS_DATABASE_TARGET");
+        std::env::remove_var("ATLAS_ENVIRONMENT");
         std::env::remove_var("ATLAS_APPLICATION_LOG_LEVEL");
         std::env::remove_var("ATLAS_APPLICATION_DRY_RUN");
 
@@ -776,6 +808,7 @@ enable_checkpointing = true
         std::env::set_var("ATLAS_APPLICATION_DRY_RUN", "true");
 
         let toml_content = r#"database_target = "cosmosdb"
+environment = "development"
 [application]
 log_level = "info"
 [openehr]
@@ -814,6 +847,7 @@ enable_checkpointing = true
 
     #[test]
     fn test_env_override_openehr_fields() {
+        let _lock = ENV_MUTEX.lock().unwrap();
         std::env::set_var("ATLAS_OPENEHR_BASE_URL", "https://prod-ehrbase.com");
         std::env::set_var("ATLAS_OPENEHR_USERNAME", "prod_user");
         std::env::set_var("ATLAS_OPENEHR_PASSWORD", "prod_pass");
@@ -821,6 +855,7 @@ enable_checkpointing = true
         std::env::set_var("ATLAS_OPENEHR_TLS_VERIFY_CERTIFICATES", "false");
 
         let toml_content = r#"database_target = "cosmosdb"
+environment = "development"
 [application]
 [openehr]
 base_url = "https://ehrbase.example.com"
@@ -861,6 +896,7 @@ enable_checkpointing = true
 
     #[test]
     fn test_env_override_query_arrays() {
+        let _lock = ENV_MUTEX.lock().unwrap();
         std::env::set_var(
             "ATLAS_OPENEHR_QUERY_TEMPLATE_IDS",
             r#"["IDCR - Vital Signs.v1","IDCR - Lab Report.v1"]"#,
@@ -869,6 +905,7 @@ enable_checkpointing = true
         std::env::set_var("ATLAS_OPENEHR_QUERY_BATCH_SIZE", "2000");
 
         let toml_content = r#"database_target = "cosmosdb"
+environment = "development"
 [application]
 [openehr]
 base_url = "https://ehrbase.example.com"
@@ -916,14 +953,17 @@ enable_checkpointing = true
 
     #[test]
     fn test_env_override_export_retry_backoff() {
+        let _lock = ENV_MUTEX.lock().unwrap();
         // Clean up any environment variables from other tests
         std::env::remove_var("ATLAS_DATABASE_TARGET");
+        std::env::remove_var("ATLAS_ENVIRONMENT");
 
         std::env::set_var("ATLAS_EXPORT_RETRY_BACKOFF_MS", "1000,2000,4000,8000");
         std::env::set_var("ATLAS_EXPORT_MODE", "full");
         std::env::set_var("ATLAS_EXPORT_DRY_RUN", "true");
 
         let toml_content = r#"database_target = "cosmosdb"
+environment = "development"
 [application]
 [openehr]
 base_url = "https://ehrbase.example.com"
@@ -963,6 +1003,7 @@ enable_checkpointing = true
 
     #[test]
     fn test_env_override_postgresql_fields() {
+        let _lock = ENV_MUTEX.lock().unwrap();
         std::env::set_var(
             "ATLAS_POSTGRESQL_CONNECTION_STRING",
             "postgresql://prod:pass@prod-db:5432/openehr",
