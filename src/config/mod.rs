@@ -165,7 +165,7 @@ pub mod secret;
 // Re-export commonly used types
 pub use loader::load_config;
 pub use schema::{
-    ApplicationConfig, AtlasConfig, CosmosDbConfig, ExportConfig, LoggingConfig, OpenEhrConfig,
-    QueryConfig, StateConfig, VerificationConfig,
+    ApplicationConfig, AtlasConfig, CosmosDbConfig, Environment, ExportConfig, LoggingConfig,
+    OpenEhrConfig, QueryConfig, StateConfig, VerificationConfig,
 };
 pub use secret::{secret_string, secret_string_opt, SecretString, SecretValue};

@@ -102,11 +102,41 @@ Application-level settings that control Atlas behavior.
 ```toml
 [application]
 log_level = "info"
+
+# Runtime environment (development, staging, production)
+environment = "development"
 ```
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `log_level` | string | "info" | Log verbosity: `trace`, `debug`, `info`, `warn`, `error` |
+
+### Environment
+
+Runtime environment configuration that affects security policies and validation behavior.
+
+```toml
+# Runtime environment
+environment = "production"  # Options: development, staging, production
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `environment` | string | "development" | Runtime environment: `development`, `staging`, or `production` |
+
+**Environment Variable Override**: `ATLAS_ENVIRONMENT`
+
+**Important**: The environment setting affects security validation:
+- **Production**: TLS certificate verification MUST be enabled (`tls_verify = true`). Configuration validation will fail if TLS verification is disabled.
+- **Staging**: TLS verification can be disabled with a warning logged at startup.
+- **Development**: TLS verification can be disabled with a warning logged at startup.
+
+**Example**:
+```bash
+# Set environment via environment variable
+export ATLAS_ENVIRONMENT=production
+atlas export
+```
 
 ### OpenEHR
 
@@ -136,12 +166,41 @@ timeout_seconds = 60
 | `tls_ca_cert` | string | null | Optional path to custom CA certificate file |
 | `timeout_seconds` | integer | 60 | Request timeout in seconds |
 
-**Note on TLS Verification:**
+**⚠️ CRITICAL SECURITY WARNING - TLS Certificate Verification:**
 
+**Production Enforcement**: When `environment = "production"`, TLS certificate verification **CANNOT** be disabled. Configuration validation will fail with an error if `tls_verify = false` or `tls_verify_certificates = false`.
+
+**Security Implications**:
+- Disabling TLS verification exposes your application to **man-in-the-middle (MITM) attacks**
+- Attackers can intercept, read, and modify sensitive health data in transit
+- This violates HIPAA, GDPR, and other healthcare data protection regulations
+- **NEVER disable TLS verification in production environments**
+
+**Configuration Guidelines**:
+
+1. **Production (Recommended)**: Use trusted CA certificates
+   ```toml
+   environment = "production"
+   tls_verify = true  # Required - cannot be disabled
+   ```
+
+2. **Production with Self-Signed Certificates**: Use custom CA certificate
+   ```toml
+   environment = "production"
+   tls_verify = true
+   tls_ca_cert = "/path/to/your-ca-certificate.pem"
+   ```
+
+3. **Development/Testing Only**: Can disable with warning
+   ```toml
+   environment = "development"  # or "staging"
+   tls_verify = false  # ⚠️ Logs security warning at startup
+   ```
+
+**Notes**:
 - Both `tls_verify` and `tls_verify_certificates` control the same setting - use either one
-- Set to `false` only for development/testing with self-signed certificates
-- For production with self-signed certificates, use `tls_ca_cert` to specify your CA certificate instead
-- **Security Warning**: Disabling TLS verification (`tls_verify = false`) should only be used in development environments
+- A runtime warning is logged at WARN level whenever TLS verification is disabled
+- For containerized deployments, use `ATLAS_ENVIRONMENT=production` to enforce security policies
 
 #### OpenEHR Retry Configuration
 
@@ -435,6 +494,7 @@ export ATLAS_OPENEHR_QUERY_EHR_IDS=""
 
 | Environment Variable | Type | Description | Example |
 |---------------------|------|-------------|---------|
+| `ATLAS_ENVIRONMENT` | string | Runtime environment: `development`, `staging`, `production` | `production` |
 | `ATLAS_DATABASE_TARGET` | string | Database target: `cosmosdb` or `postgresql` | `postgresql` |
 
 #### Application
@@ -735,10 +795,13 @@ Atlas implements secure credential handling to protect sensitive information:
    - Rotate keys regularly
    - Use Azure Managed Identity when possible
 
-3. **Enable TLS verification**
-   - Keep `tls_verify = true` in production
-   - Only disable for local development with self-signed certificates
-   - Use `tls_ca_cert` for custom CA certificates
+3. **Enable TLS verification** (Enforced in Production)
+   - **REQUIRED**: Set `environment = "production"` for production deployments
+   - TLS verification is automatically enforced in production environments
+   - Configuration validation will fail if `tls_verify = false` in production
+   - Only disable for local development/testing with `environment = "development"`
+   - Use `tls_ca_cert` for custom CA certificates in production
+   - A security warning is logged whenever TLS verification is disabled
 
 4. **Secure log files**
    - Ensure log directory has appropriate permissions
@@ -806,26 +869,45 @@ Error: A certificate chain processed, but terminated in a root certificate which
 
 **Solutions**:
 
-1. **For Development/Testing** - Disable certificate verification:
+1. **For Development/Testing ONLY** - Disable certificate verification:
 
    ```toml
+   # Set environment to development
+   environment = "development"
+
    [openehr]
    tls_verify = false
    # OR
    tls_verify_certificates = false
    ```
 
-2. **For Production** - Use a custom CA certificate:
+   **⚠️ WARNING**: This will log a security warning at startup. This configuration is **BLOCKED** in production environments.
+
+2. **For Production (Recommended)** - Use a custom CA certificate:
 
    ```toml
+   # Set environment to production
+   environment = "production"
+
    [openehr]
-   tls_verify = true
+   tls_verify = true  # Required in production
    tls_ca_cert = "/path/to/ca-certificate.pem"
    ```
 
 3. **Best Practice** - Use a certificate from a trusted CA (Let's Encrypt, DigiCert, etc.)
 
-**Security Note**: Never disable TLS verification in production environments. This makes your connection vulnerable to man-in-the-middle attacks.
+   ```toml
+   environment = "production"
+
+   [openehr]
+   tls_verify = true  # Works automatically with trusted CAs
+   ```
+
+**🔒 CRITICAL SECURITY NOTE**:
+- **NEVER disable TLS verification in production environments**
+- Atlas enforces this by blocking `tls_verify = false` when `environment = "production"`
+- Disabling TLS verification exposes your application to man-in-the-middle attacks
+- This violates healthcare data protection regulations (HIPAA, GDPR, etc.)
 
 ---
 

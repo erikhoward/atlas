@@ -79,6 +79,15 @@ impl EhrBaseVendor {
         // Configure TLS certificate validation
         // Check both tls_verify and tls_verify_certificates (they are aliases)
         if !config.tls_verify || !config.tls_verify_certificates {
+            // Security Warning: TLS verification is disabled
+            // This exposes the application to man-in-the-middle attacks
+            tracing::warn!(
+                "⚠️  SECURITY WARNING: TLS certificate verification is DISABLED for OpenEHR server at {}. \
+                This configuration is INSECURE and should only be used in development/testing environments. \
+                The application is vulnerable to man-in-the-middle attacks. \
+                For production use, either enable TLS verification (tls_verify = true) or provide a custom CA certificate (tls_ca_cert).",
+                config.base_url
+            );
             client_builder = client_builder.danger_accept_invalid_certs(true);
         }
 

@@ -687,21 +687,58 @@ Error: A certificate chain processed, but terminated in a root certificate which
 
 **Solutions**:
 
-1. **Quick fix for development/testing** - Disable certificate verification in `atlas.toml`:
+1. **For Development/Testing ONLY** - Disable certificate verification in `atlas.toml`:
+
    ```toml
+   # IMPORTANT: Set environment to development
+   environment = "development"
+
    [openehr]
    base_url = "https://ehrbase.localhost/ehrbase"
    username = "${ATLAS_OPENEHR_USERNAME}"
    password = "${ATLAS_OPENEHR_PASSWORD}"
-   tls_verify = false  # Disable TLS verification
+   tls_verify = false  # ⚠️ INSECURE - Development only
    ```
 
-2. **Production solution** - Provide a custom CA certificate:
+   **⚠️ SECURITY WARNING**:
+   - This configuration is **INSECURE** and exposes you to man-in-the-middle attacks
+   - A security warning will be logged at startup
+   - This configuration is **BLOCKED** when `environment = "production"`
+   - **NEVER use this in production environments**
+
+2. **For Production (Recommended)** - Provide a custom CA certificate:
+
    ```toml
+   # Set environment to production
+   environment = "production"
+
    [openehr]
-   tls_verify = true
+   base_url = "https://ehrbase.example.com/ehrbase"
+   username = "${ATLAS_OPENEHR_USERNAME}"
+   password = "${ATLAS_OPENEHR_PASSWORD}"
+   tls_verify = true  # Required in production
    tls_ca_cert = "/path/to/your-ca-certificate.pem"
    ```
+
+3. **Best Practice for Production** - Use certificates from trusted CAs:
+
+   Use certificates from trusted Certificate Authorities (Let's Encrypt, DigiCert, etc.) so TLS verification works automatically without custom configuration.
+
+   ```toml
+   environment = "production"
+
+   [openehr]
+   base_url = "https://ehrbase.example.com/ehrbase"
+   tls_verify = true  # Works automatically with trusted CAs
+   ```
+
+**🔒 Production Security Enforcement**:
+
+Atlas enforces TLS verification in production environments:
+- When `environment = "production"`, configuration validation **will fail** if `tls_verify = false`
+- This prevents accidental deployment of insecure configurations
+- Use `environment = "development"` or `environment = "staging"` for testing with self-signed certificates
+- Always use `environment = "production"` for production deployments
 
 3. **Best practice** - Use a certificate from a trusted CA (Let's Encrypt, DigiCert, etc.)
 

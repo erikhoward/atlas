@@ -177,6 +177,16 @@ log_level = "info"
 dry_run = false
 
 # ============================================================================
+# Runtime Environment (IMPORTANT for Security)
+# ============================================================================
+# Runtime environment: development, staging, or production
+# This setting affects security policies and validation:
+# - production: TLS verification REQUIRED (cannot be disabled)
+# - staging: TLS verification optional (warning logged if disabled)
+# - development: TLS verification optional (warning logged if disabled)
+environment = "development"
+
+# ============================================================================
 # OpenEHR Server Configuration
 # ============================================================================
 [openehr]
@@ -195,10 +205,23 @@ username = "${ATLAS_OPENEHR_USERNAME}"
 # Password for Basic Authentication (use environment variable)
 password = "${ATLAS_OPENEHR_PASSWORD}"
 
-# TLS/SSL verification
+# ⚠️ SECURITY WARNING: TLS Certificate Verification
+# CRITICAL: In production environments (environment = "production"), TLS verification
+# CANNOT be disabled. Configuration validation will fail if tls_verify = false.
+#
+# Security Implications:
+# - Disabling TLS verification exposes the application to man-in-the-middle attacks
+# - Attackers can intercept, read, and modify sensitive health data in transit
+# - This violates HIPAA, GDPR, and other healthcare data protection regulations
+#
+# Recommended Configurations:
+# 1. Production with trusted CA: tls_verify = true (default)
+# 2. Production with self-signed cert: tls_verify = true + tls_ca_cert = "/path/to/ca.crt"
+# 3. Development/Testing ONLY: environment = "development" + tls_verify = false
 tls_verify = true
 
-# Optional: Custom CA certificate path
+# Optional: Custom CA certificate path for self-signed certificates
+# Use this instead of disabling TLS verification in production
 # tls_ca_cert = "/path/to/ca.crt"
 
 # Query configuration
