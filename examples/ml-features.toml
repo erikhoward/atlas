@@ -7,10 +7,9 @@
 # Use Case: Export clinical data for ML model training and feature engineering
 # Expected Volume: 100,000+ compositions
 # Frequency: One-time or periodic (monthly)
+# Version: 2.2.0
 
 [application]
-name = "atlas-ml-features"
-version = "2.1.0"
 log_level = "info"
 dry_run = false
 

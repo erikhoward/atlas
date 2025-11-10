@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0] - 2025-11-10
+
+### Added
+
+- **Environment-Based TLS Verification Enforcement** (Feature #13, PR #11)
+  - Added `environment` configuration field with three values: `development`, `staging`, `production`
+  - Runtime WARN level logging when TLS certificate verification is disabled in any environment
+  - Production environments now block TLS verification from being disabled (validation error)
+  - Three-tier security approach: development/staging (permissive with warnings), production (strict enforcement)
+  - Updated all documentation with security warnings and best practices
+  - Added comprehensive tests for environment-aware validation with mutex synchronization
+
+- **12-Factor App Compliance with Environment Variable Support** (Feature #34, PR #10)
+  - Complete environment variable override support for all configuration fields
+  - Added `ATLAS_DATABASE_TARGET` for runtime database backend selection (CosmosDB/PostgreSQL)
+  - Array support in environment variables (JSON or comma-separated format)
+  - Empty string clears array values
+  - Smart validation that only requires CosmosDB config when CosmosDB is the target database
+  - Comprehensive documentation with environment variable reference table
+  - 40+ new environment variables for complete configuration override capability
+
+### Changed
+
+- **Configuration Schema Simplification** (PR #10)
+  - Removed `application.name` and `application.version` fields from configuration schema
+  - Application name and version now come from `Cargo.toml` at compile time
+  - Users must remove these two fields from existing `atlas.toml` files
+  - Updated `validate-config` command to use compile-time package metadata
+  - Updated all example configurations and documentation
+
+### Fixed
+
+- **Clippy Warnings** (commit be1bdbe)
+  - Use derive attribute for `Environment` Default implementation
+  - Improved code quality and consistency
+
+- **Release Workflow** (PR #9)
+  - Fixed GitHub Actions release workflow to support immutable releases
+  - Implemented Draft → Upload → Publish pattern
+  - Releases are now created as drafts, assets uploaded, then published
+  - Added `allow-missing-changelog` option for test releases
+  - No more HTTP 422 errors when uploading assets
+
 ## [2.1.0] - 2025-11-09
 
 ### Added

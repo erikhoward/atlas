@@ -1,9 +1,8 @@
 # Atlas Configuration Example
 # This is a sample configuration file for Atlas ETL tool
+# Version: 2.2.0
 
 [application]
-name = "atlas"
-version = "2.1.0"
 log_level = "info" # trace, debug, info, warn, error
 dry_run = false
 
@@ -27,10 +26,10 @@ tls_verify = true
 
 [openehr.query]
 # Export filters
-template_ids = ["IDCR - Adverse Reaction List.v1", "IDCR - Problem List.v1"]
-ehr_ids = []                              # Empty = all EHRs
-time_range_start = "2024-01-01T00:00:00Z" # ISO 8601 or null
 time_range_end = null                     # null = now
+template_ids = ["IDCR - Adverse Reaction List.v1", "IDCR - Problem List.v1"]
+ehr_ids = []                                                                 # Empty = all EHRs
+time_range_start = "2024-01-01T00:00:00Z"                                    # ISO 8601 or null
 
 # Batch processing
 batch_size = 1000 # 100-5000
@@ -48,7 +47,7 @@ retry_backoff_ms = [1000, 2000, 4000] # Exponential backoff
 # Connection
 # Security: Cosmos DB key is securely handled in memory and never logged
 endpoint = "https://myaccount.documents.azure.com:443/"
-key = "${ATLAS_COSMOS_KEY}"  # Use environment variable for security
+key = "${ATLAS_COSMOS_KEY}"                             # Use environment variable for security
 database_name = "openehr_data"
 
 # Container settings
