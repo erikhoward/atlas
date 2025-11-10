@@ -16,21 +16,16 @@ pub enum DatabaseTarget {
 }
 
 /// Runtime environment
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum Environment {
     /// Development environment
+    #[default]
     Development,
     /// Staging environment
     Staging,
     /// Production environment
     Production,
-}
-
-impl Default for Environment {
-    fn default() -> Self {
-        Self::Development
-    }
 }
 
 /// Main Atlas configuration
