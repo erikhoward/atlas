@@ -138,6 +138,7 @@ docker-compose up
 ```
 
 **Docker Benefits:**
+
 - ✅ No Rust installation required
 - ✅ Consistent environment across deployments
 - ✅ Easy integration with Kubernetes/AKS
@@ -340,6 +341,7 @@ atlas export -c atlas.toml
 ```
 
 **Key Features:**
+
 - ✅ **Safe Interruption**: Current batch completes before shutdown (no partial data)
 - ✅ **Automatic Checkpoint**: Watermarks saved with `Interrupted` status
 - ✅ **Resume Support**: Re-run the same command to continue from checkpoint
@@ -356,6 +358,7 @@ shutdown_timeout_secs = 30
 ```
 
 **Exit Codes:**
+
 - `0` - Export completed successfully
 - `1` - Partial success (some exports failed)
 - `130` - Interrupted by SIGINT (Ctrl+C)
@@ -419,18 +422,20 @@ atlas export --anonymize --anonymize-dry-run
 ### Compliance Modes
 
 **HIPAA Safe Harbor** (`hipaa_safe_harbor`):
+
 - Detects 18 identifiers specified in 45 CFR §164.514(b)(2)
 - Suitable for US healthcare organizations
 
 **GDPR** (`gdpr`):
+
 - Detects all HIPAA identifiers + 6 GDPR quasi-identifiers
 - Suitable for European organizations or multi-region deployments
 
 ### Documentation
 
 For complete anonymization documentation, see:
+
 - **[Anonymization User Guide](docs/anonymization-user-guide.md)** - Comprehensive usage guide
-- **[Manual Testing Guide](ANONYMIZATION_MANUAL_TESTING.md)** - Testing procedures
 
 ## 🐳 Docker Deployment
 
@@ -489,6 +494,7 @@ docker-compose up
 ### Multi-Platform Support
 
 Images are built for multiple architectures:
+
 - `linux/amd64` - Standard x86_64 servers
 - `linux/arm64` - ARM64 (Apple Silicon, AWS Graviton, etc.)
 
@@ -627,6 +633,7 @@ Atlas implements comprehensive security measures to protect sensitive healthcare
 - **Explicit Access Control**: Code must explicitly call `expose_secret()` to access credentials, enabling easy security audits
 
 **Protected Credentials:**
+
 - OpenEHR passwords
 - Cosmos DB keys
 - PostgreSQL connection strings (including embedded passwords)
