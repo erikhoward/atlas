@@ -1,6 +1,6 @@
 # Atlas Configuration Example - PostgreSQL Backend
 # This is a sample configuration file for Atlas ETL tool using PostgreSQL
-# Version: 2.2.0
+# Version: 2.3.0
 
 [application]
 log_level = "info" # trace, debug, info, warn, error

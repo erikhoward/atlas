@@ -7,6 +7,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0] - 2025-11-12
+
+### Added
+
+- **GDPR/HIPAA Anonymization Support** (Phase 1)
+  - Automatic PII detection for 18 HIPAA Safe Harbor identifiers
+  - Detection of 6 GDPR quasi-identifiers (occupation, education, marital status, ethnicity, age, gender)
+  - 50+ regex patterns for comprehensive coverage with confidence scoring
+  - Flexible anonymization strategies: Token (unique random tokens) and Redact (category markers)
+  - Compliance modes: HIPAA Safe Harbor and GDPR
+  - Dry-run mode for previewing PII detections without anonymizing data
+  - Comprehensive audit logging with SHA-256 hashed PII values (never logs plaintext)
+  - JSON and plain text audit log formats with tamper-evident trail
+  - 12-factor configuration support (TOML, environment variables, CLI flags)
+  - New CLI flags: `--anonymize`, `--anonymize-mode`, `--anonymize-dry-run`
+  - New environment variables for anonymization configuration
+  - Integration into export pipeline via `BatchProcessor::process_batch()`
+  - New `DatabaseClient::bulk_insert_json()` method for pre-transformed JSON documents
+  - Comprehensive user guide: `docs/anonymization-user-guide.md`
+  - Manual testing guide with 6 validation scenarios
+  - Enhanced rustdoc comments for all anonymization APIs
+
+### Changed
+
+- **Database Client Interface Enhancement**
+  - Added `bulk_insert_json()` method to `DatabaseClient` trait
+  - Implemented in `CosmosDbAdapter` and `PostgreSqlAdapter`
+  - Enables clean anonymization integration between transformation and database write
+
+- **Export Pipeline Integration**
+  - Anonymization integrated into batch processing workflow
+  - New `transform_and_anonymize()` method for composition processing
+  - Anonymization statistics tracked in `BatchResult`
+
+### Fixed
+
+- **Documentation Improvements**
+  - Removed `.await` from non-async doctest examples
+  - Corrected TOML enum values to snake_case for anonymization config
+  - Fixed manual testing guide with correct CLI usage
+  - Minor documentation updates to README.md
+
+- **Code Quality**
+  - Resolved all clippy warnings in anonymization module
+  - Removed unnecessary async from anonymization functions
+  - Improved code consistency and quality
+
+### Testing
+
+- Added 207 unit tests (24 anonymization-specific)
+- Added 41 integration tests with synthetic OpenEHR data
+- Added 56 compliance tests (HIPAA + GDPR validation)
+- Added 56 doctests for API examples
+- Total: 304 tests passing
+
+### Dependencies
+
+- Added `fancy-regex = "0.13"` - Advanced regex patterns with lookahead/lookbehind
+- Added `rand = "0.8"` - Random token generation
+- Added `sha2 = "0.10"` - SHA-256 hashing for audit logs
+- Added `fake = "2.9"` - Test fixture generation (dev-only)
+
+### Known Limitations (Phase 1)
+
+- Free-text anonymization uses basic pattern matching only (transformer-based NER planned for Phase 2)
+- Language support: English only (multi-language support planned for Phase 2)
+- k-anonymity verification not yet implemented (planned for Phase 2)
+- Formal performance benchmarks deferred to future release
+
 ## [2.2.0] - 2025-11-10
 
 ### Added

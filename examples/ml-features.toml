@@ -7,7 +7,7 @@
 # Use Case: Export clinical data for ML model training and feature engineering
 # Expected Volume: 100,000+ compositions
 # Frequency: One-time or periodic (monthly)
-# Version: 2.2.0
+# Version: 2.3.0
 
 [application]
 log_level = "info"

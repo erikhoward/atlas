@@ -7,7 +7,7 @@
 # Use Case: Export all compositions for specific templates to support a clinical research study
 # Expected Volume: 10,000-100,000 compositions
 # Frequency: One-time or periodic (weekly/monthly)
-# Version: 2.2.0
+# Version: 2.3.0
 
 [application]
 log_level = "info"

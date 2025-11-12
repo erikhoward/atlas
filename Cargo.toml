@@ -1,6 +1,6 @@
 [package]
 name = "atlas"
-version = "2.2.0"
+version = "2.3.0"
 edition = "2021"
 authors = ["Erik Howard", "Atlas Contributors"]
 description = "ETL tool for exporting OpenEHR compositions to multiple datastore backends"

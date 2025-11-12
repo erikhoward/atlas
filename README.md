@@ -87,7 +87,7 @@ Atlas solves the challenge of making OpenEHR clinical data accessible for modern
 
 ```bash
 # Download latest release
-wget https://github.com/erikhoward/atlas/releases/download/v2.2.0/atlas-linux-x86_64.tar.gz
+wget https://github.com/erikhoward/atlas/releases/download/v2.3.0/atlas-linux-x86_64.tar.gz
 
 # Extract and install
 tar -xzf atlas-linux-x86_64.tar.gz
@@ -488,7 +488,7 @@ docker-compose up
 ### Available Tags
 
 - `latest` - Latest stable release from main branch
-- `2.2.0`, `2.2`, `2` - Semantic version tags
+- `2.3.0`, `2.3`, `2` - Semantic version tags
 - `main-<sha>` - Specific commit from main branch
 
 ### Multi-Platform Support
