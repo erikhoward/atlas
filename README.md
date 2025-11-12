@@ -53,7 +53,7 @@ Atlas solves the challenge of making OpenEHR clinical data accessible for modern
   - Azure Log Analytics integration (Logs Ingestion API)
   - Kubernetes/AKS deployment support
 
-- **🔒 Privacy & Compliance**: Built-in anonymization (Phase 1)
+- **🔒 Privacy & Compliance**: Built-in anonymization
   - **Automated PII Detection**: Regex-based detection of 24+ PII categories
   - **HIPAA Safe Harbor**: 18 identifiers per 45 CFR §164.514(b)(2)
   - **GDPR Compliance**: HIPAA identifiers + GDPR quasi-identifiers
