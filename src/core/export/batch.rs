@@ -4,11 +4,14 @@
 //! to database backends in batches.
 
 use crate::adapters::database::traits::DatabaseClient;
+use crate::anonymization::config::AnonymizationConfig;
+use crate::anonymization::engine::AnonymizationEngine;
 use crate::core::state::{StateManager, Watermark};
-use crate::core::transform::CompositionFormat;
+use crate::core::transform::{transform_composition, CompositionFormat};
 use crate::domain::composition::Composition;
 use crate::domain::ids::{CompositionUid, EhrId, TemplateId};
 use crate::domain::Result;
+use serde_json::Value;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -22,15 +25,23 @@ pub struct BatchConfig {
     pub composition_format: CompositionFormat,
     /// Dry run mode - skip database writes
     pub dry_run: bool,
+    /// Anonymization configuration (optional)
+    pub anonymization: Option<AnonymizationConfig>,
 }
 
 impl BatchConfig {
     /// Create a new batch configuration
-    pub fn new(batch_size: usize, composition_format: CompositionFormat, dry_run: bool) -> Self {
+    pub fn new(
+        batch_size: usize,
+        composition_format: CompositionFormat,
+        dry_run: bool,
+        anonymization: Option<AnonymizationConfig>,
+    ) -> Self {
         Self {
             batch_size,
             composition_format,
             dry_run,
+            anonymization,
         }
     }
 
@@ -39,9 +50,15 @@ impl BatchConfig {
         batch_size: usize,
         composition_format_str: &str,
         dry_run: bool,
+        anonymization: Option<AnonymizationConfig>,
     ) -> Result<Self> {
         let composition_format = CompositionFormat::from_str(composition_format_str)?;
-        Ok(Self::new(batch_size, composition_format, dry_run))
+        Ok(Self::new(
+            batch_size,
+            composition_format,
+            dry_run,
+            anonymization,
+        ))
     }
 }
 
@@ -58,6 +75,21 @@ pub struct BatchResult {
     pub errors: Vec<String>,
     /// Checksums of successfully exported compositions (composition_uid -> checksum)
     pub checksums: HashMap<CompositionUid, String>,
+    /// Anonymization statistics (if anonymization was enabled)
+    pub anonymization_stats: Option<AnonymizationStats>,
+}
+
+/// Statistics for anonymization processing
+#[derive(Debug, Clone)]
+pub struct AnonymizationStats {
+    /// Number of compositions anonymized
+    pub compositions_anonymized: usize,
+    /// Number of compositions that failed anonymization
+    pub anonymization_failures: usize,
+    /// Total PII entities detected
+    pub total_pii_detected: usize,
+    /// Average processing time per composition (milliseconds)
+    pub avg_processing_time_ms: u64,
 }
 
 impl BatchResult {
@@ -69,6 +101,7 @@ impl BatchResult {
             duplicates_skipped: 0,
             errors: Vec::new(),
             checksums: HashMap::new(),
+            anonymization_stats: None,
         }
     }
 
@@ -95,6 +128,25 @@ impl BatchResult {
         self.duplicates_skipped += other.duplicates_skipped;
         self.errors.extend(other.errors);
         self.checksums.extend(other.checksums);
+
+        // Merge anonymization stats if present
+        if let Some(other_stats) = other.anonymization_stats {
+            if let Some(ref mut self_stats) = self.anonymization_stats {
+                self_stats.compositions_anonymized += other_stats.compositions_anonymized;
+                self_stats.anonymization_failures += other_stats.anonymization_failures;
+                self_stats.total_pii_detected += other_stats.total_pii_detected;
+                // Recalculate average processing time
+                let total_comps =
+                    self_stats.compositions_anonymized + other_stats.compositions_anonymized;
+                if total_comps > 0 {
+                    self_stats.avg_processing_time_ms = (self_stats.avg_processing_time_ms
+                        + other_stats.avg_processing_time_ms)
+                        / 2;
+                }
+            } else {
+                self.anonymization_stats = Some(other_stats);
+            }
+        }
     }
 
     /// Add a checksum for a successfully exported composition
@@ -130,15 +182,122 @@ impl BatchProcessor {
         }
     }
 
+    /// Transform and optionally anonymize compositions
+    ///
+    /// This method:
+    /// 1. Transforms compositions to JSON based on format (preserve/flatten)
+    /// 2. Applies anonymization if enabled
+    /// 3. Returns transformed JSON values and anonymization stats
+    async fn transform_and_anonymize(
+        &self,
+        compositions: &[Composition],
+    ) -> Result<(Vec<Value>, Option<AnonymizationStats>)> {
+        let export_mode = if self.config.dry_run {
+            "dry_run"
+        } else {
+            "full"
+        }
+        .to_string();
+
+        // Transform compositions to JSON
+        let mut transformed: Vec<Value> = Vec::with_capacity(compositions.len());
+        for composition in compositions {
+            let json = transform_composition(
+                composition.clone(),
+                self.config.composition_format,
+                export_mode.clone(),
+            )?;
+            transformed.push(json);
+        }
+
+        // Apply anonymization if enabled
+        if let Some(ref anon_config) = self.config.anonymization {
+            if anon_config.enabled {
+                tracing::info!(
+                    mode = ?anon_config.mode,
+                    strategy = ?anon_config.strategy,
+                    dry_run = anon_config.dry_run,
+                    "Anonymizing batch of {} compositions",
+                    transformed.len()
+                );
+
+                // Create anonymization engine
+                let engine = AnonymizationEngine::new(anon_config.clone()).map_err(|e| {
+                    crate::domain::AtlasError::Export(format!(
+                        "Anonymization engine creation failed: {}",
+                        e
+                    ))
+                })?;
+
+                // Anonymize all compositions
+                let anonymized_results =
+                    engine.anonymize_batch(transformed).await.map_err(|e| {
+                        crate::domain::AtlasError::Export(format!("Anonymization failed: {}", e))
+                    })?;
+
+                // Extract anonymized JSON and collect stats
+                let mut anonymized_json = Vec::with_capacity(anonymized_results.len());
+                let mut total_pii = 0;
+                let mut total_time_ms = 0;
+
+                for result in &anonymized_results {
+                    anonymized_json.push(result.anonymized_data.clone());
+                    total_pii += result.detections.len();
+                    total_time_ms += result.processing_time_ms;
+                }
+
+                let stats = AnonymizationStats {
+                    compositions_anonymized: anonymized_results.len(),
+                    anonymization_failures: compositions.len() - anonymized_results.len(),
+                    total_pii_detected: total_pii,
+                    avg_processing_time_ms: if !anonymized_results.is_empty() {
+                        total_time_ms / anonymized_results.len() as u64
+                    } else {
+                        0
+                    },
+                };
+
+                tracing::info!(
+                    anonymized = stats.compositions_anonymized,
+                    pii_detected = stats.total_pii_detected,
+                    avg_time_ms = stats.avg_processing_time_ms,
+                    "Anonymization completed"
+                );
+
+                return Ok((anonymized_json, Some(stats)));
+            }
+        }
+
+        // No anonymization - return transformed JSON as-is
+        Ok((transformed, None))
+    }
+
     /// Process a batch of compositions
     ///
     /// This method:
     /// 1. Transforms compositions to the target format
-    /// 2. Checks for duplicates (FR-2.6)
-    /// 3. Bulk inserts to Cosmos DB
-    /// 4. Handles partial failures (FR-5.3)
-    /// 5. Updates watermarks
-    /// 6. Returns detailed results
+    /// 2. Applies anonymization if enabled (TODO: requires database client refactoring)
+    /// 3. Checks for duplicates (FR-2.6)
+    /// 4. Bulk inserts to database
+    /// 5. Handles partial failures (FR-5.3)
+    /// 6. Updates watermarks
+    /// 7. Returns detailed results
+    ///
+    /// # Note on Anonymization Integration
+    ///
+    /// Currently, anonymization is NOT fully integrated into the pipeline because
+    /// the database client methods (`bulk_insert_compositions`, `bulk_insert_compositions_flattened`)
+    /// accept `Vec<Composition>` and perform transformation internally.
+    ///
+    /// To enable anonymization, the database client interface needs to be refactored to either:
+    /// 1. Accept pre-transformed JSON (`Vec<Value>`) instead of domain objects, OR
+    /// 2. Return transformed JSON for anonymization before database insertion
+    ///
+    /// The `transform_and_anonymize()` method above demonstrates the intended flow.
+    /// For now, anonymization configuration is stored in `BatchConfig` and statistics
+    /// are tracked in `BatchResult`, but the actual anonymization step is deferred.
+    ///
+    /// See: ANONYMIZATION_PROGRESS.md for details on the architecture limitation.
     pub async fn process_batch(
         &self,
         compositions: Vec<Composition>,
@@ -157,8 +316,13 @@ impl BatchProcessor {
             template_id = %template_id.as_str(),
             ehr_id = %ehr_id.as_str(),
             batch_size = compositions.len(),
+            anonymization_enabled = self.config.anonymization.as_ref().map(|c| c.enabled).unwrap_or(false),
             "Processing batch of compositions"
         );
+
+        // TODO: Integrate anonymization here once database client interface is refactored
+        // For now, transformation and anonymization happen inside database client methods
+        // See transform_and_anonymize() method for the intended implementation
 
         // Bulk insert to database using the appropriate method based on format
         let bulk_result = match self.config.composition_format {
@@ -411,20 +575,22 @@ mod tests {
 
     #[test]
     fn test_batch_config_creation() {
-        let config = BatchConfig::new(1000, CompositionFormat::Preserve, false);
+        let config = BatchConfig::new(1000, CompositionFormat::Preserve, false, None);
 
         assert_eq!(config.batch_size, 1000);
         assert_eq!(config.composition_format, CompositionFormat::Preserve);
         assert!(!config.dry_run);
+        assert!(config.anonymization.is_none());
     }
 
     #[test]
     fn test_batch_config_from_config() {
-        let config = BatchConfig::from_config(500, "flatten", false).unwrap();
+        let config = BatchConfig::from_config(500, "flatten", false, None).unwrap();
 
         assert_eq!(config.batch_size, 500);
         assert_eq!(config.composition_format, CompositionFormat::Flatten);
         assert!(!config.dry_run);
+        assert!(config.anonymization.is_none());
     }
 
     #[test]
@@ -481,7 +647,7 @@ mod tests {
         let db_client = Arc::new(MockDatabaseClient::new());
         let state_storage = Arc::new(MockStateStorage::new());
         let state_manager = Arc::new(StateManager::new_with_storage(state_storage));
-        let config = BatchConfig::new(100, CompositionFormat::Preserve, false);
+        let config = BatchConfig::new(100, CompositionFormat::Preserve, false, None);
         let processor = BatchProcessor::new(db_client, state_manager, config);
 
         let template_id = TemplateId::new("vital_signs").unwrap();
@@ -507,7 +673,7 @@ mod tests {
         let db_client = Arc::new(MockDatabaseClient::new().with_insert_result(bulk_result));
         let state_storage = Arc::new(MockStateStorage::new());
         let state_manager = Arc::new(StateManager::new_with_storage(state_storage));
-        let config = BatchConfig::new(100, CompositionFormat::Preserve, false);
+        let config = BatchConfig::new(100, CompositionFormat::Preserve, false, None);
         let processor = BatchProcessor::new(db_client, state_manager, config);
 
         let template_id = TemplateId::new("vital_signs").unwrap();
@@ -540,7 +706,7 @@ mod tests {
         let db_client = Arc::new(MockDatabaseClient::new().with_insert_result(bulk_result));
         let state_storage = Arc::new(MockStateStorage::new());
         let state_manager = Arc::new(StateManager::new_with_storage(state_storage));
-        let config = BatchConfig::new(100, CompositionFormat::Flatten, false);
+        let config = BatchConfig::new(100, CompositionFormat::Flatten, false, None);
         let processor = BatchProcessor::new(db_client, state_manager, config);
 
         let template_id = TemplateId::new("vital_signs").unwrap();
@@ -577,7 +743,7 @@ mod tests {
         let db_client = Arc::new(MockDatabaseClient::new().with_insert_result(bulk_result));
         let state_storage = Arc::new(MockStateStorage::new());
         let state_manager = Arc::new(StateManager::new_with_storage(state_storage));
-        let config = BatchConfig::new(100, CompositionFormat::Preserve, false);
+        let config = BatchConfig::new(100, CompositionFormat::Preserve, false, None);
         let processor = BatchProcessor::new(db_client, state_manager, config);
 
         let template_id = TemplateId::new("vital_signs").unwrap();
@@ -614,7 +780,7 @@ mod tests {
         let db_client = Arc::new(MockDatabaseClient::new().with_insert_result(bulk_result));
         let state_storage = Arc::new(MockStateStorage::new());
         let state_manager = Arc::new(StateManager::new_with_storage(state_storage));
-        let config = BatchConfig::new(100, CompositionFormat::Preserve, true); // dry_run = true
+        let config = BatchConfig::new(100, CompositionFormat::Preserve, true, None); // dry_run = true
         let processor = BatchProcessor::new(db_client, state_manager, config);
 
         let template_id = TemplateId::new("vital_signs").unwrap();
@@ -645,7 +811,7 @@ mod tests {
         let db_client = Arc::new(MockDatabaseClient::new().with_insert_result(bulk_result));
         let state_storage = Arc::new(MockStateStorage::new());
         let state_manager = Arc::new(StateManager::new_with_storage(state_storage));
-        let config = BatchConfig::new(100, CompositionFormat::Preserve, false);
+        let config = BatchConfig::new(100, CompositionFormat::Preserve, false, None);
         let processor = BatchProcessor::new(db_client, state_manager, config);
 
         let template_id = TemplateId::new("vital_signs").unwrap();

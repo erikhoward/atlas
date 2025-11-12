@@ -308,6 +308,9 @@ mod tests {
             template_id: None,
             ehr_id: None,
             mode: None,
+            anonymize: false,
+            anonymize_mode: None,
+            anonymize_dry_run: false,
         };
 
         assert!(!args.yes);
@@ -325,6 +328,9 @@ mod tests {
             template_id: Some("vital_signs.v1".to_string()),
             ehr_id: Some("ehr1,ehr2".to_string()),
             mode: Some("full".to_string()),
+            anonymize: false,
+            anonymize_mode: None,
+            anonymize_dry_run: false,
         };
 
         assert!(args.yes);
