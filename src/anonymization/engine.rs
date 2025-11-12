@@ -1,4 +1,40 @@
 //! Main anonymization engine
+//!
+//! This module provides the core [`AnonymizationEngine`] that orchestrates
+//! PII detection, anonymization, and audit logging for OpenEHR compositions.
+//!
+//! # Architecture
+//!
+//! The engine coordinates three main components:
+//! - **Detector**: Identifies PII in JSON compositions using regex patterns
+//! - **Anonymizer**: Replaces detected PII using the configured strategy
+//! - **Audit Logger**: Records anonymization operations with hashed values
+//!
+//! # Examples
+//!
+//! ```no_run
+//! use atlas::anonymization::{AnonymizationEngine, config::AnonymizationConfig};
+//! use serde_json::json;
+//!
+//! # async fn example() -> anyhow::Result<()> {
+//! // Create engine with default configuration
+//! let config = AnonymizationConfig::default();
+//! let engine = AnonymizationEngine::new(config)?;
+//!
+//! // Anonymize a composition
+//! let composition = json!({
+//!     "uid": "123::local::1",
+//!     "patient": {
+//!         "name": "John Doe",
+//!         "email": "john.doe@example.com"
+//!     }
+//! });
+//!
+//! let result = engine.anonymize_composition(composition).await?;
+//! println!("Detected {} PII entities", result.detections.len());
+//! # Ok(())
+//! # }
+//! ```
 
 use crate::anonymization::{
     anonymizer::{redaction::RedactionStrategy, tokenization::TokenStrategy, Anonymizer},
@@ -14,6 +50,39 @@ use std::sync::Arc;
 use std::time::Instant;
 
 /// Main anonymization engine
+///
+/// Orchestrates PII detection, anonymization, and audit logging for OpenEHR compositions.
+///
+/// # Thread Safety
+///
+/// The engine is thread-safe and can be shared across multiple async tasks using `Arc`.
+/// The detector is internally wrapped in `Arc<dyn PiiDetector>`.
+///
+/// # Performance
+///
+/// - Target overhead: <100ms per composition
+/// - Target throughput impact: <15% compared to non-anonymized export
+/// - Batch processing supported via [`anonymize_batch`](Self::anonymize_batch)
+///
+/// # Examples
+///
+/// ```no_run
+/// use atlas::anonymization::{AnonymizationEngine, config::AnonymizationConfig};
+/// use atlas::anonymization::compliance::ComplianceMode;
+/// use atlas::anonymization::config::AnonymizationStrategy;
+///
+/// # fn example() -> anyhow::Result<()> {
+/// // Create custom configuration
+/// let mut config = AnonymizationConfig::default();
+/// config.enabled = true;
+/// config.mode = ComplianceMode::HipaaSafeHarbor;
+/// config.strategy = AnonymizationStrategy::Token;
+///
+/// // Create engine
+/// let engine = AnonymizationEngine::new(config)?;
+/// # Ok(())
+/// # }
+/// ```
 pub struct AnonymizationEngine {
     config: AnonymizationConfig,
     detector: Arc<dyn PiiDetector>,
@@ -22,6 +91,31 @@ pub struct AnonymizationEngine {
 
 impl AnonymizationEngine {
     /// Create a new anonymization engine
+    ///
+    /// Initializes the engine with the provided configuration, creating:
+    /// - PII detector (regex-based with built-in or custom patterns)
+    /// - Audit logger (if enabled in configuration)
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - Anonymization configuration
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - Configuration validation fails
+    /// - Pattern library file cannot be loaded
+    /// - Audit logger initialization fails
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use atlas::anonymization::{AnonymizationEngine, config::AnonymizationConfig};
+    ///
+    /// let config = AnonymizationConfig::default();
+    /// let engine = AnonymizationEngine::new(config)?;
+    /// # Ok::<(), anyhow::Error>(())
+    /// ```
     pub fn new(config: AnonymizationConfig) -> Result<Self> {
         // Validate configuration
         config
@@ -57,6 +151,53 @@ impl AnonymizationEngine {
     }
 
     /// Anonymize a single composition
+    ///
+    /// Detects and anonymizes PII in a JSON composition according to the configured
+    /// compliance mode and anonymization strategy.
+    ///
+    /// # Behavior
+    ///
+    /// 1. Detects PII using regex patterns
+    /// 2. If dry-run mode: returns original data with detections
+    /// 3. If normal mode: anonymizes detected PII and logs to audit
+    ///
+    /// # Arguments
+    ///
+    /// * `composition` - JSON composition to anonymize
+    ///
+    /// # Returns
+    ///
+    /// Returns an [`AnonymizedComposition`] containing:
+    /// - Anonymized (or original if dry-run) JSON data
+    /// - List of detected PII entities
+    /// - Processing metadata
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - PII detection fails
+    /// - JSON traversal fails
+    /// - Audit logging fails (if enabled)
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use atlas::anonymization::{AnonymizationEngine, config::AnonymizationConfig};
+    /// use serde_json::json;
+    ///
+    /// # async fn example() -> anyhow::Result<()> {
+    /// let config = AnonymizationConfig::default();
+    /// let engine = AnonymizationEngine::new(config)?;
+    ///
+    /// let composition = json!({
+    ///     "uid": "123::local::1",
+    ///     "patient": {"name": "John Doe"}
+    /// });
+    ///
+    /// let result = engine.anonymize_composition(composition).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn anonymize_composition(&self, composition: Value) -> Result<AnonymizedComposition> {
         let start = Instant::now();
 
