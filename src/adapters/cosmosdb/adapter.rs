@@ -70,6 +70,111 @@ impl DatabaseClient for CosmosDbAdapter {
         self.client.ensure_control_container_exists().await
     }
 
+    async fn bulk_insert_json(
+        &self,
+        template_id: &TemplateId,
+        documents: Vec<serde_json::Value>,
+        max_retries: usize,
+        dry_run: bool,
+    ) -> Result<BulkInsertResult> {
+        // Determine format from first document (check if it has "fields" key for flattened format)
+        let is_flattened = documents
+            .first()
+            .and_then(|doc| doc.get("fields"))
+            .is_some();
+
+        if is_flattened {
+            // Convert JSON to CosmosCompositionFlattened
+            let mut cosmos_compositions = Vec::new();
+            for doc in documents {
+                let cosmos_comp: CosmosCompositionFlattened = serde_json::from_value(doc)
+                    .map_err(|e| AtlasError::Serialization(e.to_string()))?;
+                cosmos_compositions.push(cosmos_comp);
+            }
+
+            // If dry-run, skip actual write and return success
+            if dry_run {
+                tracing::info!(
+                    template_id = %template_id.as_str(),
+                    count = cosmos_compositions.len(),
+                    "DRY RUN: Would insert {} compositions (flattened format)",
+                    cosmos_compositions.len()
+                );
+                return Ok(BulkInsertResult {
+                    success_count: cosmos_compositions.len(),
+                    failure_count: 0,
+                    failures: Vec::new(),
+                });
+            }
+
+            // Get container client
+            let container = self.client.get_container_client(template_id);
+
+            // Perform bulk insert
+            let result =
+                cosmos_bulk_insert_flattened(&container, cosmos_compositions, max_retries).await?;
+
+            // Convert CosmosDB BulkInsertResult to trait BulkInsertResult
+            Ok(BulkInsertResult {
+                success_count: result.success_count,
+                failure_count: result.failure_count,
+                failures: result
+                    .failures
+                    .into_iter()
+                    .map(|f| BulkInsertFailure {
+                        document_id: f.document_id,
+                        error: f.error,
+                        is_throttled: f.is_throttled,
+                    })
+                    .collect(),
+            })
+        } else {
+            // Convert JSON to CosmosComposition (preserved format)
+            let mut cosmos_compositions = Vec::new();
+            for doc in documents {
+                let cosmos_comp: CosmosComposition = serde_json::from_value(doc)
+                    .map_err(|e| AtlasError::Serialization(e.to_string()))?;
+                cosmos_compositions.push(cosmos_comp);
+            }
+
+            // If dry-run, skip actual write and return success
+            if dry_run {
+                tracing::info!(
+                    template_id = %template_id.as_str(),
+                    count = cosmos_compositions.len(),
+                    "DRY RUN: Would insert {} compositions (preserved format)",
+                    cosmos_compositions.len()
+                );
+                return Ok(BulkInsertResult {
+                    success_count: cosmos_compositions.len(),
+                    failure_count: 0,
+                    failures: Vec::new(),
+                });
+            }
+
+            // Get container client
+            let container = self.client.get_container_client(template_id);
+
+            // Perform bulk insert
+            let result = cosmos_bulk_insert(&container, cosmos_compositions, max_retries).await?;
+
+            // Convert CosmosDB BulkInsertResult to trait BulkInsertResult
+            Ok(BulkInsertResult {
+                success_count: result.success_count,
+                failure_count: result.failure_count,
+                failures: result
+                    .failures
+                    .into_iter()
+                    .map(|f| BulkInsertFailure {
+                        document_id: f.document_id,
+                        error: f.error,
+                        is_throttled: f.is_throttled,
+                    })
+                    .collect(),
+            })
+        }
+    }
+
     async fn bulk_insert_compositions(
         &self,
         template_id: &TemplateId,

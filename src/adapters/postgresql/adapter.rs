@@ -65,6 +65,127 @@ impl DatabaseClient for PostgreSQLAdapter {
         self.client.ensure_watermarks_table_exists().await
     }
 
+    async fn bulk_insert_json(
+        &self,
+        _template_id: &TemplateId,
+        documents: Vec<serde_json::Value>,
+        _max_retries: usize,
+        dry_run: bool,
+    ) -> Result<BulkInsertResult> {
+        // If dry-run, skip actual write and return success
+        if dry_run {
+            tracing::info!(
+                count = documents.len(),
+                "DRY RUN: Would insert {} compositions into PostgreSQL",
+                documents.len()
+            );
+            return Ok(BulkInsertResult {
+                success_count: documents.len(),
+                failure_count: 0,
+                failures: Vec::new(),
+            });
+        }
+
+        let mut success_count = 0;
+        let mut failures = Vec::new();
+
+        // Determine format from first document (check if it has "fields" key for flattened format)
+        let is_flattened = documents
+            .first()
+            .and_then(|doc| doc.get("fields"))
+            .is_some();
+
+        for doc in documents {
+            let doc_id = doc
+                .get("id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown")
+                .to_string();
+
+            // Convert JSON to PostgreSQLComposition
+            let pg_comp = if is_flattened {
+                match PostgreSQLComposition::from_json_flattened(doc) {
+                    Ok(comp) => comp,
+                    Err(e) => {
+                        failures.push(BulkInsertFailure {
+                            document_id: doc_id,
+                            error: format!("Failed to convert composition: {e}"),
+                            is_throttled: false,
+                        });
+                        continue;
+                    }
+                }
+            } else {
+                match PostgreSQLComposition::from_json_preserved(doc) {
+                    Ok(comp) => comp,
+                    Err(e) => {
+                        failures.push(BulkInsertFailure {
+                            document_id: doc_id,
+                            error: format!("Failed to convert composition: {e}"),
+                            is_throttled: false,
+                        });
+                        continue;
+                    }
+                }
+            };
+
+            // Insert into database
+            let insert_query = r#"
+                INSERT INTO compositions (
+                    id, ehr_id, composition_uid, template_id, time_committed,
+                    content, export_mode, exported_at, atlas_version, checksum
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                ON CONFLICT (id) DO UPDATE SET
+                    time_committed = EXCLUDED.time_committed,
+                    content = EXCLUDED.content,
+                    exported_at = EXCLUDED.exported_at,
+                    checksum = EXCLUDED.checksum
+            "#;
+
+            // Convert content to serde_json::Value for ToSql
+            let content_json = serde_json::to_value(&pg_comp.content)
+                .map_err(|e| AtlasError::Serialization(e.to_string()))?;
+
+            match self
+                .client
+                .execute(
+                    insert_query,
+                    &[
+                        &pg_comp.id,
+                        &pg_comp.ehr_id,
+                        &pg_comp.composition_uid,
+                        &pg_comp.template_id,
+                        &pg_comp.time_committed,
+                        &content_json,
+                        &pg_comp.export_mode,
+                        &pg_comp.exported_at,
+                        &pg_comp.atlas_version,
+                        &pg_comp.checksum,
+                    ],
+                )
+                .await
+            {
+                Ok(_) => {
+                    success_count += 1;
+                }
+                Err(e) => {
+                    failures.push(BulkInsertFailure {
+                        document_id: doc_id,
+                        error: format!("Database insert failed: {e}"),
+                        is_throttled: false,
+                    });
+                }
+            }
+        }
+
+        Ok(BulkInsertResult {
+            success_count,
+            failure_count: failures.len(),
+            failures,
+        })
+    }
+
     async fn bulk_insert_compositions(
         &self,
         _template_id: &TemplateId,

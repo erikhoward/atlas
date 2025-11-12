@@ -839,6 +839,25 @@ mod tests {
             "mock_database"
         }
 
+        async fn bulk_insert_json(
+            &self,
+            _template_id: &TemplateId,
+            _documents: Vec<serde_json::Value>,
+            _max_retries: usize,
+            _dry_run: bool,
+        ) -> Result<BulkInsertResult> {
+            if self.should_fail {
+                return Err(crate::domain::AtlasError::CosmosDb(
+                    crate::domain::CosmosDbError::InsertFailed("Mock insert failed".to_string()),
+                ));
+            }
+            Ok(BulkInsertResult {
+                success_count: _documents.len(),
+                failure_count: 0,
+                failures: vec![],
+            })
+        }
+
         async fn bulk_insert_compositions(
             &self,
             _template_id: &TemplateId,

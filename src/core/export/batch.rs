@@ -276,28 +276,12 @@ impl BatchProcessor {
     ///
     /// This method:
     /// 1. Transforms compositions to the target format
-    /// 2. Applies anonymization if enabled (TODO: requires database client refactoring)
+    /// 2. Applies anonymization if enabled
     /// 3. Checks for duplicates (FR-2.6)
     /// 4. Bulk inserts to database
     /// 5. Handles partial failures (FR-5.3)
     /// 6. Updates watermarks
     /// 7. Returns detailed results
-    ///
-    /// # Note on Anonymization Integration
-    ///
-    /// Currently, anonymization is NOT fully integrated into the pipeline because
-    /// the database client methods (`bulk_insert_compositions`, `bulk_insert_compositions_flattened`)
-    /// accept `Vec<Composition>` and perform transformation internally.
-    ///
-    /// To enable anonymization, the database client interface needs to be refactored to either:
-    /// 1. Accept pre-transformed JSON (`Vec<Value>`) instead of domain objects, OR
-    /// 2. Return transformed JSON for anonymization before database insertion
-    ///
-    /// The `transform_and_anonymize()` method above demonstrates the intended flow.
-    /// For now, anonymization configuration is stored in `BatchConfig` and statistics
-    /// are tracked in `BatchResult`, but the actual anonymization step is deferred.
-    ///
-    /// See: ANONYMIZATION_PROGRESS.md for details on the architecture limitation.
     pub async fn process_batch(
         &self,
         compositions: Vec<Composition>,
@@ -320,35 +304,23 @@ impl BatchProcessor {
             "Processing batch of compositions"
         );
 
-        // TODO: Integrate anonymization here once database client interface is refactored
-        // For now, transformation and anonymization happen inside database client methods
-        // See transform_and_anonymize() method for the intended implementation
+        // Transform and anonymize compositions
+        let (transformed_json, anonymization_stats) =
+            self.transform_and_anonymize(&compositions).await?;
 
-        // Bulk insert to database using the appropriate method based on format
-        let bulk_result = match self.config.composition_format {
-            CompositionFormat::Preserve => {
-                self.database_client
-                    .bulk_insert_compositions(
-                        template_id,
-                        compositions.clone(),
-                        "preserve".to_string(),
-                        3, // max_retries
-                        self.config.dry_run,
-                    )
-                    .await?
-            }
-            CompositionFormat::Flatten => {
-                self.database_client
-                    .bulk_insert_compositions_flattened(
-                        template_id,
-                        compositions.clone(),
-                        "flatten".to_string(),
-                        3, // max_retries
-                        self.config.dry_run,
-                    )
-                    .await?
-            }
-        };
+        // Store anonymization stats in result
+        result.anonymization_stats = anonymization_stats;
+
+        // Bulk insert to database using the new bulk_insert_json method
+        let bulk_result = self
+            .database_client
+            .bulk_insert_json(
+                template_id,
+                transformed_json,
+                3, // max_retries
+                self.config.dry_run,
+            )
+            .await?;
 
         result.successful = bulk_result.success_count;
         result.failed = bulk_result.failure_count;
@@ -456,6 +428,30 @@ mod tests {
 
         fn database_name(&self) -> &str {
             "mock_database"
+        }
+
+        async fn bulk_insert_json(
+            &self,
+            _template_id: &TemplateId,
+            _documents: Vec<serde_json::Value>,
+            _max_retries: usize,
+            _dry_run: bool,
+        ) -> Result<BulkInsertResult> {
+            if self.should_fail {
+                return Err(crate::domain::AtlasError::CosmosDb(
+                    crate::domain::CosmosDbError::InsertFailed("Mock insert failed".to_string()),
+                ));
+            }
+            let mut results = self.insert_results.lock().unwrap();
+            if let Some(result) = results.pop() {
+                Ok(result)
+            } else {
+                Ok(BulkInsertResult {
+                    success_count: _documents.len(),
+                    failure_count: 0,
+                    failures: vec![],
+                })
+            }
         }
 
         async fn bulk_insert_compositions(

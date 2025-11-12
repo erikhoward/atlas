@@ -93,6 +93,196 @@ impl PostgreSQLComposition {
             checksum: None,
         })
     }
+
+    /// Convert from pre-transformed JSON (preserved format)
+    pub fn from_json_preserved(json: Value) -> Result<Self> {
+        let id = json
+            .get("id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                crate::domain::AtlasError::Serialization("Missing 'id' field".to_string())
+            })?
+            .to_string();
+
+        let ehr_id = json
+            .get("ehr_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                crate::domain::AtlasError::Serialization("Missing 'ehr_id' field".to_string())
+            })?
+            .to_string();
+
+        let composition_uid = json
+            .get("composition_uid")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                crate::domain::AtlasError::Serialization(
+                    "Missing 'composition_uid' field".to_string(),
+                )
+            })?
+            .to_string();
+
+        let template_id = json
+            .get("template_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                crate::domain::AtlasError::Serialization("Missing 'template_id' field".to_string())
+            })?
+            .to_string();
+
+        let time_committed = json
+            .get("time_committed")
+            .and_then(|v| v.as_str())
+            .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
+            .map(|dt| dt.with_timezone(&Utc))
+            .ok_or_else(|| {
+                crate::domain::AtlasError::Serialization(
+                    "Missing or invalid 'time_committed' field".to_string(),
+                )
+            })?;
+
+        let content = json.get("content").cloned().ok_or_else(|| {
+            crate::domain::AtlasError::Serialization("Missing 'content' field".to_string())
+        })?;
+
+        let export_mode = json
+            .get("atlas_metadata")
+            .and_then(|m| m.get("export_mode"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("full")
+            .to_string();
+
+        let exported_at = json
+            .get("atlas_metadata")
+            .and_then(|m| m.get("exported_at"))
+            .and_then(|v| v.as_str())
+            .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
+            .map(|dt| dt.with_timezone(&Utc))
+            .unwrap_or_else(Utc::now);
+
+        let atlas_version = json
+            .get("atlas_metadata")
+            .and_then(|m| m.get("atlas_version"))
+            .and_then(|v| v.as_str())
+            .unwrap_or(env!("CARGO_PKG_VERSION"))
+            .to_string();
+
+        let checksum = json
+            .get("atlas_metadata")
+            .and_then(|m| m.get("checksum"))
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+
+        Ok(Self {
+            id,
+            ehr_id,
+            composition_uid,
+            template_id,
+            time_committed,
+            content,
+            export_mode,
+            exported_at,
+            atlas_version,
+            checksum,
+        })
+    }
+
+    /// Convert from pre-transformed JSON (flattened format)
+    pub fn from_json_flattened(json: Value) -> Result<Self> {
+        let id = json
+            .get("id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                crate::domain::AtlasError::Serialization("Missing 'id' field".to_string())
+            })?
+            .to_string();
+
+        let ehr_id = json
+            .get("ehr_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                crate::domain::AtlasError::Serialization("Missing 'ehr_id' field".to_string())
+            })?
+            .to_string();
+
+        let composition_uid = json
+            .get("composition_uid")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                crate::domain::AtlasError::Serialization(
+                    "Missing 'composition_uid' field".to_string(),
+                )
+            })?
+            .to_string();
+
+        let template_id = json
+            .get("template_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                crate::domain::AtlasError::Serialization("Missing 'template_id' field".to_string())
+            })?
+            .to_string();
+
+        let time_committed = json
+            .get("time_committed")
+            .and_then(|v| v.as_str())
+            .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
+            .map(|dt| dt.with_timezone(&Utc))
+            .ok_or_else(|| {
+                crate::domain::AtlasError::Serialization(
+                    "Missing or invalid 'time_committed' field".to_string(),
+                )
+            })?;
+
+        // For flattened format, the fields are at the top level (not in a "content" object)
+        // We need to extract all fields except the metadata fields
+        let content = json.get("fields").cloned().ok_or_else(|| {
+            crate::domain::AtlasError::Serialization(
+                "Missing 'fields' field in flattened format".to_string(),
+            )
+        })?;
+
+        let export_mode = json
+            .get("atlas_metadata")
+            .and_then(|m| m.get("export_mode"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("full")
+            .to_string();
+
+        let exported_at = json
+            .get("atlas_metadata")
+            .and_then(|m| m.get("exported_at"))
+            .and_then(|v| v.as_str())
+            .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
+            .map(|dt| dt.with_timezone(&Utc))
+            .unwrap_or_else(Utc::now);
+
+        let atlas_version = json
+            .get("atlas_metadata")
+            .and_then(|m| m.get("atlas_version"))
+            .and_then(|v| v.as_str())
+            .unwrap_or(env!("CARGO_PKG_VERSION"))
+            .to_string();
+
+        let checksum = json
+            .get("atlas_metadata")
+            .and_then(|m| m.get("checksum"))
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+
+        Ok(Self {
+            id,
+            ehr_id,
+            composition_uid,
+            template_id,
+            time_committed,
+            content,
+            export_mode,
+            exported_at,
+            atlas_version,
+            checksum,
+        })
+    }
 }
 
 /// Watermark document for PostgreSQL storage

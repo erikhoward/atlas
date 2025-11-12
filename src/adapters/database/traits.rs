@@ -80,7 +80,36 @@ pub trait DatabaseClient: Send + Sync {
     /// Returns an error if the control container/table cannot be created.
     async fn ensure_control_container_exists(&self) -> Result<()>;
 
+    /// Bulk insert pre-transformed JSON documents
+    ///
+    /// This is the preferred method for inserting compositions as it allows
+    /// anonymization to be applied to the transformed JSON before database insertion.
+    ///
+    /// # Arguments
+    ///
+    /// * `template_id` - Template ID for the compositions
+    /// * `documents` - Pre-transformed JSON documents to insert
+    /// * `max_retries` - Maximum number of retries for transient failures
+    /// * `dry_run` - If true, skip actual database writes (for testing)
+    ///
+    /// # Returns
+    ///
+    /// Returns a `BulkInsertResult` with success/failure counts.
+    async fn bulk_insert_json(
+        &self,
+        template_id: &TemplateId,
+        documents: Vec<serde_json::Value>,
+        max_retries: usize,
+        dry_run: bool,
+    ) -> Result<BulkInsertResult>;
+
     /// Bulk insert compositions in preserved format
+    ///
+    /// # Deprecated
+    ///
+    /// This method performs transformation internally, preventing anonymization
+    /// from being applied between transformation and database insertion.
+    /// Use `bulk_insert_json` with pre-transformed compositions instead.
     ///
     /// # Arguments
     ///
@@ -103,6 +132,12 @@ pub trait DatabaseClient: Send + Sync {
     ) -> Result<BulkInsertResult>;
 
     /// Bulk insert compositions in flattened format
+    ///
+    /// # Deprecated
+    ///
+    /// This method performs transformation internally, preventing anonymization
+    /// from being applied between transformation and database insertion.
+    /// Use `bulk_insert_json` with pre-transformed compositions instead.
     ///
     /// # Arguments
     ///
