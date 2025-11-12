@@ -1,9 +1,10 @@
 # Anonymization Phase 1 - Implementation Progress
 
-## Status: Core Engine Complete ✅
+## Status: Core Engine + Pipeline Integration Complete ✅
 
-**Branch:** `feature/anonymization-phase1`  
-**Commit:** `f309787` - feat(anonymization): implement Phase 1 core anonymization engine
+**Branch:** `feature/anonymization-phase1`
+**Latest Commit:** `1d1f5cd` - feat(anonymization): refactor database client interface for anonymization integration
+**Initial Commit:** `f309787` - feat(anonymization): implement Phase 1 core anonymization engine
 
 ---
 
@@ -132,30 +133,40 @@ cargo test --lib anonymization
 
 **Note:** Basic dry-run mode is functional (detects PII without anonymizing), but formatted reporting is deferred.
 
-### 11. Pipeline Integration ✅ COMPLETE (Partial - Architecture Limitation)
+### 11. Pipeline Integration ✅ COMPLETE
 - [x] Identified integration point in `src/core/export/batch.rs`
 - [x] Add anonymization configuration to `BatchConfig`
 - [x] Add anonymization statistics to `BatchResult`
 - [x] Create `AnonymizationStats` struct with metrics
 - [x] Update `ExportCoordinator` to pass anonymization config
-- [x] Create `transform_and_anonymize()` demonstration method
+- [x] Create `transform_and_anonymize()` method
 - [x] Update `BatchResult::merge()` to handle anonymization stats
 - [x] Fix all test cases (203/203 tests passing)
-- [ ] Test with preserve mode (blocked by architecture)
-- [ ] Test with flatten mode (blocked by architecture)
+- [x] Refactor database client interface to accept pre-transformed JSON
+- [x] Implement `bulk_insert_json()` in CosmosDB adapter
+- [x] Implement `bulk_insert_json()` in PostgreSQL adapter
+- [x] Update `BatchProcessor.process_batch()` to use new anonymization flow
+- [x] Test with preserve mode (working)
+- [x] Test with flatten mode (working)
 
-**Status:** Infrastructure complete and committed. All tests passing.
+**Status:** ✅ FULLY COMPLETE - Anonymization is now fully integrated into the export pipeline!
 
-**Architecture Blocker:** Current architecture transforms compositions inside database client methods (`bulk_insert_compositions`, `bulk_insert_compositions_flattened`). Anonymization needs to happen on the transformed JSON before database insertion. This requires refactoring the database client interface to:
-1. Accept pre-transformed JSON instead of domain `Composition` objects, OR
-2. Return transformed JSON for anonymization before insertion
+**Architecture Solution:** Refactored the database client interface to add a new `bulk_insert_json()` method that accepts pre-transformed JSON documents instead of domain `Composition` objects. This allows anonymization to be cleanly inserted between transformation and database write.
 
 **Files Modified:**
-- `src/core/export/batch.rs` - Added anonymization config, stats, and demonstration method
-- `src/core/export/coordinator.rs` - Updated to pass anonymization config
-- `src/cli/commands/export.rs` - Fixed test cases for new CLI flags
+- `src/adapters/database/traits.rs` - Added `bulk_insert_json()` method to `DatabaseClient` trait
+- `src/adapters/cosmosdb/adapter.rs` - Implemented `bulk_insert_json()` with automatic format detection
+- `src/adapters/postgresql/adapter.rs` - Implemented `bulk_insert_json()` with automatic format detection
+- `src/adapters/postgresql/models.rs` - Added `from_json_preserved()` and `from_json_flattened()` helper methods
+- `src/core/export/batch.rs` - Updated `process_batch()` to use `transform_and_anonymize()` → `bulk_insert_json()` flow
+- `src/core/export/coordinator.rs` - Updated mock database client for tests
 
-**Recommendation:** The anonymization engine is fully functional and tested. Pipeline integration infrastructure is in place. Full activation can be completed in a follow-up PR after refactoring the database client interface.
+**Key Features:**
+- Automatic format detection (checks for 'fields' key to distinguish flattened vs preserved)
+- Dry-run support with proper logging
+- Error handling with detailed failure tracking
+- Backward compatibility (old methods marked as deprecated but still functional)
+- All 203 tests passing
 
 ### 13-18. Testing & Documentation
 - [ ] Integration tests with synthetic test data
@@ -189,28 +200,28 @@ cargo test --lib anonymization
                   └──────────────────┘
 ```
 
-### Integration Point (Needs Refactoring)
+### Integration Point ✅ REFACTORED
 ```
-Current Flow:
-  Composition (domain) → DatabaseClient.bulk_insert_compositions()
-                         ↓
-                    transform_composition()
-                         ↓
-                    CosmosComposition (JSON)
-                         ↓
-                    Database Write
-
-Desired Flow:
+New Flow (Anonymization Enabled):
   Composition (domain) → transform_composition()
                          ↓
-                    CosmosComposition (JSON)
+                    JSON Value
                          ↓
-                    AnonymizationEngine.anonymize_composition()
+                  AnonymizationEngine.anonymize_composition()
                          ↓
-                    Anonymized JSON
+                  Anonymized JSON Value
+                         ↓
+                  DatabaseClient.bulk_insert_json()
                          ↓
                     Database Write
 ```
+
+**Implementation Details:**
+- `BatchProcessor.transform_and_anonymize()` handles transformation and anonymization
+- `DatabaseClient.bulk_insert_json()` accepts pre-transformed JSON documents
+- Automatic format detection (preserve vs flatten) based on JSON structure
+- Anonymization stats tracked in `BatchResult.anonymization_stats`
+- All existing tests updated and passing
 
 ---
 
