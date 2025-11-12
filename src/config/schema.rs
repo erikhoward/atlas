@@ -67,6 +67,10 @@ pub struct AtlasConfig {
     /// Logging configuration
     #[serde(default)]
     pub logging: LoggingConfig,
+
+    /// Anonymization configuration (optional)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub anonymization: Option<crate::anonymization::config::AnonymizationConfig>,
 }
 
 impl AtlasConfig {
@@ -109,6 +113,14 @@ impl AtlasConfig {
         self.state.validate()?;
         self.verification.validate()?;
         self.logging.validate()?;
+
+        // Validate anonymization configuration if present
+        if let Some(ref config) = self.anonymization {
+            config
+                .validate()
+                .map_err(|e| format!("Invalid anonymization configuration: {}", e))?;
+        }
+
         Ok(())
     }
 }

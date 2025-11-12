@@ -170,6 +170,7 @@
 //! - [Architecture Documentation](https://github.com/erikhoward/atlas/blob/main/docs/architecture.md)
 
 pub mod adapters;
+pub mod anonymization;
 pub mod cli;
 pub mod config;
 pub mod core;
