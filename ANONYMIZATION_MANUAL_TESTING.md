@@ -113,9 +113,9 @@ azure_enabled = false
 # Anonymization configuration (add this section)
 [anonymization]
 enabled = true
-mode = "HipaaSafeHarbor"  # or "Gdpr"
-strategy = "Token"         # or "Redact"
-dry_run = true             # Start with dry-run for testing
+mode = "hipaa_safe_harbor"  # or "gdpr"
+strategy = "token"          # or "redact"
+dry_run = true              # Start with dry-run for testing
 
 [anonymization.audit]
 enabled = true
@@ -134,9 +134,9 @@ json_format = true
 
 [anonymization]
 enabled = true
-mode = "HipaaSafeHarbor"  # HipaaSafeHarbor | Gdpr
-strategy = "Token"         # Token | Redact
-dry_run = true             # Start with dry-run for testing
+mode = "hipaa_safe_harbor"  # hipaa_safe_harbor | gdpr
+strategy = "token"          # token | redact
+dry_run = true              # Start with dry-run for testing
 
 [anonymization.audit]
 enabled = true
@@ -148,11 +148,11 @@ json_format = true
 
 - `enabled`: Set to `true` to enable anonymization
 - `mode`:
-  - `HipaaSafeHarbor` - Detects 18 HIPAA Safe Harbor identifiers
-  - `Gdpr` - Detects HIPAA identifiers + GDPR quasi-identifiers
+  - `"hipaa_safe_harbor"` - Detects 18 HIPAA Safe Harbor identifiers
+  - `"gdpr"` - Detects HIPAA identifiers + GDPR quasi-identifiers
 - `strategy`:
-  - `Token` - Replace PII with random tokens (e.g., `TOKEN_EMAIL_a1b2c3d4`)
-  - `Redact` - Replace PII with `[REDACTED_*]` markers
+  - `"token"` - Replace PII with random tokens (e.g., `TOKEN_EMAIL_a1b2c3d4`)
+  - `"redact"` - Replace PII with `[REDACTED_*]` markers
 - `dry_run`:
   - `true` - Detect PII and show report, but don't anonymize or write to database
   - `false` - Actually anonymize data and write to database
@@ -186,8 +186,8 @@ export ATLAS_POSTGRESQL_PASSWORD="your-postgres-password"
 
 # Anonymization settings (override TOML)
 export ATLAS_ANONYMIZATION_ENABLED=true
-export ATLAS_ANONYMIZATION_MODE=HipaaSafeHarbor  # or Gdpr
-export ATLAS_ANONYMIZATION_STRATEGY=Token        # or Redact
+export ATLAS_ANONYMIZATION_MODE=hipaa_safe_harbor  # or gdpr
+export ATLAS_ANONYMIZATION_STRATEGY=token          # or redact
 export ATLAS_ANONYMIZATION_DRY_RUN=false
 
 # Audit logging
@@ -225,8 +225,8 @@ The export command supports these CLI arguments:
    ```toml
    [anonymization]
    enabled = true
-   mode = "HipaaSafeHarbor"
-   strategy = "Token"
+   mode = "hipaa_safe_harbor"
+   strategy = "token"
    dry_run = true  # Enable dry-run
    ```
 
@@ -278,12 +278,12 @@ The export command supports these CLI arguments:
 
 **Steps**:
 
-1. Configure HIPAA mode in `config/atlas.toml`:
+1. Configure HIPAA mode in `atlas.toml`:
    ```toml
    [anonymization]
    enabled = true
-   mode = "HipaaSafeHarbor"
-   strategy = "Token"
+   mode = "hipaa_safe_harbor"
+   strategy = "token"
    dry_run = false  # Disable dry-run to actually anonymize
    ```
 
@@ -334,12 +334,12 @@ The export command supports these CLI arguments:
 
 **Steps**:
 
-1. Configure GDPR mode in `config/atlas.toml`:
+1. Configure GDPR mode in `atlas.toml`:
    ```toml
    [anonymization]
    enabled = true
-   mode = "Gdpr"
-   strategy = "Token"
+   mode = "gdpr"
+   strategy = "token"
    dry_run = false
    ```
 
@@ -369,12 +369,12 @@ The export command supports these CLI arguments:
 
 **Steps**:
 
-1. Configure redaction strategy in `config/atlas.toml`:
+1. Configure redaction strategy in `atlas.toml`:
    ```toml
    [anonymization]
    enabled = true
-   mode = "HipaaSafeHarbor"
-   strategy = "Redact"  # Use redaction instead of tokens
+   mode = "hipaa_safe_harbor"
+   strategy = "redact"  # Use redaction instead of tokens
    dry_run = true       # Use dry-run to see samples
    ```
 
@@ -402,12 +402,12 @@ The export command supports these CLI arguments:
 
 **Steps**:
 
-1. Configure tokenization strategy in `config/atlas.toml`:
+1. Configure tokenization strategy in `atlas.toml`:
    ```toml
    [anonymization]
    enabled = true
-   mode = "HipaaSafeHarbor"
-   strategy = "Token"  # Use tokenization
+   mode = "hipaa_safe_harbor"
+   strategy = "token"  # Use tokenization
    dry_run = true      # Use dry-run to see samples
    ```
 
@@ -436,12 +436,12 @@ The export command supports these CLI arguments:
 
 **Steps**:
 
-1. Enable audit logging in `config/atlas.toml`:
+1. Enable audit logging in `atlas.toml`:
    ```toml
    [anonymization]
    enabled = true
-   mode = "HipaaSafeHarbor"
-   strategy = "Token"
+   mode = "hipaa_safe_harbor"
+   strategy = "token"
    dry_run = false
 
    [anonymization.audit]
@@ -558,12 +558,12 @@ Record:
 
 ### Anonymization Performance
 
-1. Enable anonymization in `config/atlas.toml`:
+1. Enable anonymization in `atlas.toml`:
    ```toml
    [anonymization]
    enabled = true
-   mode = "HipaaSafeHarbor"
-   strategy = "Token"
+   mode = "hipaa_safe_harbor"
+   strategy = "token"
    dry_run = false
    ```
 
