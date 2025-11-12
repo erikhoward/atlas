@@ -185,7 +185,7 @@ impl AnonymizationEngine {
     /// use atlas::anonymization::{AnonymizationEngine, config::AnonymizationConfig};
     /// use serde_json::json;
     ///
-    /// # async fn example() -> anyhow::Result<()> {
+    /// # fn example() -> anyhow::Result<()> {
     /// let config = AnonymizationConfig::default();
     /// let engine = AnonymizationEngine::new(config)?;
     ///
@@ -194,11 +194,11 @@ impl AnonymizationEngine {
     ///     "patient": {"name": "John Doe"}
     /// });
     ///
-    /// let result = engine.anonymize_composition(composition).await?;
+    /// let result = engine.anonymize_composition(composition)?;
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn anonymize_composition(&self, composition: Value) -> Result<AnonymizedComposition> {
+    pub fn anonymize_composition(&self, composition: Value) -> Result<AnonymizedComposition> {
         let start = Instant::now();
 
         // Extract composition ID
@@ -245,20 +245,16 @@ impl AnonymizationEngine {
     }
 
     /// Anonymize a batch of compositions
-    pub async fn anonymize_batch(
-        &self,
-        compositions: Vec<Value>,
-    ) -> Result<Vec<AnonymizedComposition>> {
+    pub fn anonymize_batch(&self, compositions: Vec<Value>) -> Result<Vec<AnonymizedComposition>> {
         let mut results = Vec::with_capacity(compositions.len());
 
         for composition in compositions {
-            match self.anonymize_composition(composition).await {
+            match self.anonymize_composition(composition) {
                 Ok(result) => results.push(result),
                 Err(e) => {
-                    // Log error and continue (fail-safe mode)
+                    // Log error and skip this composition (fail-safe mode)
+                    // Don't include unanonymized data
                     tracing::error!(error = ?e, "Failed to anonymize composition");
-                    // Skip this composition - don't include unanonymized data
-                    continue;
                 }
             }
         }
@@ -267,7 +263,7 @@ impl AnonymizationEngine {
     }
 
     /// Anonymize a batch and generate a dry-run report
-    pub async fn anonymize_batch_with_report(
+    pub fn anonymize_batch_with_report(
         &self,
         compositions: Vec<Value>,
     ) -> Result<(Vec<AnonymizedComposition>, DryRunReport)> {
@@ -276,18 +272,17 @@ impl AnonymizationEngine {
 
         for composition in compositions {
             let start = Instant::now();
-            match self.anonymize_composition(composition).await {
+            match self.anonymize_composition(composition) {
                 Ok(result) => {
                     let processing_time = start.elapsed().as_millis() as u64;
                     report.add_composition(&result, processing_time);
                     results.push(result);
                 }
                 Err(e) => {
-                    // Log error and continue (fail-safe mode)
+                    // Log error and skip this composition (fail-safe mode)
+                    // Don't include unanonymized data
                     tracing::error!(error = ?e, "Failed to anonymize composition");
                     report.add_warning(format!("Failed to anonymize composition: {}", e));
-                    // Skip this composition - don't include unanonymized data
-                    continue;
                 }
             }
         }
@@ -297,10 +292,10 @@ impl AnonymizationEngine {
 
     /// Anonymize a JSON value based on detected PII
     fn anonymize_value(&self, value: &Value, detections: &[PiiEntity]) -> Result<Value> {
-        let mut anonymized = value.clone();
+        let mut anonymized_value = value.clone();
 
         // Create anonymizer based on strategy
-        let mut anonymizer: Box<dyn Anonymizer> = match self.config.strategy {
+        let mut strategy: Box<dyn Anonymizer> = match self.config.strategy {
             AnonymizationStrategy::Redact => Box::new(RedactionStrategy::new()),
             AnonymizationStrategy::Token => Box::new(TokenStrategy::new()),
             AnonymizationStrategy::Generalize => {
@@ -311,10 +306,10 @@ impl AnonymizationEngine {
 
         // Apply anonymization to each detection
         for detection in detections {
-            self.apply_anonymization(&mut anonymized, detection, anonymizer.as_mut())?;
+            self.apply_anonymization(&mut anonymized_value, detection, strategy.as_mut())?;
         }
 
-        Ok(anonymized)
+        Ok(anonymized_value)
     }
 
     /// Apply anonymization to a specific field path
@@ -381,8 +376,8 @@ mod tests {
         assert!(engine.is_ok());
     }
 
-    #[tokio::test]
-    async fn test_anonymize_composition() {
+    #[test]
+    fn test_anonymize_composition() {
         let mut config = AnonymizationConfig::default();
         config.enabled = true;
         config.strategy = AnonymizationStrategy::Redact;
@@ -396,13 +391,13 @@ mod tests {
             }
         });
 
-        let result = engine.anonymize_composition(composition).await.unwrap();
+        let result = engine.anonymize_composition(composition).unwrap();
         assert_eq!(result.original_id, "comp-123");
         assert!(!result.detections.is_empty());
     }
 
-    #[tokio::test]
-    async fn test_dry_run_mode() {
+    #[test]
+    fn test_dry_run_mode() {
         let mut config = AnonymizationConfig::default();
         config.enabled = true;
         config.dry_run = true;
@@ -417,7 +412,7 @@ mod tests {
         });
 
         let original = composition.clone();
-        let result = engine.anonymize_composition(composition).await.unwrap();
+        let result = engine.anonymize_composition(composition).unwrap();
 
         // In dry-run mode, data should not be modified
         assert_eq!(result.anonymized_data, original);

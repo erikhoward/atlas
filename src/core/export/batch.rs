@@ -230,10 +230,9 @@ impl BatchProcessor {
                 })?;
 
                 // Anonymize all compositions
-                let anonymized_results =
-                    engine.anonymize_batch(transformed).await.map_err(|e| {
-                        crate::domain::AtlasError::Export(format!("Anonymization failed: {}", e))
-                    })?;
+                let anonymized_results = engine.anonymize_batch(transformed).map_err(|e| {
+                    crate::domain::AtlasError::Export(format!("Anonymization failed: {}", e))
+                })?;
 
                 // Extract anonymized JSON and collect stats
                 let mut anonymized_json = Vec::with_capacity(anonymized_results.len());
