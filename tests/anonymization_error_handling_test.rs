@@ -8,6 +8,7 @@ use atlas::anonymization::{
 use serde_json::json;
 use std::path::PathBuf;
 
+#[allow(dead_code)]
 fn create_test_config(strategy: AnonymizationStrategy, dry_run: bool) -> AnonymizationConfig {
     AnonymizationConfig {
         enabled: true,
@@ -65,7 +66,7 @@ async fn test_malformed_json_handling() {
     // Valid JSON but unusual structure
     let composition = json!("just a string");
 
-    let result = engine.anonymize_composition(composition).await;
+    let result = engine.anonymize_composition(composition);
 
     // Should handle gracefully
     assert!(result.is_ok());
@@ -91,12 +92,12 @@ async fn test_extremely_large_composition() {
     // Create a composition with 1000 fields
     let mut fields = serde_json::Map::new();
     for i in 0..1000 {
-        fields.insert(format!("field_{}", i), json!(format!("value_{}", i)));
+        fields.insert(format!("field_{i}"), json!(format!("value_{i}")));
     }
 
     let composition = json!(fields);
 
-    let result = engine.anonymize_composition(composition).await;
+    let result = engine.anonymize_composition(composition);
 
     // Should handle large compositions
     assert!(result.is_ok());
@@ -131,7 +132,7 @@ async fn test_concurrent_anonymization() {
                 "email": format!("test{}@example.com", i)
             });
 
-            engine_clone.anonymize_composition(composition).await
+            engine_clone.anonymize_composition(composition)
         });
         handles.push(handle);
     }
@@ -168,7 +169,6 @@ async fn test_batch_with_mixed_valid_invalid() {
 
     let results = engine
         .anonymize_batch(batch)
-        .await
         .expect("Batch processing failed");
 
     // All should succeed
@@ -196,7 +196,6 @@ async fn test_strategy_switching() {
 
     let result_redact = engine_redact
         .anonymize_composition(composition.clone())
-        .await
         .expect("Redact failed");
 
     // Test with Token strategy
@@ -217,7 +216,6 @@ async fn test_strategy_switching() {
 
     let result_token = engine_token
         .anonymize_composition(composition)
-        .await
         .expect("Token failed");
 
     // Both should succeed but with different strategies
@@ -249,7 +247,6 @@ async fn test_compliance_mode_switching() {
 
     let result_hipaa = engine_hipaa
         .anonymize_composition(composition.clone())
-        .await
         .expect("HIPAA mode failed");
 
     // Test with GDPR mode
@@ -270,7 +267,6 @@ async fn test_compliance_mode_switching() {
 
     let result_gdpr = engine_gdpr
         .anonymize_composition(composition)
-        .await
         .expect("GDPR mode failed");
 
     // GDPR should detect more (includes quasi-identifiers like occupation)
@@ -301,7 +297,6 @@ async fn test_dry_run_preserves_original() {
 
     let result = engine
         .anonymize_composition(original.clone())
-        .await
         .expect("Dry run failed");
 
     // In dry-run mode, original data should be preserved

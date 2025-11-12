@@ -61,7 +61,7 @@ use std::fmt;
 /// // HIPAA Safe Harbor for US healthcare
 /// let mode = ComplianceMode::HipaaSafeHarbor;
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum ComplianceMode {
     /// GDPR compliance (European Union)
@@ -73,6 +73,7 @@ pub enum ComplianceMode {
     /// - Ethnicity/race
     /// - Age
     /// - Gender
+    #[default]
     Gdpr,
 
     /// HIPAA Safe Harbor compliance (United States)
@@ -97,12 +98,6 @@ pub enum ComplianceMode {
     /// 17. Full-face photographs
     /// 18. Any other unique identifying number
     HipaaSafeHarbor,
-}
-
-impl Default for ComplianceMode {
-    fn default() -> Self {
-        Self::Gdpr
-    }
 }
 
 impl fmt::Display for ComplianceMode {

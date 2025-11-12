@@ -282,7 +282,7 @@ impl AnonymizationEngine {
                     // Log error and skip this composition (fail-safe mode)
                     // Don't include unanonymized data
                     tracing::error!(error = ?e, "Failed to anonymize composition");
-                    report.add_warning(format!("Failed to anonymize composition: {}", e));
+                    report.add_warning(format!("Failed to anonymize composition: {e}"));
                 }
             }
         }
@@ -329,6 +329,7 @@ impl AnonymizationEngine {
     }
 
     /// Replace value at a specific JSON path
+    #[allow(clippy::only_used_in_recursion)]
     fn replace_at_path(&self, value: &mut Value, path: &[&str], replacement: &str) -> Result<()> {
         if path.is_empty() {
             return Ok(());
@@ -378,9 +379,11 @@ mod tests {
 
     #[test]
     fn test_anonymize_composition() {
-        let mut config = AnonymizationConfig::default();
-        config.enabled = true;
-        config.strategy = AnonymizationStrategy::Redact;
+        let config = AnonymizationConfig {
+            enabled: true,
+            strategy: AnonymizationStrategy::Redact,
+            ..Default::default()
+        };
 
         let engine = AnonymizationEngine::new(config).unwrap();
 
@@ -398,9 +401,11 @@ mod tests {
 
     #[test]
     fn test_dry_run_mode() {
-        let mut config = AnonymizationConfig::default();
-        config.enabled = true;
-        config.dry_run = true;
+        let config = AnonymizationConfig {
+            enabled: true,
+            dry_run: true,
+            ..Default::default()
+        };
 
         let engine = AnonymizationEngine::new(config).unwrap();
 

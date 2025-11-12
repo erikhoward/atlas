@@ -175,11 +175,11 @@ impl DryRunReport {
     pub fn format_console(&self) -> String {
         let mut output = String::new();
 
-        output.push_str("\n");
+        output.push('\n');
         output.push_str("═══════════════════════════════════════════════════════════════\n");
         output.push_str("                 ANONYMIZATION DRY-RUN REPORT                  \n");
         output.push_str("═══════════════════════════════════════════════════════════════\n");
-        output.push_str("\n");
+        output.push('\n');
 
         // Summary statistics
         output.push_str("📊 SUMMARY\n");
@@ -204,7 +204,7 @@ impl DryRunReport {
             "  Avg Processing Time:         {} ms\n",
             self.stats.avg_processing_time_ms
         ));
-        output.push_str("\n");
+        output.push('\n');
 
         // PII by category
         if !self.detections_by_category.is_empty() {
@@ -221,7 +221,7 @@ impl DryRunReport {
                     count
                 ));
             }
-            output.push_str("\n");
+            output.push('\n');
         }
 
         // Sample anonymizations
@@ -240,7 +240,7 @@ impl DryRunReport {
                 output.push_str(&format!("    Original:    \"{}\"\n", sample.original));
                 output.push_str(&format!("    Anonymized:  \"{}\"\n", sample.anonymized));
             }
-            output.push_str("\n");
+            output.push('\n');
         }
 
         // Warnings
@@ -248,13 +248,13 @@ impl DryRunReport {
             output.push_str("⚠️  WARNINGS\n");
             output.push_str("───────────────────────────────────────────────────────────────\n");
             for warning in &self.warnings {
-                output.push_str(&format!("  • {}\n", warning));
+                output.push_str(&format!("  • {warning}\n"));
             }
-            output.push_str("\n");
+            output.push('\n');
         }
 
         output.push_str("═══════════════════════════════════════════════════════════════\n");
-        output.push_str("\n");
+        output.push('\n');
 
         output
     }
@@ -266,9 +266,7 @@ impl DryRunReport {
 
     /// Write report to file
     pub fn write_to_file(&self, path: &std::path::Path) -> std::io::Result<()> {
-        let json = self
-            .format_json()
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        let json = self.format_json().map_err(std::io::Error::other)?;
         std::fs::write(path, json)
     }
 }

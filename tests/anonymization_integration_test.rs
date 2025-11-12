@@ -234,7 +234,7 @@ async fn test_end_to_end_anonymization_preserve_mode() {
 
     let result = engine
         .anonymize_composition(composition)
-        .await
+        
         .expect("Failed to anonymize composition");
 
     // Verify PII was detected
@@ -246,13 +246,13 @@ async fn test_end_to_end_anonymization_preserve_mode() {
     // Verify specific PII categories were detected
     let categories: Vec<_> = result.detections.iter().map(|d| d.category).collect();
     assert!(
-        categories.len() > 0,
+        !categories.is_empty(),
         "Should have detected multiple PII categories"
     );
 
     // Verify anonymized data doesn't contain original PII
     // Note: Phase 1 focuses on detection; full replacement in nested structures is Phase 2
-    let anonymized_str = serde_json::to_string(&result.anonymized_data).unwrap();
+    let _anonymized_str = serde_json::to_string(&result.anonymized_data).unwrap();
     // Just verify that anonymization was attempted
     assert!(result.total_detections() > 0, "Should detect PII");
 }
@@ -277,7 +277,7 @@ async fn test_end_to_end_anonymization_flatten_mode() {
 
     let result = engine
         .anonymize_composition(composition)
-        .await
+        
         .expect("Failed to anonymize composition");
 
     // Verify PII was detected and redacted
@@ -306,7 +306,7 @@ async fn test_dry_run_mode_integration() {
 
     let result = engine
         .anonymize_composition(original)
-        .await
+        
         .expect("Failed to process dry-run");
 
     // Verify PII was detected
@@ -336,7 +336,7 @@ async fn test_hipaa_safe_harbor_compliance() {
 
     let result = engine
         .anonymize_composition(composition)
-        .await
+        
         .expect("Failed to anonymize");
 
     // Verify HIPAA identifiers were detected
@@ -367,7 +367,7 @@ async fn test_gdpr_compliance() {
 
     let result = engine
         .anonymize_composition(composition)
-        .await
+        
         .expect("Failed to anonymize");
 
     // GDPR should detect HIPAA identifiers + quasi-identifiers (occupation)
@@ -403,7 +403,7 @@ async fn test_batch_processing_integration() {
 
     let results = engine
         .anonymize_batch(batch)
-        .await
+        
         .expect("Failed to process batch");
 
     assert_eq!(results.len(), 3, "Should process all compositions in batch");
@@ -435,7 +435,7 @@ async fn test_composition_minimal_pii() {
 
     let result = engine
         .anonymize_composition(composition)
-        .await
+        
         .expect("Failed to process composition");
 
     // Should detect minimal or no PII (may detect dates/UIDs)
@@ -466,7 +466,7 @@ async fn test_performance_metrics() {
 
     let result = engine
         .anonymize_composition(composition)
-        .await
+        
         .expect("Failed to anonymize");
 
     // Verify processing time is recorded
@@ -506,7 +506,7 @@ async fn test_batch_with_report() {
 
     let (results, report) = engine
         .anonymize_batch_with_report(batch)
-        .await
+        
         .expect("Failed to process batch with report");
 
     assert_eq!(results.len(), 2);

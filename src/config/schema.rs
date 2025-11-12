@@ -118,7 +118,7 @@ impl AtlasConfig {
         if let Some(ref config) = self.anonymization {
             config
                 .validate()
-                .map_err(|e| format!("Invalid anonymization configuration: {}", e))?;
+                .map_err(|e| format!("Invalid anonymization configuration: {e}"))?;
         }
 
         Ok(())
