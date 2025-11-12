@@ -31,6 +31,18 @@ pub struct ExportArgs {
     /// Override export mode (full or incremental)
     #[arg(long)]
     pub mode: Option<String>,
+
+    /// Enable anonymization of PHI/PII data
+    #[arg(long)]
+    pub anonymize: bool,
+
+    /// Anonymization compliance mode (gdpr or hipaa_safe_harbor)
+    #[arg(long, value_name = "MODE")]
+    pub anonymize_mode: Option<String>,
+
+    /// Anonymization dry-run - detect PII without anonymizing
+    #[arg(long)]
+    pub anonymize_dry_run: bool,
 }
 
 impl ExportArgs {
@@ -70,6 +82,51 @@ impl ExportArgs {
         if self.dry_run {
             tracing::info!("Enabling dry-run mode from CLI");
             config.export.dry_run = true;
+        }
+
+        // Apply anonymization flags from CLI
+        if self.anonymize {
+            tracing::info!("Enabling anonymization from CLI");
+            if config.anonymization.is_none() {
+                config.anonymization =
+                    Some(crate::anonymization::config::AnonymizationConfig::default());
+            }
+            if let Some(ref mut anon_config) = config.anonymization {
+                anon_config.enabled = true;
+            }
+        }
+
+        if let Some(ref mode_str) = self.anonymize_mode {
+            tracing::info!(mode = %mode_str, "Overriding anonymization mode from CLI");
+            if config.anonymization.is_none() {
+                config.anonymization =
+                    Some(crate::anonymization::config::AnonymizationConfig::default());
+            }
+            if let Some(ref mut anon_config) = config.anonymization {
+                anon_config.mode = match mode_str.to_lowercase().as_str() {
+                    "gdpr" => crate::anonymization::compliance::ComplianceMode::Gdpr,
+                    "hipaa_safe_harbor" | "hipaa" => {
+                        crate::anonymization::compliance::ComplianceMode::HipaaSafeHarbor
+                    }
+                    _ => {
+                        tracing::error!(mode = %mode_str, "Invalid anonymization mode");
+                        eprintln!("Invalid anonymization mode: {mode_str}. Use 'gdpr' or 'hipaa_safe_harbor'");
+                        return Ok(2);
+                    }
+                };
+            }
+        }
+
+        if self.anonymize_dry_run {
+            tracing::info!("Enabling anonymization dry-run mode from CLI");
+            if config.anonymization.is_none() {
+                config.anonymization =
+                    Some(crate::anonymization::config::AnonymizationConfig::default());
+            }
+            if let Some(ref mut anon_config) = config.anonymization {
+                anon_config.dry_run = true;
+                anon_config.enabled = true; // Enable anonymization for dry-run
+            }
         }
 
         // Validate configuration

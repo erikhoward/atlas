@@ -64,6 +64,8 @@ uuid = { version = "1.0", features = ["v4", "serde"] }
 base64 = "0.22"
 sha2 = "0.10"
 regex = "1.12.2"
+fancy-regex = "0.13"
+rand = "0.8"
 tracing-appender = "0.2.3"
 async-trait = "0.1.89"
 futures = "0.3.31"
@@ -81,3 +83,4 @@ deadpool-postgres = { version = "0.14.1", features = ["rt_tokio_1"] }
 mockito = "1.0"
 tempfile = "3.0"
 test-case = "3.0"
+fake = { version = "2.9", features = ["derive", "chrono"] }
