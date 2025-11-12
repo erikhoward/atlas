@@ -63,6 +63,7 @@ impl ExportCoordinator {
             config.openehr.query.batch_size,
             &config.export.export_composition_format,
             config.export.dry_run,
+            config.anonymization.clone(),
         )?;
 
         // Create batch processor
