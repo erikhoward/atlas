@@ -116,7 +116,7 @@
 //! #     template_id: TemplateId,
 //! #     ehr_id: EhrId,
 //! # ) -> Result<(), Box<dyn std::error::Error>> {
-//! let batch_config = BatchConfig::new(1000, CompositionFormat::Preserve, false);
+//! let batch_config = BatchConfig::new(1000, CompositionFormat::Preserve, false, None);
 //! let batch_processor = BatchProcessor::new(database_client, state_manager.clone(), batch_config);
 //!
 //! // Process batch of compositions
