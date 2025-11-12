@@ -1,4 +1,4 @@
-// Atlas - OpenEHR to Azure Cosmos DB ETL Tool
+// Atlas - OpenEHR ETL Tool
 // Copyright (c) 2025 Atlas Contributors
 // Licensed under the MIT License
 
@@ -41,7 +41,7 @@ async fn main() {
 
     tracing::info!(
         version = env!("CARGO_PKG_VERSION"),
-        "Atlas - OpenEHR to Azure Cosmos DB ETL Tool"
+        "Atlas - OpenEHR ETL Tool"
     );
 
     // Create shutdown signal channel for graceful shutdown
