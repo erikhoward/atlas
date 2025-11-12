@@ -35,59 +35,87 @@ cargo test
 
 ### 3. Prepare Configuration File
 
-Atlas uses a TOML configuration file for database and OpenEHR settings. Create or edit `config/atlas.toml`:
+Atlas uses a TOML configuration file for database and OpenEHR settings.
+
+**If you already have `atlas.toml`**, simply add the `[anonymization]` section at the end (see below).
+
+**If you need to create a new config**, use:
+```bash
+./target/release/atlas init --with-examples
+```
+
+**Minimal configuration example** (`atlas.toml`):
 
 ```toml
-[application]
-name = "atlas"
-version = "0.1.0"
+# Database target selection
+database_target = "cosmosdb"  # or "postgresql"
 
-environment = "development"
+# Runtime environment (affects TLS validation)
+environment = "development"  # or "staging" or "production"
+
+[application]
+log_level = "info"
+dry_run = false
 
 [openehr]
-base_url = "https://your-openehr-server.com"
-username = "your-username"
-password = "your-password"  # Or use environment variable ATLAS_OPENEHR_PASSWORD
+base_url = "https://your-openehr-server.com/ehrbase/rest/openehr/v1"
+vendor = "ehrbase"
+auth_type = "basic"
+username = "${ATLAS_OPENEHR_USERNAME}"
+password = "${ATLAS_OPENEHR_PASSWORD}"
+tls_verify = true
+
+[openehr.query]
+template_ids = ["HTN_Monitoring.v1"]
+batch_size = 1000
+parallel_ehrs = 8
 
 [export]
 mode = "incremental"  # or "full"
-batch_size = 100
-format = "preserve"   # or "flatten"
-
-# Database target selection
-database_target = "cosmosdb"  # or "postgresql"
+export_composition_format = "preserve"  # or "flatten"
+max_retries = 3
+retry_backoff_ms = [1000, 2000, 4000]
 
 # Cosmos DB configuration (if using cosmosdb)
 [cosmosdb]
 endpoint = "https://your-account.documents.azure.com:443/"
-database_name = "your-database"
-container_name = "your-container"
-key = "your-key"  # Or use environment variable ATLAS_COSMOSDB_KEY
+key = "${ATLAS_COSMOSDB_KEY}"
+database_name = "openehr_data"
+control_container = "atlas_control"
+data_container_prefix = "compositions"
+partition_key = "/ehr_id"
+max_concurrency = 10
+request_timeout_seconds = 60
 
 # PostgreSQL configuration (if using postgresql)
 # [postgresql]
-# host = "localhost"
-# port = 5432
-# database = "atlas"
-# username = "postgres"
-# password = "your-password"  # Or use environment variable ATLAS_POSTGRESQL_PASSWORD
+# connection_string = "postgresql://atlas_user:${ATLAS_PG_PASSWORD}@localhost:5432/openehr_data?sslmode=require"
+# max_connections = 20
+# connection_timeout_seconds = 30
+# statement_timeout_seconds = 60
+# ssl_mode = "require"
 
 [state]
-storage_type = "cosmosdb"  # or "postgresql" or "file"
+enable_checkpointing = true
+checkpoint_interval_seconds = 30
 
 [verification]
-enabled = false
+enable_verification = false
+checksum_algorithm = "sha256"
 
 [logging]
-level = "info"
-format = "json"
+local_enabled = true
+local_path = "/var/log/atlas"
+local_rotation = "daily"
+local_max_size_mb = 100
+azure_enabled = false
 
 # Anonymization configuration (add this section)
 [anonymization]
 enabled = true
 mode = "HipaaSafeHarbor"  # or "Gdpr"
 strategy = "Token"         # or "Redact"
-dry_run = false
+dry_run = true             # Start with dry-run for testing
 
 [anonymization.audit]
 enabled = true
@@ -95,7 +123,41 @@ log_path = "./audit/anonymization.log"
 json_format = true
 ```
 
-### 4. Prepare Test Data
+### 4. Add Anonymization Configuration
+
+**To enable anonymization, add this section to your existing `atlas.toml`:**
+
+```toml
+# ============================================================================
+# ANONYMIZATION (Phase 1)
+# ============================================================================
+
+[anonymization]
+enabled = true
+mode = "HipaaSafeHarbor"  # HipaaSafeHarbor | Gdpr
+strategy = "Token"         # Token | Redact
+dry_run = true             # Start with dry-run for testing
+
+[anonymization.audit]
+enabled = true
+log_path = "./audit/anonymization.log"
+json_format = true
+```
+
+**Configuration Options:**
+
+- `enabled`: Set to `true` to enable anonymization
+- `mode`:
+  - `HipaaSafeHarbor` - Detects 18 HIPAA Safe Harbor identifiers
+  - `Gdpr` - Detects HIPAA identifiers + GDPR quasi-identifiers
+- `strategy`:
+  - `Token` - Replace PII with random tokens (e.g., `TOKEN_EMAIL_a1b2c3d4`)
+  - `Redact` - Replace PII with `[REDACTED_*]` markers
+- `dry_run`:
+  - `true` - Detect PII and show report, but don't anonymize or write to database
+  - `false` - Actually anonymize data and write to database
+
+### 5. Prepare Test Data
 
 You'll need access to an OpenEHR server with test compositions containing PII. The configuration file specifies which server and database to use.
 
