@@ -33,42 +33,56 @@ cargo test
 # - 56 doctests passing
 ```
 
-### 3. Prepare Test Data
+### 3. Prepare Configuration File
 
-You'll need access to an OpenEHR server with test compositions containing PII. Alternatively, you can use the synthetic data from the integration tests.
-
----
-
-## Configuration
-
-### Option 1: Environment Variables
-
-Set the following environment variables:
-
-```bash
-# Enable anonymization
-export ATLAS_ANONYMIZATION_ENABLED=true
-
-# Set compliance mode (HipaaSafeHarbor or Gdpr)
-export ATLAS_ANONYMIZATION_MODE=HipaaSafeHarbor
-
-# Set anonymization strategy (Redact or Token)
-export ATLAS_ANONYMIZATION_STRATEGY=Token
-
-# Enable dry-run mode (optional - for testing without anonymizing)
-export ATLAS_ANONYMIZATION_DRY_RUN=false
-
-# Enable audit logging (optional)
-export ATLAS_ANONYMIZATION_AUDIT_ENABLED=true
-export ATLAS_ANONYMIZATION_AUDIT_LOG_PATH=./audit/anonymization.log
-export ATLAS_ANONYMIZATION_AUDIT_JSON_FORMAT=true
-```
-
-### Option 2: TOML Configuration File
-
-Create or edit `config/atlas.toml`:
+Atlas uses a TOML configuration file for database and OpenEHR settings. Create or edit `config/atlas.toml`:
 
 ```toml
+[application]
+name = "atlas"
+version = "0.1.0"
+
+environment = "development"
+
+[openehr]
+base_url = "https://your-openehr-server.com"
+username = "your-username"
+password = "your-password"  # Or use environment variable ATLAS_OPENEHR_PASSWORD
+
+[export]
+mode = "incremental"  # or "full"
+batch_size = 100
+format = "preserve"   # or "flatten"
+
+# Database target selection
+database_target = "cosmosdb"  # or "postgresql"
+
+# Cosmos DB configuration (if using cosmosdb)
+[cosmosdb]
+endpoint = "https://your-account.documents.azure.com:443/"
+database_name = "your-database"
+container_name = "your-container"
+key = "your-key"  # Or use environment variable ATLAS_COSMOSDB_KEY
+
+# PostgreSQL configuration (if using postgresql)
+# [postgresql]
+# host = "localhost"
+# port = 5432
+# database = "atlas"
+# username = "postgres"
+# password = "your-password"  # Or use environment variable ATLAS_POSTGRESQL_PASSWORD
+
+[state]
+storage_type = "cosmosdb"  # or "postgresql" or "file"
+
+[verification]
+enabled = false
+
+[logging]
+level = "info"
+format = "json"
+
+# Anonymization configuration (add this section)
 [anonymization]
 enabled = true
 mode = "HipaaSafeHarbor"  # or "Gdpr"
@@ -81,6 +95,58 @@ log_path = "./audit/anonymization.log"
 json_format = true
 ```
 
+### 4. Prepare Test Data
+
+You'll need access to an OpenEHR server with test compositions containing PII. The configuration file specifies which server and database to use.
+
+---
+
+## Configuration
+
+Atlas configuration is managed through a combination of TOML files and environment variables (following 12-factor app principles).
+
+### Primary Configuration: TOML File
+
+The main configuration is in `config/atlas.toml` (see Prerequisites section above for full example).
+
+### Environment Variable Overrides
+
+You can override specific settings using environment variables:
+
+```bash
+# OpenEHR credentials (recommended for secrets)
+export ATLAS_OPENEHR_PASSWORD="your-password"
+
+# Database credentials
+export ATLAS_COSMOSDB_KEY="your-cosmos-key"
+# or
+export ATLAS_POSTGRESQL_PASSWORD="your-postgres-password"
+
+# Anonymization settings (override TOML)
+export ATLAS_ANONYMIZATION_ENABLED=true
+export ATLAS_ANONYMIZATION_MODE=HipaaSafeHarbor  # or Gdpr
+export ATLAS_ANONYMIZATION_STRATEGY=Token        # or Redact
+export ATLAS_ANONYMIZATION_DRY_RUN=false
+
+# Audit logging
+export ATLAS_ANONYMIZATION_AUDIT_ENABLED=true
+export ATLAS_ANONYMIZATION_AUDIT_LOG_PATH=./audit/anonymization.log
+export ATLAS_ANONYMIZATION_AUDIT_JSON_FORMAT=true
+```
+
+### CLI Argument Overrides
+
+The export command supports these CLI arguments:
+
+- `--template-id <ID>` - Override template ID(s) to export (comma-separated)
+- `--ehr-id <ID>` - Override EHR ID(s) to export (comma-separated)
+- `--mode <MODE>` - Override export mode (full or incremental)
+- `--anonymize` - Enable anonymization (overrides config)
+- `--anonymize-mode <MODE>` - Set compliance mode (gdpr or hipaa_safe_harbor)
+- `--anonymize-dry-run` - Enable dry-run mode (detect only, don't anonymize)
+- `--dry-run` - Dry run entire export (don't write to database)
+- `--yes` or `-y` - Skip confirmation prompts
+
 ---
 
 ## Test Scenarios
@@ -91,19 +157,27 @@ json_format = true
 
 **Steps**:
 
-1. Enable dry-run mode:
+1. Configure `config/atlas.toml` with your OpenEHR and database settings (see Prerequisites).
+
+2. Enable anonymization dry-run mode in the config:
+   ```toml
+   [anonymization]
+   enabled = true
+   mode = "HipaaSafeHarbor"
+   strategy = "Token"
+   dry_run = true  # Enable dry-run
+   ```
+
+   Or use environment variable:
    ```bash
    export ATLAS_ANONYMIZATION_DRY_RUN=true
    ```
 
-2. Run export with anonymization flags:
+3. Run export with anonymization flags:
    ```bash
    ./target/release/atlas export \
-     --openehr-url "https://your-openehr-server.com" \
-     --template-id "your.template.v1" \
-     --database-type cosmosdb \
+     --template-id "HTN_Monitoring.v1" \
      --anonymize \
-     --anonymize-mode hipaa \
      --anonymize-dry-run
    ```
 
@@ -142,20 +216,21 @@ json_format = true
 
 **Steps**:
 
-1. Configure HIPAA mode:
-   ```bash
-   export ATLAS_ANONYMIZATION_MODE=HipaaSafeHarbor
-   export ATLAS_ANONYMIZATION_DRY_RUN=false
+1. Configure HIPAA mode in `config/atlas.toml`:
+   ```toml
+   [anonymization]
+   enabled = true
+   mode = "HipaaSafeHarbor"
+   strategy = "Token"
+   dry_run = false  # Disable dry-run to actually anonymize
    ```
 
 2. Run export:
    ```bash
    ./target/release/atlas export \
-     --openehr-url "https://your-openehr-server.com" \
-     --template-id "your.template.v1" \
-     --database-type cosmosdb \
+     --template-id "HTN_Monitoring.v1" \
      --anonymize \
-     --anonymize-mode hipaa
+     --anonymize-mode hipaa_safe_harbor
    ```
 
 3. Query the database to verify anonymization:
@@ -197,18 +272,19 @@ json_format = true
 
 **Steps**:
 
-1. Configure GDPR mode:
-   ```bash
-   export ATLAS_ANONYMIZATION_MODE=Gdpr
-   export ATLAS_ANONYMIZATION_DRY_RUN=false
+1. Configure GDPR mode in `config/atlas.toml`:
+   ```toml
+   [anonymization]
+   enabled = true
+   mode = "Gdpr"
+   strategy = "Token"
+   dry_run = false
    ```
 
 2. Run export:
    ```bash
    ./target/release/atlas export \
-     --openehr-url "https://your-openehr-server.com" \
-     --template-id "your.template.v1" \
-     --database-type postgresql \
+     --template-id "HTN_Monitoring.v1" \
      --anonymize \
      --anonymize-mode gdpr
    ```
@@ -231,19 +307,20 @@ json_format = true
 
 **Steps**:
 
-1. Configure redaction strategy:
-   ```bash
-   export ATLAS_ANONYMIZATION_STRATEGY=Redact
+1. Configure redaction strategy in `config/atlas.toml`:
+   ```toml
+   [anonymization]
+   enabled = true
+   mode = "HipaaSafeHarbor"
+   strategy = "Redact"  # Use redaction instead of tokens
+   dry_run = true       # Use dry-run to see samples
    ```
 
-2. Run export with dry-run to see samples:
+2. Run export:
    ```bash
    ./target/release/atlas export \
-     --openehr-url "https://your-openehr-server.com" \
-     --template-id "your.template.v1" \
-     --database-type cosmosdb \
+     --template-id "HTN_Monitoring.v1" \
      --anonymize \
-     --anonymize-strategy redact \
      --anonymize-dry-run
    ```
 
@@ -263,19 +340,20 @@ json_format = true
 
 **Steps**:
 
-1. Configure tokenization strategy:
-   ```bash
-   export ATLAS_ANONYMIZATION_STRATEGY=Token
+1. Configure tokenization strategy in `config/atlas.toml`:
+   ```toml
+   [anonymization]
+   enabled = true
+   mode = "HipaaSafeHarbor"
+   strategy = "Token"  # Use tokenization
+   dry_run = true      # Use dry-run to see samples
    ```
 
-2. Run export with dry-run:
+2. Run export:
    ```bash
    ./target/release/atlas export \
-     --openehr-url "https://your-openehr-server.com" \
-     --template-id "your.template.v1" \
-     --database-type cosmosdb \
+     --template-id "HTN_Monitoring.v1" \
      --anonymize \
-     --anonymize-strategy token \
      --anonymize-dry-run
    ```
 
@@ -296,11 +374,18 @@ json_format = true
 
 **Steps**:
 
-1. Enable audit logging:
-   ```bash
-   export ATLAS_ANONYMIZATION_AUDIT_ENABLED=true
-   export ATLAS_ANONYMIZATION_AUDIT_LOG_PATH=./audit/test_audit.log
-   export ATLAS_ANONYMIZATION_AUDIT_JSON_FORMAT=true
+1. Enable audit logging in `config/atlas.toml`:
+   ```toml
+   [anonymization]
+   enabled = true
+   mode = "HipaaSafeHarbor"
+   strategy = "Token"
+   dry_run = false
+
+   [anonymization.audit]
+   enabled = true
+   log_path = "./audit/test_audit.log"
+   json_format = true
    ```
 
 2. Create audit directory:
@@ -311,9 +396,7 @@ json_format = true
 3. Run export:
    ```bash
    ./target/release/atlas export \
-     --openehr-url "https://your-openehr-server.com" \
-     --template-id "your.template.v1" \
-     --database-type cosmosdb \
+     --template-id "HTN_Monitoring.v1" \
      --anonymize
    ```
 
@@ -369,13 +452,21 @@ Query the database and verify:
 **HIPAA Test**:
 ```bash
 # Should detect 18 HIPAA identifier types
-./target/release/atlas export --anonymize --anonymize-mode hipaa --anonymize-dry-run
+./target/release/atlas export \
+  --template-id "HTN_Monitoring.v1" \
+  --anonymize \
+  --anonymize-mode hipaa_safe_harbor \
+  --anonymize-dry-run
 ```
 
 **GDPR Test**:
 ```bash
 # Should detect HIPAA + quasi-identifiers
-./target/release/atlas export --anonymize --anonymize-mode gdpr --anonymize-dry-run
+./target/release/atlas export \
+  --template-id "HTN_Monitoring.v1" \
+  --anonymize \
+  --anonymize-mode gdpr \
+  --anonymize-dry-run
 ```
 
 Compare detection counts - GDPR should detect ≥ HIPAA.
@@ -386,12 +477,17 @@ Compare detection counts - GDPR should detect ≥ HIPAA.
 
 ### Baseline Performance (Without Anonymization)
 
-```bash
-time ./target/release/atlas export \
-  --openehr-url "https://your-openehr-server.com" \
-  --template-id "your.template.v1" \
-  --database-type cosmosdb
-```
+1. Disable anonymization in `config/atlas.toml`:
+   ```toml
+   [anonymization]
+   enabled = false
+   ```
+
+2. Run export and measure:
+   ```bash
+   time ./target/release/atlas export \
+     --template-id "HTN_Monitoring.v1"
+   ```
 
 Record:
 - Total time
@@ -400,13 +496,21 @@ Record:
 
 ### Anonymization Performance
 
-```bash
-time ./target/release/atlas export \
-  --openehr-url "https://your-openehr-server.com" \
-  --template-id "your.template.v1" \
-  --database-type cosmosdb \
-  --anonymize
-```
+1. Enable anonymization in `config/atlas.toml`:
+   ```toml
+   [anonymization]
+   enabled = true
+   mode = "HipaaSafeHarbor"
+   strategy = "Token"
+   dry_run = false
+   ```
+
+2. Run export and measure:
+   ```bash
+   time ./target/release/atlas export \
+     --template-id "HTN_Monitoring.v1" \
+     --anonymize
+   ```
 
 Record:
 - Total time
