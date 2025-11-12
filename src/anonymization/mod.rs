@@ -19,7 +19,7 @@
 //!
 //! let config = AnonymizationConfig::default();
 //! let engine = AnonymizationEngine::new(config)?;
-//! let anonymized = engine.anonymize_composition(composition).await?;
+//! let anonymized = engine.anonymize_composition(composition)?;
 //! ```
 
 pub mod anonymizer;
