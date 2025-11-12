@@ -49,7 +49,7 @@ use std::path::PathBuf;
 /// let strategy = AnonymizationStrategy::Token;
 /// assert_eq!(strategy, AnonymizationStrategy::default());
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum AnonymizationStrategy {
     /// Replace with `[REDACTED_CATEGORY]` markers
@@ -63,18 +63,13 @@ pub enum AnonymizationStrategy {
     ///
     /// Tokens are unique per PII value within a single export run,
     /// maintaining referential integrity for analytics.
+    #[default]
     Token,
 
     /// Replace with generalized values (Phase I - minimal implementation)
     ///
     /// Example: `"1985-03-15"` → `"1985"`
     Generalize,
-}
-
-impl Default for AnonymizationStrategy {
-    fn default() -> Self {
-        Self::Token
-    }
 }
 
 /// Anonymization configuration for Phase I
@@ -259,7 +254,7 @@ impl AnonymizationConfig {
             self.mode = match val.to_lowercase().as_str() {
                 "gdpr" => ComplianceMode::Gdpr,
                 "hipaa_safe_harbor" => ComplianceMode::HipaaSafeHarbor,
-                _ => anyhow::bail!("Invalid ATLAS_ANONYMIZATION_MODE: {}", val),
+                _ => anyhow::bail!("Invalid ATLAS_ANONYMIZATION_MODE: {val}"),
             };
         }
 
@@ -268,7 +263,7 @@ impl AnonymizationConfig {
                 "redact" => AnonymizationStrategy::Redact,
                 "token" => AnonymizationStrategy::Token,
                 "generalize" => AnonymizationStrategy::Generalize,
-                _ => anyhow::bail!("Invalid ATLAS_ANONYMIZATION_STRATEGY: {}", val),
+                _ => anyhow::bail!("Invalid ATLAS_ANONYMIZATION_STRATEGY: {val}"),
             };
         }
 

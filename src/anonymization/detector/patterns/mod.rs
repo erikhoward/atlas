@@ -44,65 +44,72 @@ pub struct PatternRegistry {
 impl PatternRegistry {
     /// Create a new pattern registry from a TOML file
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let content = std::fs::read_to_string(path.as_ref())
-            .with_context(|| format!("Failed to read pattern library: {}", path.as_ref().display()))?;
-        
+        let content = std::fs::read_to_string(path.as_ref()).with_context(|| {
+            format!(
+                "Failed to read pattern library: {}",
+                path.as_ref().display()
+            )
+        })?;
+
         Self::from_toml(&content)
     }
-    
+
     /// Create a pattern registry from TOML content
     pub fn from_toml(content: &str) -> Result<Self> {
-        let library: PatternLibrary = toml::from_str(content)
-            .context("Failed to parse pattern library TOML")?;
-        
+        let library: PatternLibrary =
+            toml::from_str(content).context("Failed to parse pattern library TOML")?;
+
         let mut patterns = Vec::new();
         let mut patterns_by_category: HashMap<PiiCategory, Vec<CompiledPattern>> = HashMap::new();
-        
+
         for (name, def) in library.patterns {
-            let category = Self::parse_category(&def.category)
-                .with_context(|| format!("Invalid category in pattern '{}': {}", name, def.category))?;
-            
+            let category = Self::parse_category(&def.category).with_context(|| {
+                format!("Invalid category in pattern '{}': {}", name, def.category)
+            })?;
+
             for pattern_str in &def.patterns {
                 let regex = Regex::new(pattern_str)
-                    .with_context(|| format!("Invalid regex in pattern '{}': {}", name, pattern_str))?;
-                
+                    .with_context(|| format!("Invalid regex in pattern '{name}': {pattern_str}"))?;
+
                 let compiled = CompiledPattern {
                     regex,
                     category,
                     confidence: def.confidence,
                 };
-                
+
                 patterns.push(compiled.clone());
                 patterns_by_category
                     .entry(category)
-                    .or_insert_with(Vec::new)
+                    .or_default()
                     .push(compiled);
             }
         }
-        
+
         Ok(Self {
             patterns,
             patterns_by_category,
         })
     }
-    
+
     /// Create a default pattern registry with built-in patterns
     pub fn default_patterns() -> Result<Self> {
         // Use embedded default patterns
         let default_toml = include_str!("../../../../patterns/pii_patterns.toml");
         Self::from_toml(default_toml)
     }
-    
+
     /// Get all patterns
     pub fn all_patterns(&self) -> &[CompiledPattern] {
         &self.patterns
     }
-    
+
     /// Get patterns for a specific category
     pub fn patterns_for_category(&self, category: PiiCategory) -> Option<&[CompiledPattern]> {
-        self.patterns_by_category.get(&category).map(|v| v.as_slice())
+        self.patterns_by_category
+            .get(&category)
+            .map(|v| v.as_slice())
     }
-    
+
     /// Parse category string to PiiCategory enum
     fn parse_category(s: &str) -> Result<PiiCategory> {
         match s.to_uppercase().as_str() {
@@ -130,7 +137,7 @@ impl PatternRegistry {
             "ETHNICITY" => Ok(PiiCategory::Ethnicity),
             "AGE" => Ok(PiiCategory::Age),
             "GENDER" => Ok(PiiCategory::Gender),
-            _ => anyhow::bail!("Unknown PII category: {}", s),
+            _ => anyhow::bail!("Unknown PII category: {s}"),
         }
     }
 }
@@ -150,7 +157,7 @@ mod tests {
         let registry = PatternRegistry::default_patterns().unwrap();
         let email_patterns = registry.patterns_for_category(PiiCategory::Email).unwrap();
         assert!(!email_patterns.is_empty());
-        
+
         let pattern = &email_patterns[0];
         assert!(pattern.regex.is_match("test@example.com"));
         assert!(!pattern.regex.is_match("not-an-email"));
@@ -161,11 +168,10 @@ mod tests {
         let registry = PatternRegistry::default_patterns().unwrap();
         let phone_patterns = registry.patterns_for_category(PiiCategory::Phone).unwrap();
         assert!(!phone_patterns.is_empty());
-        
+
         // Test US phone format
         let text = "Call me at (555) 123-4567";
         let has_match = phone_patterns.iter().any(|p| p.regex.is_match(text));
         assert!(has_match);
     }
 }
-

@@ -92,7 +92,7 @@ impl AuditLogger {
         let mut hasher = Sha256::new();
         hasher.update(value.as_bytes());
         let result = hasher.finalize();
-        format!("{:x}", result)
+        format!("{result:x}")
     }
 
     /// Write an audit entry to the log file
@@ -106,7 +106,7 @@ impl AuditLogger {
         if self.json_format {
             let json_line =
                 serde_json::to_string(entry).context("Failed to serialize audit entry")?;
-            writeln!(file, "{}", json_line).context("Failed to write audit entry")?;
+            writeln!(file, "{json_line}").context("Failed to write audit entry")?;
         } else {
             // Plain text format
             writeln!(

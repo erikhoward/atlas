@@ -21,7 +21,7 @@ impl RegexDetector {
             confidence_threshold: 0.7,
         })
     }
-    
+
     /// Create a new regex detector with custom pattern registry
     pub fn with_registry(registry: PatternRegistry) -> Self {
         Self {
@@ -29,22 +29,22 @@ impl RegexDetector {
             confidence_threshold: 0.7,
         }
     }
-    
+
     /// Set the confidence threshold
     pub fn with_confidence_threshold(mut self, threshold: f32) -> Self {
         self.confidence_threshold = threshold.clamp(0.0, 1.0);
         self
     }
-    
+
     /// Detect PII in a string value
     fn detect_in_string(&self, text: &str, field_path: &str) -> Result<Vec<PiiEntity>> {
         let mut entities = Vec::new();
-        
+
         for pattern in self.pattern_registry.all_patterns() {
             if pattern.confidence < self.confidence_threshold {
                 continue;
             }
-            
+
             for capture in pattern.regex.captures_iter(text) {
                 if let Some(matched) = capture.get(0) {
                     let mut entity = PiiEntity::with_position(
@@ -60,11 +60,12 @@ impl RegexDetector {
                 }
             }
         }
-        
+
         Ok(entities)
     }
-    
+
     /// Check if a field name suggests it might contain free text
+    #[allow(dead_code)]
     fn is_free_text_field(field_name: &str) -> bool {
         let field_lower = field_name.to_lowercase();
         field_lower.contains("comment")
@@ -75,9 +76,14 @@ impl RegexDetector {
             || field_lower.contains("summary")
             || field_lower.contains("observation")
     }
-    
+
     /// Recursively traverse JSON and detect PII
-    fn traverse_json(&self, value: &Value, path: &str, entities: &mut Vec<PiiEntity>) -> Result<()> {
+    fn traverse_json(
+        &self,
+        value: &Value,
+        path: &str,
+        entities: &mut Vec<PiiEntity>,
+    ) -> Result<()> {
         match value {
             Value::String(s) => {
                 // Detect PII in string values
@@ -89,14 +95,14 @@ impl RegexDetector {
                     let new_path = if path.is_empty() {
                         key.clone()
                     } else {
-                        format!("{}.{}", path, key)
+                        format!("{path}.{key}")
                     };
                     self.traverse_json(val, &new_path, entities)?;
                 }
             }
             Value::Array(arr) => {
                 for (idx, val) in arr.iter().enumerate() {
-                    let new_path = format!("{}[{}]", path, idx);
+                    let new_path = format!("{path}[{idx}]");
                     self.traverse_json(val, &new_path, entities)?;
                 }
             }
@@ -114,17 +120,18 @@ impl PiiDetector for RegexDetector {
         self.traverse_json(value, field_path, &mut entities)?;
         Ok(entities)
     }
-    
-    fn detect_in_field(&self, field_name: &str, field_value: &str, field_path: &str) -> Result<Vec<PiiEntity>> {
-        // For structured fields, we can be more targeted
-        // For free-text fields, scan the entire content
-        if Self::is_free_text_field(field_name) || field_value.len() > 50 {
-            self.detect_in_string(field_value, field_path)
-        } else {
-            self.detect_in_string(field_value, field_path)
-        }
+
+    fn detect_in_field(
+        &self,
+        _field_name: &str,
+        field_value: &str,
+        field_path: &str,
+    ) -> Result<Vec<PiiEntity>> {
+        // For both structured and free-text fields, scan the entire content
+        // Future enhancement: could use field_name for more targeted detection
+        self.detect_in_string(field_value, field_path)
     }
-    
+
     fn confidence_threshold(&self) -> f32 {
         self.confidence_threshold
     }
@@ -144,17 +151,23 @@ mod tests {
     #[test]
     fn test_detect_email() {
         let detector = RegexDetector::new().unwrap();
-        let entities = detector.detect_in_string("Contact: john.doe@example.com", "test.field").unwrap();
-        
+        let entities = detector
+            .detect_in_string("Contact: john.doe@example.com", "test.field")
+            .unwrap();
+
         assert!(!entities.is_empty());
-        assert!(entities.iter().any(|e| e.original_value.contains("@example.com")));
+        assert!(entities
+            .iter()
+            .any(|e| e.original_value.contains("@example.com")));
     }
 
     #[test]
     fn test_detect_phone() {
         let detector = RegexDetector::new().unwrap();
-        let entities = detector.detect_in_string("Call (555) 123-4567", "test.field").unwrap();
-        
+        let entities = detector
+            .detect_in_string("Call (555) 123-4567", "test.field")
+            .unwrap();
+
         assert!(!entities.is_empty());
     }
 
@@ -167,10 +180,10 @@ mod tests {
                 "phone": "(555) 123-4567"
             }
         });
-        
+
         let entities = detector.detect(&data, "").unwrap();
         assert!(!entities.is_empty());
-        
+
         // Should detect both email and phone
         let has_email = entities.iter().any(|e| e.original_value.contains("@"));
         let has_phone = entities.iter().any(|e| e.original_value.contains("555"));
@@ -186,4 +199,3 @@ mod tests {
         assert!(!RegexDetector::is_free_text_field("patient_id"));
     }
 }
-

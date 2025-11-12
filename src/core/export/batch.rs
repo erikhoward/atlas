@@ -224,14 +224,13 @@ impl BatchProcessor {
                 // Create anonymization engine
                 let engine = AnonymizationEngine::new(anon_config.clone()).map_err(|e| {
                     crate::domain::AtlasError::Export(format!(
-                        "Anonymization engine creation failed: {}",
-                        e
+                        "Anonymization engine creation failed: {e}"
                     ))
                 })?;
 
                 // Anonymize all compositions
                 let anonymized_results = engine.anonymize_batch(transformed).map_err(|e| {
-                    crate::domain::AtlasError::Export(format!("Anonymization failed: {}", e))
+                    crate::domain::AtlasError::Export(format!("Anonymization failed: {e}"))
                 })?;
 
                 // Extract anonymized JSON and collect stats
