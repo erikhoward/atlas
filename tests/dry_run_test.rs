@@ -12,7 +12,7 @@ use std::str::FromStr;
 
 #[test]
 fn test_batch_config_with_dry_run() {
-    let config = BatchConfig::from_config(1000, "preserve", true).unwrap();
+    let config = BatchConfig::from_config(1000, "preserve", true, None).unwrap();
 
     assert_eq!(config.batch_size, 1000);
     assert!(config.dry_run);
@@ -20,7 +20,7 @@ fn test_batch_config_with_dry_run() {
 
 #[test]
 fn test_batch_config_without_dry_run() {
-    let config = BatchConfig::from_config(1000, "preserve", false).unwrap();
+    let config = BatchConfig::from_config(1000, "preserve", false, None).unwrap();
 
     assert_eq!(config.batch_size, 1000);
     assert!(!config.dry_run);
@@ -126,10 +126,10 @@ fn test_dry_run_preserves_watermark_logic() {
 #[test]
 fn test_batch_config_dry_run_propagation() {
     // Test that dry_run flag is properly stored in BatchConfig
-    let config_with_dry_run = BatchConfig::from_config(500, "flatten", true).unwrap();
+    let config_with_dry_run = BatchConfig::from_config(500, "flatten", true, None).unwrap();
     assert!(config_with_dry_run.dry_run);
 
-    let config_without_dry_run = BatchConfig::from_config(500, "flatten", false).unwrap();
+    let config_without_dry_run = BatchConfig::from_config(500, "flatten", false, None).unwrap();
     assert!(!config_without_dry_run.dry_run);
 }
 
@@ -178,10 +178,10 @@ fn test_dry_run_flag_independence() {
 #[test]
 fn test_batch_config_all_formats_with_dry_run() {
     // Test dry_run with preserve format
-    let preserve_config = BatchConfig::from_config(1000, "preserve", true).unwrap();
+    let preserve_config = BatchConfig::from_config(1000, "preserve", true, None).unwrap();
     assert!(preserve_config.dry_run);
 
     // Test dry_run with flatten format
-    let flatten_config = BatchConfig::from_config(1000, "flatten", true).unwrap();
+    let flatten_config = BatchConfig::from_config(1000, "flatten", true, None).unwrap();
     assert!(flatten_config.dry_run);
 }

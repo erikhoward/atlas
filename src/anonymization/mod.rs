@@ -22,16 +22,17 @@
 //! let anonymized = engine.anonymize_composition(composition).await?;
 //! ```
 
-pub mod config;
-pub mod engine;
-pub mod detector;
 pub mod anonymizer;
 pub mod audit;
 pub mod compliance;
+pub mod config;
+pub mod detector;
+pub mod engine;
 pub mod models;
+pub mod report;
 
 // Re-export main types
 pub use config::AnonymizationConfig;
 pub use engine::AnonymizationEngine;
-pub use models::{PiiCategory, PiiEntity, AnonymizedComposition};
-
+pub use models::{AnonymizedComposition, PiiCategory, PiiEntity};
+pub use report::DryRunReport;
