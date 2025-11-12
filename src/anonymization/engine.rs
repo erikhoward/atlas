@@ -16,7 +16,7 @@
 //! use atlas::anonymization::{AnonymizationEngine, config::AnonymizationConfig};
 //! use serde_json::json;
 //!
-//! # async fn example() -> anyhow::Result<()> {
+//! # fn example() -> anyhow::Result<()> {
 //! // Create engine with default configuration
 //! let config = AnonymizationConfig::default();
 //! let engine = AnonymizationEngine::new(config)?;
@@ -30,7 +30,7 @@
 //!     }
 //! });
 //!
-//! let result = engine.anonymize_composition(composition).await?;
+//! let result = engine.anonymize_composition(composition)?;
 //! println!("Detected {} PII entities", result.detections.len());
 //! # Ok(())
 //! # }
