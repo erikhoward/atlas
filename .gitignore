@@ -25,6 +25,7 @@ atlas.toml
 # Test artifacts
 /test-output/
 /coverage/
+audit/
 
 # OS
 Thumbs.db
