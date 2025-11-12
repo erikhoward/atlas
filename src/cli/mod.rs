@@ -6,7 +6,7 @@ pub mod commands;
 
 use clap::{Parser, Subcommand};
 
-/// Atlas - OpenEHR to Azure Cosmos DB ETL Tool
+/// Atlas - OpenEHR ETL Tool
 #[derive(Parser, Debug)]
 #[command(name = "atlas")]
 #[command(version, about, long_about = None)]
@@ -28,7 +28,7 @@ pub struct Cli {
 /// Available commands
 #[derive(Subcommand, Debug)]
 pub enum Commands {
-    /// Export compositions from OpenEHR to Cosmos DB
+    /// Export compositions from OpenEHR to configured database
     Export(commands::export::ExportArgs),
 
     /// Validate configuration file
