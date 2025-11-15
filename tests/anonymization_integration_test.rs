@@ -234,7 +234,6 @@ async fn test_end_to_end_anonymization_preserve_mode() {
 
     let result = engine
         .anonymize_composition(composition)
-        
         .expect("Failed to anonymize composition");
 
     // Verify PII was detected
@@ -277,7 +276,6 @@ async fn test_end_to_end_anonymization_flatten_mode() {
 
     let result = engine
         .anonymize_composition(composition)
-        
         .expect("Failed to anonymize composition");
 
     // Verify PII was detected and redacted
@@ -306,7 +304,6 @@ async fn test_dry_run_mode_integration() {
 
     let result = engine
         .anonymize_composition(original)
-        
         .expect("Failed to process dry-run");
 
     // Verify PII was detected
@@ -336,7 +333,6 @@ async fn test_hipaa_safe_harbor_compliance() {
 
     let result = engine
         .anonymize_composition(composition)
-        
         .expect("Failed to anonymize");
 
     // Verify HIPAA identifiers were detected
@@ -367,7 +363,6 @@ async fn test_gdpr_compliance() {
 
     let result = engine
         .anonymize_composition(composition)
-        
         .expect("Failed to anonymize");
 
     // GDPR should detect HIPAA identifiers + quasi-identifiers (occupation)
@@ -403,7 +398,6 @@ async fn test_batch_processing_integration() {
 
     let results = engine
         .anonymize_batch(batch)
-        
         .expect("Failed to process batch");
 
     assert_eq!(results.len(), 3, "Should process all compositions in batch");
@@ -435,7 +429,6 @@ async fn test_composition_minimal_pii() {
 
     let result = engine
         .anonymize_composition(composition)
-        
         .expect("Failed to process composition");
 
     // Should detect minimal or no PII (may detect dates/UIDs)
@@ -466,7 +459,6 @@ async fn test_performance_metrics() {
 
     let result = engine
         .anonymize_composition(composition)
-        
         .expect("Failed to anonymize");
 
     // Verify processing time is recorded
@@ -506,7 +498,6 @@ async fn test_batch_with_report() {
 
     let (results, report) = engine
         .anonymize_batch_with_report(batch)
-        
         .expect("Failed to process batch with report");
 
     assert_eq!(results.len(), 2);

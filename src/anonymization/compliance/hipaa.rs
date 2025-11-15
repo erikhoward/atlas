@@ -30,4 +30,3 @@ pub fn hipaa_identifiers() -> Vec<PiiCategory> {
 pub fn is_hipaa_identifier(category: PiiCategory) -> bool {
     category.is_hipaa_identifier()
 }
-
