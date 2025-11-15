@@ -209,6 +209,16 @@ pub struct OpenEhrConfig {
     #[serde(default)]
     pub password: Option<SecretString>,
 
+    /// OIDC token endpoint URL (optional, required for Better Platform)
+    /// Example: https://sandbox.better.care/auth/realms/portal/protocol/openid-connect/token
+    #[serde(default)]
+    pub oidc_token_url: Option<String>,
+
+    /// OIDC client ID (optional, required for Better Platform)
+    /// Example: portal
+    #[serde(default)]
+    pub client_id: Option<String>,
+
     /// TLS certificate verification enabled
     ///
     /// **SECURITY WARNING**: Disabling TLS verification (setting to `false`) exposes the application
@@ -322,6 +332,8 @@ impl Default for OpenEhrConfig {
             auth_type: default_auth_type(),
             username: None,
             password: None,
+            oidc_token_url: None,
+            client_id: None,
             tls_verify: true,
             tls_verify_certificates: true,
             timeout_seconds: default_timeout_seconds(),
@@ -930,6 +942,8 @@ mod tests {
             auth_type: "basic".to_string(),
             username: Some("user".to_string()),
             password: Some(Secret::new(SecretValue::from("pass".to_string()))),
+            oidc_token_url: None,
+            client_id: None,
             tls_verify: true,
             tls_verify_certificates: true,
             timeout_seconds: 60,
@@ -962,6 +976,8 @@ mod tests {
             auth_type: "basic".to_string(),
             username: Some("user".to_string()),
             password: Some(Secret::new(SecretValue::from("pass".to_string()))),
+            oidc_token_url: None,
+            client_id: None,
             tls_verify: false, // Disabled
             tls_verify_certificates: true,
             timeout_seconds: 60,
@@ -1012,6 +1028,8 @@ mod tests {
             auth_type: "basic".to_string(),
             username: Some("user".to_string()),
             password: Some(Secret::new(SecretValue::from("pass".to_string()))),
+            oidc_token_url: None,
+            client_id: None,
             tls_verify: false,
             tls_verify_certificates: false,
             timeout_seconds: 60,

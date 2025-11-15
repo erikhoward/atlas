@@ -408,6 +408,12 @@ fn apply_env_overrides(config: &mut AtlasConfig) -> Result<()> {
     if let Ok(val) = std::env::var("ATLAS_OPENEHR_TLS_CA_CERT") {
         config.openehr.tls_ca_cert = Some(val);
     }
+    if let Ok(val) = std::env::var("ATLAS_OPENEHR_OIDC_TOKEN_URL") {
+        config.openehr.oidc_token_url = Some(val);
+    }
+    if let Ok(val) = std::env::var("ATLAS_OPENEHR_CLIENT_ID") {
+        config.openehr.client_id = Some(val);
+    }
     if let Ok(val) = std::env::var("ATLAS_OPENEHR_TIMEOUT_SECONDS") {
         if let Ok(timeout) = val.parse() {
             config.openehr.timeout_seconds = timeout;
