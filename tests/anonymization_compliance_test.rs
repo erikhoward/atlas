@@ -118,7 +118,6 @@ async fn test_hipaa_safe_harbor_all_18_identifiers() {
 
     let result = engine
         .anonymize_composition(composition)
-        
         .expect("Failed to anonymize");
 
     // Verify that multiple HIPAA identifiers were detected
@@ -162,7 +161,6 @@ async fn test_hipaa_name_detection() {
 
     let result = engine
         .anonymize_composition(composition)
-        
         .expect("Failed to anonymize");
 
     // Should detect name
@@ -183,7 +181,6 @@ async fn test_hipaa_geographic_location_detection() {
 
     let result = engine
         .anonymize_composition(composition)
-        
         .expect("Failed to anonymize");
 
     // Should detect geographic location
@@ -205,7 +202,6 @@ async fn test_hipaa_date_detection() {
 
     let result = engine
         .anonymize_composition(composition)
-        
         .expect("Failed to anonymize");
 
     // Should detect dates (at least some of them)
@@ -240,7 +236,6 @@ async fn test_hipaa_contact_information_detection() {
 
     let result = engine
         .anonymize_composition(composition)
-        
         .expect("Failed to anonymize");
 
     // Should detect phone, fax, and email
@@ -262,7 +257,6 @@ async fn test_hipaa_identifiers_detection() {
 
     let result = engine
         .anonymize_composition(composition)
-        
         .expect("Failed to anonymize");
 
     // Should detect SSN and other identifiers
@@ -283,7 +277,6 @@ async fn test_hipaa_technical_identifiers_detection() {
 
     let result = engine
         .anonymize_composition(composition)
-        
         .expect("Failed to anonymize");
 
     // Should detect URL and IP address
@@ -298,7 +291,6 @@ async fn test_gdpr_quasi_identifiers_detection() {
 
     let result = engine
         .anonymize_composition(composition)
-        
         .expect("Failed to anonymize");
 
     // GDPR mode should detect email + quasi-identifiers
@@ -323,7 +315,6 @@ async fn test_gdpr_vs_hipaa_detection_difference() {
     let engine_hipaa = AnonymizationEngine::new(config_hipaa).expect("Failed to create engine");
     let result_hipaa = engine_hipaa
         .anonymize_composition(composition.clone())
-        
         .expect("Failed to anonymize with HIPAA");
 
     // Test with GDPR mode
@@ -331,7 +322,6 @@ async fn test_gdpr_vs_hipaa_detection_difference() {
     let engine_gdpr = AnonymizationEngine::new(config_gdpr).expect("Failed to create engine");
     let result_gdpr = engine_gdpr
         .anonymize_composition(composition)
-        
         .expect("Failed to anonymize with GDPR");
 
     // GDPR should detect more or equal identifiers than HIPAA
@@ -362,7 +352,6 @@ async fn test_precision_no_false_positives() {
 
     let result = engine
         .anonymize_composition(composition)
-        
         .expect("Failed to anonymize");
 
     // Should have minimal false positives
@@ -391,7 +380,6 @@ async fn test_recall_comprehensive_detection() {
 
     let result = engine
         .anonymize_composition(composition)
-        
         .expect("Failed to anonymize");
 
     // Should detect all 4 obvious PII items (≥98% recall requirement)
@@ -416,7 +404,6 @@ async fn test_confidence_scores() {
 
     let result = engine
         .anonymize_composition(composition)
-        
         .expect("Failed to anonymize");
 
     // All detections should have confidence scores
@@ -442,12 +429,10 @@ async fn test_anonymization_reversibility_prevention() {
 
     let result1 = engine
         .anonymize_composition(original.clone())
-        
         .expect("Failed to anonymize first time");
 
     let result2 = engine
         .anonymize_composition(original)
-        
         .expect("Failed to anonymize second time");
 
     // With random token strategy, same input should produce different outputs
@@ -487,7 +472,6 @@ async fn test_batch_compliance() {
 
     let results = engine
         .anonymize_batch(batch)
-        
         .expect("Failed to process batch");
 
     // All compositions should be processed

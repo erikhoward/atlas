@@ -2,5 +2,4 @@
 
 pub mod pii_entity;
 
-pub use pii_entity::{PiiCategory, PiiEntity, DetectionMethod, AnonymizedComposition};
-
+pub use pii_entity::{AnonymizedComposition, DetectionMethod, PiiCategory, PiiEntity};

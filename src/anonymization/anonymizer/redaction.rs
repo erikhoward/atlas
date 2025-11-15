@@ -18,7 +18,7 @@ impl Anonymizer for RedactionStrategy {
     fn anonymize(&mut self, entity: &PiiEntity) -> Result<String> {
         Ok(format!("[{}]", entity.category.label()))
     }
-    
+
     fn anonymize_field(&mut self, category: PiiCategory, _value: &str) -> Result<String> {
         Ok(format!("[{}]", category.label()))
     }
@@ -38,14 +38,14 @@ mod tests {
     #[test]
     fn test_redaction() {
         let mut strategy = RedactionStrategy::new();
-        
+
         let entity = PiiEntity::new(
             PiiCategory::Email,
             "test@example.com".to_string(),
             "patient.email".to_string(),
             DetectionMethod::Regex,
         );
-        
+
         let result = strategy.anonymize(&entity).unwrap();
         assert_eq!(result, "[EMAIL]");
     }
@@ -53,8 +53,9 @@ mod tests {
     #[test]
     fn test_redaction_field() {
         let mut strategy = RedactionStrategy::new();
-        let result = strategy.anonymize_field(PiiCategory::Name, "John Doe").unwrap();
+        let result = strategy
+            .anonymize_field(PiiCategory::Name, "John Doe")
+            .unwrap();
         assert_eq!(result, "[PERSON]");
     }
 }
-

@@ -46,7 +46,7 @@ pub enum PiiCategory {
     FacePhotograph,
     /// Any other unique identifying number, characteristic, or code
     UniqueIdentifier,
-    
+
     // GDPR Quasi-Identifiers (additional)
     /// Occupation/profession
     Occupation,
@@ -92,20 +92,30 @@ impl PiiCategory {
             Self::Gender => "GENDER",
         }
     }
-    
+
     /// Check if this category is a HIPAA Safe Harbor identifier
     pub fn is_hipaa_identifier(&self) -> bool {
         !matches!(
             self,
-            Self::Occupation | Self::EducationLevel | Self::MaritalStatus | Self::Ethnicity | Self::Age | Self::Gender
+            Self::Occupation
+                | Self::EducationLevel
+                | Self::MaritalStatus
+                | Self::Ethnicity
+                | Self::Age
+                | Self::Gender
         )
     }
-    
+
     /// Check if this category is a GDPR quasi-identifier
     pub fn is_gdpr_quasi_identifier(&self) -> bool {
         matches!(
             self,
-            Self::Occupation | Self::EducationLevel | Self::MaritalStatus | Self::Ethnicity | Self::Age | Self::Gender
+            Self::Occupation
+                | Self::EducationLevel
+                | Self::MaritalStatus
+                | Self::Ethnicity
+                | Self::Age
+                | Self::Gender
         )
     }
 }
@@ -162,7 +172,7 @@ impl PiiEntity {
             field_path,
         }
     }
-    
+
     /// Create a new PII entity with position information
     pub fn with_position(
         category: PiiCategory,
@@ -183,12 +193,12 @@ impl PiiEntity {
             field_path,
         }
     }
-    
+
     /// Set the anonymized value
     pub fn set_anonymized_value(&mut self, value: String) {
         self.anonymized_value = Some(value);
     }
-    
+
     /// Set the confidence score
     pub fn set_confidence(&mut self, confidence: f32) {
         self.confidence = confidence.clamp(0.0, 1.0);
@@ -227,7 +237,7 @@ impl AnonymizedComposition {
         for detection in &detections {
             *stats_by_category.entry(detection.category).or_insert(0) += 1;
         }
-        
+
         Self {
             original_id,
             anonymized_data,
@@ -238,15 +248,14 @@ impl AnonymizedComposition {
             stats_by_category,
         }
     }
-    
+
     /// Get total number of detections
     pub fn total_detections(&self) -> usize {
         self.detections.len()
     }
-    
+
     /// Check if any PII was detected
     pub fn has_detections(&self) -> bool {
         !self.detections.is_empty()
     }
 }
-

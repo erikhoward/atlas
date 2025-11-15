@@ -643,8 +643,10 @@ impl BetterVendor {
     async fn fetch_composition_impl(&self, metadata: &CompositionMetadata) -> Result<Composition> {
         self.ensure_authenticated().await?;
 
+        // Better Platform uses Accept header instead of query parameter for format
+        // Try FLAT format first with proper Accept header
         let url = format!(
-            "{}/rest/openehr/v1/ehr/{}/composition/{}?format=FLAT",
+            "{}/rest/openehr/v1/ehr/{}/composition/{}",
             self.base_url, metadata.ehr_id, metadata.uid
         );
 
@@ -656,7 +658,11 @@ impl BetterVendor {
         );
 
         self.retry_request(|| async {
-            let mut request = self.client.get(&url);
+            // Better Platform uses custom Accept header for FLAT format
+            let mut request = self
+                .client
+                .get(&url)
+                .header("Accept", "application/openehr.wt.flat+json");
 
             if let Some(auth) = self.auth_header_value().await {
                 request = request.header("Authorization", auth);
