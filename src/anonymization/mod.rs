@@ -1,7 +1,7 @@
 //! Anonymization module for Atlas
 //!
 //! This module provides PHI/PII detection and anonymization capabilities
-//! for OpenEHR compositions during export. It supports GDPR and HIPAA Safe Harbor
+//! for openEHR compositions during export. It supports GDPR and HIPAA Safe Harbor
 //! compliance modes with configurable anonymization strategies.
 //!
 //! # Architecture

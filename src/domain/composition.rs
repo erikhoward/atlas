@@ -1,12 +1,12 @@
 //! Composition domain model
 //!
-//! This module defines the core Composition type representing OpenEHR compositions.
+//! This module defines the core Composition type representing openEHR compositions.
 
 use super::ids::{CompositionUid, EhrId, TemplateId};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-/// Represents an OpenEHR composition in FLAT format
+/// Represents an openEHR composition in FLAT format
 ///
 /// A composition is a clinical document containing structured health data.
 /// This type holds the composition metadata and content in FLAT JSON format.

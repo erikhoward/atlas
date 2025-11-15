@@ -2,7 +2,7 @@
 //!
 //! This module provides adapters for integrating with external systems:
 //!
-//! - [`openehr`] - OpenEHR server integration (EHRBase, Better Platform, etc.)
+//! - [`openehr`] - openEHR server integration (EHRBase, Better Platform, etc.)
 //! - [`database`] - Database abstraction layer (trait-based)
 //! - [`cosmosdb`] - Azure Cosmos DB implementation
 //! - [`postgresql`] - PostgreSQL implementation (coming soon)
@@ -13,9 +13,9 @@
 //! enable testing with mock implementations. The database layer uses trait-based
 //! abstraction to support multiple database backends.
 //!
-//! # OpenEHR Adapter
+//! # openEHR Adapter
 //!
-//! The OpenEHR adapter uses a trait-based design for vendor abstraction:
+//! The openEHR adapter uses a trait-based design for vendor abstraction:
 //!
 //! ```rust,no_run
 //! use atlas::adapters::openehr::OpenEhrClient;

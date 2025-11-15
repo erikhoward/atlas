@@ -1,4 +1,4 @@
-// Atlas - OpenEHR ETL Tool
+// Atlas - openEHR ETL Tool
 // Copyright (c) 2025 Atlas Contributors
 // Licensed under the MIT License
 
@@ -41,7 +41,7 @@ async fn main() {
 
     tracing::info!(
         version = env!("CARGO_PKG_VERSION"),
-        "Atlas - OpenEHR ETL Tool"
+        "Atlas - openEHR ETL Tool"
     );
 
     // Create shutdown signal channel for graceful shutdown

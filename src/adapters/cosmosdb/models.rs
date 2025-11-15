@@ -46,7 +46,7 @@ impl AtlasMetadata {
 
 /// Composition document in preserved format (maintains FLAT structure)
 ///
-/// This format preserves the exact FLAT JSON structure from OpenEHR,
+/// This format preserves the exact FLAT JSON structure from openEHR,
 /// storing it as-is in the `content` field.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CosmosComposition {
@@ -62,10 +62,10 @@ pub struct CosmosComposition {
     /// Template ID
     pub template_id: String,
 
-    /// Time the composition was committed in OpenEHR
+    /// Time the composition was committed in openEHR
     pub time_committed: DateTime<Utc>,
 
-    /// Original FLAT JSON content from OpenEHR
+    /// Original FLAT JSON content from openEHR
     pub content: Value,
 
     /// Atlas metadata
@@ -112,7 +112,7 @@ pub struct CosmosCompositionFlattened {
     /// Template ID
     pub template_id: String,
 
-    /// Time the composition was committed in OpenEHR
+    /// Time the composition was committed in openEHR
     pub time_committed: DateTime<Utc>,
 
     /// Flattened fields from the FLAT JSON content

@@ -1,7 +1,7 @@
 //! Main anonymization engine
 //!
 //! This module provides the core [`AnonymizationEngine`] that orchestrates
-//! PII detection, anonymization, and audit logging for OpenEHR compositions.
+//! PII detection, anonymization, and audit logging for openEHR compositions.
 //!
 //! # Architecture
 //!
@@ -51,7 +51,7 @@ use std::time::Instant;
 
 /// Main anonymization engine
 ///
-/// Orchestrates PII detection, anonymization, and audit logging for OpenEHR compositions.
+/// Orchestrates PII detection, anonymization, and audit logging for openEHR compositions.
 ///
 /// # Thread Safety
 ///

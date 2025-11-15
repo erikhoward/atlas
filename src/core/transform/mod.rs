@@ -1,9 +1,9 @@
 //! Data transformation logic
 //!
-//! This module provides transformation strategies for converting OpenEHR compositions
+//! This module provides transformation strategies for converting openEHR compositions
 //! into Cosmos DB documents. Two modes are supported:
 //!
-//! - **Preserve**: Maintains the exact FLAT JSON structure from OpenEHR
+//! - **Preserve**: Maintains the exact FLAT JSON structure from openEHR
 //! - **Flatten**: Converts nested paths to simple field names for easier querying
 
 pub mod flatten;

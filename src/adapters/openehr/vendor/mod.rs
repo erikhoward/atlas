@@ -1,6 +1,6 @@
-//! OpenEHR vendor implementations
+//! openEHR vendor implementations
 //!
-//! This module provides vendor-specific implementations of the OpenEHR REST API.
+//! This module provides vendor-specific implementations of the openEHR REST API.
 //! The `OpenEhrVendor` trait defines the common interface, and vendor-specific
 //! implementations (e.g., EHRBase, Better Platform) provide the concrete functionality.
 

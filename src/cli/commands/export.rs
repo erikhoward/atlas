@@ -1,7 +1,7 @@
 //! Export command implementation
 //!
 //! This module implements the `export` command for exporting compositions
-//! from OpenEHR to Azure Cosmos DB.
+//! from openEHR to Azure Cosmos DB.
 
 use crate::config::load_config;
 use crate::core::export::ExportCoordinator;

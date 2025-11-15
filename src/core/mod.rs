@@ -14,7 +14,7 @@
 //! The typical export workflow:
 //!
 //! 1. **Load State**: Read watermarks from Cosmos DB control container
-//! 2. **Query OpenEHR**: Fetch compositions since last watermark
+//! 2. **Query openEHR**: Fetch compositions since last watermark
 //! 3. **Transform**: Convert to preserve or flatten format
 //! 4. **Batch Process**: Group compositions and bulk insert to Cosmos DB
 //! 5. **Checkpoint**: Update watermarks after successful batches

@@ -1,7 +1,7 @@
-//! OpenEHR client factory and utilities
+//! openEHR client factory and utilities
 //!
-//! This module provides a factory for creating OpenEHR vendor instances
-//! and utilities for working with OpenEHR servers.
+//! This module provides a factory for creating openEHR vendor instances
+//! and utilities for working with openEHR servers.
 
 use crate::config::OpenEhrConfig;
 use crate::domain::{AtlasError, Result};
@@ -9,24 +9,24 @@ use std::sync::Arc;
 
 use super::vendor::{BetterVendor, EhrBaseVendor, OpenEhrVendor};
 
-/// OpenEHR client that wraps a vendor implementation
+/// openEHR client that wraps a vendor implementation
 ///
 /// This struct provides a high-level interface for interacting with
-/// OpenEHR servers. It handles vendor selection and provides common
+/// openEHR servers. It handles vendor selection and provides common
 /// utilities like health checks and connection pooling.
 pub struct OpenEhrClient {
     vendor: Arc<dyn OpenEhrVendor>,
 }
 
 impl OpenEhrClient {
-    /// Create a new OpenEHR client from configuration
+    /// Create a new openEHR client from configuration
     ///
     /// This factory method creates the appropriate vendor implementation
     /// based on the configuration.
     ///
     /// # Arguments
     ///
-    /// * `config` - OpenEHR configuration
+    /// * `config` - openEHR configuration
     ///
     /// # Errors
     ///
@@ -61,7 +61,7 @@ impl OpenEhrClient {
             }
             _ => {
                 return Err(AtlasError::Configuration(format!(
-                    "Unsupported OpenEHR vendor: {vendor_type}. Supported vendors: ehrbase, better"
+                    "Unsupported openEHR vendor: {vendor_type}. Supported vendors: ehrbase, better"
                 )))
             }
         };
@@ -74,7 +74,7 @@ impl OpenEhrClient {
         &self.vendor
     }
 
-    /// Perform a health check on the OpenEHR server
+    /// Perform a health check on the openEHR server
     ///
     /// This method attempts to verify that the server is reachable
     /// and responding to requests.
@@ -105,7 +105,7 @@ impl OpenEhrClient {
             Ok(_) => {
                 tracing::info!(
                     base_url = self.vendor.base_url(),
-                    "OpenEHR server health check passed"
+                    "openEHR server health check passed"
                 );
                 Ok(())
             }
@@ -113,7 +113,7 @@ impl OpenEhrClient {
                 tracing::error!(
                     base_url = self.vendor.base_url(),
                     error = %e,
-                    "OpenEHR server health check failed"
+                    "openEHR server health check failed"
                 );
                 Err(e)
             }
@@ -125,7 +125,7 @@ impl OpenEhrClient {
         self.vendor.is_authenticated()
     }
 
-    /// Get the base URL of the OpenEHR server
+    /// Get the base URL of the openEHR server
     pub fn base_url(&self) -> &str {
         self.vendor.base_url()
     }
@@ -165,7 +165,7 @@ mod tests {
         assert!(result.is_err());
 
         if let Err(AtlasError::Configuration(msg)) = result {
-            assert!(msg.contains("Unsupported OpenEHR vendor"));
+            assert!(msg.contains("Unsupported openEHR vendor"));
         } else {
             panic!("Expected Configuration error");
         }

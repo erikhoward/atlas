@@ -41,8 +41,8 @@ impl ValidateArgs {
                 println!("  Application: {}", env!("CARGO_PKG_NAME"));
                 println!("  Version: {}", env!("CARGO_PKG_VERSION"));
                 println!("  Log Level: {}", config.application.log_level);
-                println!("  OpenEHR Server: {}", config.openehr.base_url);
-                println!("  OpenEHR Vendor: {}", config.openehr.vendor);
+                println!("  openEHR Server: {}", config.openehr.base_url);
+                println!("  openEHR Vendor: {}", config.openehr.vendor);
 
                 // Display database-specific configuration
                 match config.database_target {

@@ -1,16 +1,16 @@
-// Atlas - OpenEHR to Azure Cosmos DB ETL Tool
+// Atlas - openEHR to Azure Cosmos DB ETL Tool
 // Copyright (c) 2025 Atlas Contributors
 // Licensed under the MIT License
 
-//! # Atlas - OpenEHR to Azure Cosmos DB ETL
+//! # Atlas - openEHR to Azure Cosmos DB ETL
 //!
-//! Atlas is a high-performance ETL tool built in Rust that exports OpenEHR clinical data
+//! Atlas is a high-performance ETL tool built in Rust that exports openEHR clinical data
 //! from EHRBase servers to Azure Cosmos DB for analytics, machine learning, and research.
 //!
 //! ## Overview
 //!
 //! This library provides the core functionality for:
-//! - **Extracting** compositions from OpenEHR servers via REST API v1.1
+//! - **Extracting** compositions from openEHR servers via REST API v1.1
 //! - **Transforming** data with preserve or flatten modes
 //! - **Loading** data into Azure Cosmos DB with batch processing
 //! - **Managing** export state with high-watermark tracking for incremental sync
@@ -21,7 +21,7 @@
 //!
 //! - [`cli`] - Command-line interface and argument parsing
 //! - [`core`] - Business logic (export, transform, state, verification)
-//! - [`adapters`] - External integrations (OpenEHR, Cosmos DB)
+//! - [`adapters`] - External integrations (openEHR, Cosmos DB)
 //! - [`domain`] - Core domain types and models
 //! - [`config`] - Configuration management
 //! - [`logging`] - Structured logging and observability
@@ -80,7 +80,7 @@
 //!
 //! Atlas supports two transformation modes:
 //!
-//! - **Preserve**: Maintains exact FLAT JSON structure from OpenEHR
+//! - **Preserve**: Maintains exact FLAT JSON structure from openEHR
 //! - **Flatten**: Converts nested paths to flat field names for analytics
 //!
 //! ```rust,no_run

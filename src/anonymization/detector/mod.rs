@@ -1,7 +1,7 @@
 //! PII detection module
 //!
 //! Provides trait-based detection interface and implementations for
-//! identifying PHI/PII in OpenEHR compositions.
+//! identifying PHI/PII in openEHR compositions.
 
 pub mod patterns;
 pub mod regex;

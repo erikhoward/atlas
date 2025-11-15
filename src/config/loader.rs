@@ -33,7 +33,7 @@
 //! ATLAS_APPLICATION_LOG_LEVEL=debug
 //! ATLAS_APPLICATION_DRY_RUN=true
 //!
-//! # OpenEHR connection
+//! # openEHR connection
 //! ATLAS_OPENEHR_BASE_URL=https://prod-ehrbase.com
 //! ATLAS_OPENEHR_USERNAME=atlas_user
 //! ATLAS_OPENEHR_PASSWORD=secret
@@ -280,10 +280,10 @@ fn parse_u64_array(value: &str) -> Option<Vec<u64>> {
 /// - ATLAS_DATABASE_TARGET: Database target (cosmosdb or postgresql)
 /// - ATLAS_APPLICATION_LOG_LEVEL: Log level
 /// - ATLAS_APPLICATION_DRY_RUN: Dry run mode (true/false)
-/// - ATLAS_OPENEHR_BASE_URL: OpenEHR server base URL
-/// - ATLAS_OPENEHR_USERNAME: OpenEHR username
-/// - ATLAS_OPENEHR_PASSWORD: OpenEHR password
-/// - ATLAS_OPENEHR_VENDOR: OpenEHR vendor
+/// - ATLAS_OPENEHR_BASE_URL: openEHR server base URL
+/// - ATLAS_OPENEHR_USERNAME: openEHR username
+/// - ATLAS_OPENEHR_PASSWORD: openEHR password
+/// - ATLAS_OPENEHR_VENDOR: openEHR vendor
 /// - ATLAS_OPENEHR_AUTH_TYPE: Authentication type
 /// - ATLAS_OPENEHR_TLS_VERIFY: TLS verification (true/false)
 /// - ATLAS_OPENEHR_TLS_VERIFY_CERTIFICATES: TLS certificate verification (true/false)
@@ -380,7 +380,7 @@ fn apply_env_overrides(config: &mut AtlasConfig) -> Result<()> {
         config.application.dry_run = val.parse().unwrap_or(false);
     }
 
-    // OpenEHR overrides
+    // openEHR overrides
     if let Ok(val) = std::env::var("ATLAS_OPENEHR_BASE_URL") {
         config.openehr.base_url = val;
     }
@@ -420,7 +420,7 @@ fn apply_env_overrides(config: &mut AtlasConfig) -> Result<()> {
         }
     }
 
-    // OpenEHR Retry overrides
+    // openEHR Retry overrides
     if let Ok(val) = std::env::var("ATLAS_OPENEHR_RETRY_MAX_RETRIES") {
         if let Ok(retries) = val.parse() {
             config.openehr.retry.max_retries = retries;
