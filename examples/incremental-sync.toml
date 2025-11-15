@@ -7,7 +7,7 @@
 # Use Case: Nightly sync to keep Cosmos DB up-to-date with OpenEHR data
 # Expected Volume: 100-5,000 new compositions per day
 # Frequency: Daily (scheduled via cron or Kubernetes CronJob)
-# Version: 2.3.0
+# Version: 2.4.0
 
 [application]
 log_level = "info"

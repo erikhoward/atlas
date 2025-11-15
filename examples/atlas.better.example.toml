@@ -1,6 +1,6 @@
 # Atlas Configuration Example - Better Platform
 # This is a sample configuration file for Atlas ETL tool with Better Platform
-# Version: 2.3.0
+# Version: 2.4.0
 
 [application]
 log_level = "info" # trace, debug, info, warn, error

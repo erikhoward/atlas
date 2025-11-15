@@ -522,5 +522,5 @@ For issues, questions, or feature requests:
 ---
 
 **Last Updated:** 2025-11-12  
-**Version:** Phase 1 (v2.3.0)
+**Version:** Phase 1 (v2.4.0)
 

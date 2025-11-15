@@ -7,6 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.0] - 2025-11-15
+
+### Added
+
+- **Better Platform openEHR Adapter with OIDC Authentication**
+  - New vendor implementation: `better` for Better Platform openEHR servers
+  - OIDC (OAuth2) authentication support with password grant flow
+  - Automatic token refresh with 60-second expiration buffer
+  - Thread-safe token management using interior mutability pattern (`Arc<Mutex<TokenState>>`)
+  - All openEHR operations implemented using AQL queries:
+    - `get_ehr_ids()` - Fetch all EHR IDs from the server
+    - `get_compositions_for_ehr()` - Fetch compositions with optional `since` parameter for incremental exports
+    - `fetch_composition()` - Fetch individual compositions in FLAT format
+  - New configuration fields in `OpenEhrConfig`:
+    - `oidc_token_url` - OAuth2 token endpoint URL (required for Better Platform)
+    - `client_id` - OAuth2 client ID (required for Better Platform)
+  - Environment variable support for OIDC configuration:
+    - `ATLAS_OPENEHR_OIDC_TOKEN_URL`
+    - `ATLAS_OPENEHR_CLIENT_ID`
+  - Example configuration file: `examples/atlas.better.example.toml`
+  - Comprehensive documentation in `docs/configuration.md`
+
+### Fixed
+
+- **Better Platform FLAT Format Support**
+  - Fixed Accept header for Better Platform composition fetching
+  - Better Platform requires custom Accept header: `application/openehr.wt.flat+json`
+  - Previously was returning XML instead of JSON due to incorrect header
+  - Added documentation note about Better Platform's custom Accept headers
+
+- **Capitalization Consistency**
+  - Fixed all instances of 'OpenEHR' to 'openEHR' (lowercase 'o') throughout codebase
+  - Updated 107 instances across 34 Rust source files
+  - Includes error messages, comments, documentation, and code
+  - Ensures consistent branding and terminology
+
+### Changed
+
+- **openEHR Client Factory**
+  - Updated `OpenEhrClient::new()` to support `better` vendor type
+  - Enhanced error messages for unsupported vendors
+
+### Testing
+
+- All 218 unit tests + 69 doc tests passing
+- Strict clippy linting passing (`--all-targets --all-features -- -D warnings -D clippy::all`)
+- Successfully tested against Better Platform sandbox environment
+- Data successfully exported to Azure Cosmos DB
+
+### Documentation
+
+- Updated `README.md` with Better Platform support information
+- Updated `docs/configuration.md` with Better Platform configuration guide
+- Updated `examples/README.md` with Better Platform example
+- Added note about custom Accept headers used by Better Platform
+- Fixed capitalization throughout all documentation files
+
 ## [2.3.0] - 2025-11-12
 
 ### Added
