@@ -7,7 +7,7 @@ use crate::config::OpenEhrConfig;
 use crate::domain::{AtlasError, Result};
 use std::sync::Arc;
 
-use super::vendor::{EhrBaseVendor, OpenEhrVendor};
+use super::vendor::{BetterVendor, EhrBaseVendor, OpenEhrVendor};
 
 /// OpenEHR client that wraps a vendor implementation
 ///
@@ -54,9 +54,14 @@ impl OpenEhrClient {
                 vendor.authenticate().await?;
                 Arc::new(vendor)
             }
+            "better" => {
+                let mut vendor = BetterVendor::new(config);
+                vendor.authenticate().await?;
+                Arc::new(vendor)
+            }
             _ => {
                 return Err(AtlasError::Configuration(format!(
-                    "Unsupported OpenEHR vendor: {vendor_type}. Supported vendors: ehrbase"
+                    "Unsupported OpenEHR vendor: {vendor_type}. Supported vendors: ehrbase, better"
                 )))
             }
         };

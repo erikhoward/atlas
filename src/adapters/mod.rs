@@ -30,6 +30,8 @@
 //!     auth_type: "basic".to_string(),
 //!     username: Some("user".to_string()),
 //!     password: Some(Secret::new(SecretValue::from("pass".to_string()))),
+//!     oidc_token_url: None,
+//!     client_id: None,
 //!     tls_verify: true,
 //!     tls_verify_certificates: true,
 //!     tls_ca_cert: None,
