@@ -9,7 +9,7 @@
 
 ## 🎯 Overview
 
-Atlas solves the challenge of making OpenEHR clinical data accessible for modern analytics workflows. By exporting compositions from EHRBase servers to your choice of database backend (Azure Cosmos DB or PostgreSQL), Atlas enables:
+Atlas solves the challenge of making OpenEHR clinical data accessible for modern analytics workflows. By exporting compositions from OpenEHR servers (EHRBase, Better Platform) to your choice of database backend (Azure Cosmos DB or PostgreSQL), Atlas enables:
 
 - **Clinical Research**: Query patient data using familiar SQL instead of AQL
 - **Machine Learning**: Build ML models on flattened, analytics-ready data
@@ -75,7 +75,9 @@ Atlas solves the challenge of making OpenEHR clinical data accessible for modern
 ### Prerequisites
 
 - **Rust 1.70+** (for building from source)
-- **OpenEHR Server**: EHRBase 0.30+ with REST API v1.1.x
+- **OpenEHR Server** (choose one):
+  - **EHRBase**: Version 0.30+ with REST API v1.1.x
+  - **Better Platform**: Sandbox or production environment with OIDC authentication
 - **Database Backend** (choose one):
   - **Azure Cosmos DB**: Core (SQL) API account with database created
   - **PostgreSQL**: Version 14+ with database created
@@ -728,25 +730,28 @@ Atlas is built with these excellent open-source projects:
 
 ## 🗺️ Roadmap
 
-### Current Version (v1.5)
+### Current Version (v2.3)
 
 - ✅ EHRBase vendor support
+- ✅ Better Platform vendor support with OIDC authentication
 - ✅ Azure Cosmos DB integration
 - ✅ PostgreSQL integration
 - ✅ Incremental sync with watermarks
 - ✅ Preserve and flatten modes
 - ✅ CLI interface
 - ✅ Docker and Kubernetes deployment
+- ✅ HIPAA & GDPR anonymization
 
 ### Future Enhancements
 
-- 🔄 Additional OpenEHR vendors (Better Platform, Ocean Health)
+- 🔄 Additional OpenEHR vendors (Ocean Health, others)
 - 🔄 OAuth 2.0 / OpenID Connect authentication
 - 🔄 Prometheus metrics export
 
 ## 📚 Related Projects
 
 - [EHRBase](https://ehrbase.org/) - Open-source OpenEHR server
+- [Better Platform](https://www.better.care/) - Enterprise OpenEHR platform
 - [Azure Cosmos DB](https://azure.microsoft.com/en-us/services/cosmos-db/) - Globally distributed database
 - [OpenEHR](https://www.openehr.org/) - Open standard for health data
 

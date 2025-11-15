@@ -4,6 +4,49 @@ This directory contains example configuration files for common Atlas use cases. 
 
 ## Available Examples
 
+### Base Configuration Examples
+
+#### EHRBase Configuration (`atlas.example.toml`)
+
+Standard configuration for EHRBase OpenEHR servers using HTTP Basic Authentication.
+
+**Quick Start**:
+```bash
+cp examples/atlas.example.toml atlas.toml
+# Edit atlas.toml with your credentials
+atlas export -c atlas.toml
+```
+
+#### Better Platform Configuration (`atlas.better.example.toml`)
+
+Configuration for Better Platform OpenEHR servers using OIDC (OAuth2) authentication.
+
+**Key Features**:
+- OIDC authentication with automatic token refresh
+- OAuth2 password grant flow
+- Compatible with Better Platform sandbox and production environments
+
+**Quick Start**:
+```bash
+cp examples/atlas.better.example.toml atlas.toml
+# Set environment variables
+export ATLAS_OPENEHR_USERNAME="your-username"
+export ATLAS_OPENEHR_PASSWORD="your-password"
+# Edit atlas.toml if needed
+atlas export -c atlas.toml
+```
+
+**Environment Variables for Better Platform**:
+```bash
+export ATLAS_OPENEHR_USERNAME="your-username"
+export ATLAS_OPENEHR_PASSWORD="your-password"
+export ATLAS_COSMOS_KEY="your-cosmos-key"
+```
+
+---
+
+### Use Case Examples
+
 ### 1. Clinical Research Export (`research-export.toml`)
 
 **Use Case**: Export clinical data for research studies

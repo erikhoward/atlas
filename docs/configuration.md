@@ -140,12 +140,14 @@ atlas export
 
 ### OpenEHR
 
-Configuration for connecting to the OpenEHR server (EHRBase).
+Configuration for connecting to OpenEHR servers. Atlas supports multiple vendor implementations including EHRBase and Better Platform.
+
+#### EHRBase Configuration
 
 ```toml
 [openehr]
 base_url = "https://ehrbase.example.com/ehrbase"
-vendor = "ehrbase"
+vendor_type = "ehrbase"
 auth_type = "basic"
 username = "${ATLAS_OPENEHR_USERNAME}"
 password = "${ATLAS_OPENEHR_PASSWORD}"
@@ -154,17 +156,39 @@ tls_verify_certificates = true
 timeout_seconds = 60
 ```
 
+#### Better Platform Configuration
+
+```toml
+[openehr]
+base_url = "https://sandbox.better.care/ehr"
+vendor_type = "better"
+username = "${ATLAS_OPENEHR_USERNAME}"
+password = "${ATLAS_OPENEHR_PASSWORD}"
+oidc_token_url = "https://sandbox.better.care/auth/realms/portal/protocol/openid-connect/token"
+client_id = "portal"
+tls_verify = true
+tls_verify_certificates = true
+timeout_seconds = 60
+```
+
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `base_url` | string | **required** | Base URL of the OpenEHR server (e.g., `https://ehrbase.localhost/ehrbase`). Do not include `/rest/openehr/v1` - Atlas adds this automatically. |
-| `vendor` | string | "ehrbase" | Vendor implementation (currently only "ehrbase" supported) |
-| `auth_type` | string | "basic" | Authentication type: `basic` or `openid` (openid not yet implemented) |
-| `username` | string | null | Username for basic authentication (required if auth_type is "basic") |
-| `password` | string | null | Password for basic authentication (required if auth_type is "basic") |
+| `base_url` | string | **required** | Base URL of the OpenEHR server. For EHRBase: `https://ehrbase.example.com/ehrbase`. For Better: `https://sandbox.better.care/ehr`. Do not include `/rest/openehr/v1` - Atlas adds this automatically. |
+| `vendor_type` | string | "ehrbase" | Vendor implementation: `ehrbase` or `better` |
+| `auth_type` | string | "basic" | Authentication type: `basic` (used for both EHRBase and Better OIDC) |
+| `username` | string | null | Username for authentication (required) |
+| `password` | string | null | Password for authentication (required) |
+| `oidc_token_url` | string | null | OIDC token endpoint URL (required for Better Platform, e.g., `https://sandbox.better.care/auth/realms/portal/protocol/openid-connect/token`) |
+| `client_id` | string | null | OIDC client ID (required for Better Platform, e.g., `portal`) |
 | `tls_verify` | boolean | true | Enable TLS certificate verification (alias for `tls_verify_certificates`) |
 | `tls_verify_certificates` | boolean | true | Enable TLS certificate verification (alias for `tls_verify`) |
 | `tls_ca_cert` | string | null | Optional path to custom CA certificate file |
 | `timeout_seconds` | integer | 60 | Request timeout in seconds |
+
+**Vendor-Specific Notes:**
+
+- **EHRBase**: Uses HTTP Basic Authentication. Only requires `username` and `password`.
+- **Better Platform**: Uses OIDC (OAuth2) with password grant flow. Requires `username`, `password`, `oidc_token_url`, and `client_id`. Tokens are automatically refreshed when they expire.
 
 **⚠️ CRITICAL SECURITY WARNING - TLS Certificate Verification:**
 
@@ -511,8 +535,10 @@ export ATLAS_OPENEHR_QUERY_EHR_IDS=""
 | `ATLAS_OPENEHR_BASE_URL` | string | OpenEHR server base URL | `https://ehrbase.example.com` |
 | `ATLAS_OPENEHR_USERNAME` | string | OpenEHR username | `atlas_user` |
 | `ATLAS_OPENEHR_PASSWORD` | string | OpenEHR password (sensitive) | `secret` |
-| `ATLAS_OPENEHR_VENDOR` | string | OpenEHR vendor: `ehrbase`, `better`, `oceanehr` | `ehrbase` |
-| `ATLAS_OPENEHR_AUTH_TYPE` | string | Authentication type: `basic`, `oauth2` | `basic` |
+| `ATLAS_OPENEHR_VENDOR_TYPE` | string | OpenEHR vendor: `ehrbase`, `better` | `ehrbase` |
+| `ATLAS_OPENEHR_AUTH_TYPE` | string | Authentication type: `basic` | `basic` |
+| `ATLAS_OPENEHR_OIDC_TOKEN_URL` | string | OIDC token endpoint (Better Platform only) | `https://sandbox.better.care/auth/realms/portal/protocol/openid-connect/token` |
+| `ATLAS_OPENEHR_CLIENT_ID` | string | OIDC client ID (Better Platform only) | `portal` |
 | `ATLAS_OPENEHR_TLS_VERIFY` | boolean | Enable TLS verification | `true` |
 | `ATLAS_OPENEHR_TLS_VERIFY_CERTIFICATES` | boolean | Verify TLS certificates | `true` |
 | `ATLAS_OPENEHR_TLS_CA_CERT` | string | Path to custom CA certificate | `/path/to/ca.pem` |
