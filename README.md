@@ -5,17 +5,17 @@
 [![Rust Version](https://img.shields.io/badge/rust-1.70%2B-orange.svg)](https://www.rust-lang.org/)
 [![Documentation](https://img.shields.io/badge/docs-latest-brightgreen.svg)](docs/)
 
-**Atlas** is a high-performance, open-source ETL tool built in Rust that bridges OpenEHR clinical data repositories with modern analytics platforms. It enables healthcare organizations to seamlessly export OpenEHR compositions to Azure Cosmos DB or PostgreSQL for advanced analytics, machine learning, and research.
+**Atlas** is a high-performance, open-source ETL tool built in Rust that bridges openEHR clinical data repositories with modern analytics platforms. It enables healthcare organizations to seamlessly export openEHR compositions to Azure Cosmos DB or PostgreSQL for advanced analytics, machine learning, and research.
 
 ## 🎯 Overview
 
-Atlas solves the challenge of making OpenEHR clinical data accessible for modern analytics workflows. By exporting compositions from OpenEHR servers (EHRBase, Better Platform) to your choice of database backend (Azure Cosmos DB or PostgreSQL), Atlas enables:
+Atlas solves the challenge of making openEHR clinical data accessible for modern analytics workflows. By exporting compositions from openEHR servers (EHRBase, Better Platform) to your choice of database backend (Azure Cosmos DB or PostgreSQL), Atlas enables:
 
 - **Clinical Research**: Query patient data using familiar SQL instead of AQL
 - **Machine Learning**: Build ML models on flattened, analytics-ready data
 - **Operational Analytics**: Power dashboards and reports with Azure-native tools
 - **Regulatory Reporting**: Maintain audit trails with data verification
-- **Data Integration**: Connect OpenEHR data to Azure Synapse, Databricks, and Power BI
+- **Data Integration**: Connect openEHR data to Azure Synapse, Databricks, and Power BI
 
 ## ✨ Key Features
 
@@ -32,7 +32,7 @@ Atlas solves the challenge of making OpenEHR clinical data accessible for modern
   - Automatic checkpoint and resume from failures
 
 - **🎨 Flexible Transformation**: Multiple composition formats
-  - **Preserve Mode**: Maintain exact FLAT JSON structure from OpenEHR
+  - **Preserve Mode**: Maintain exact FLAT JSON structure from openEHR
   - **Flatten Mode**: Convert nested paths to flat field names for ML/analytics
 
 - **⚙️ Easy Configuration**: TOML-based with environment variable support
@@ -64,7 +64,7 @@ Atlas solves the challenge of making OpenEHR clinical data accessible for modern
 
 ### Technical Highlights
 
-- **Vendor Abstraction**: Trait-based design supports multiple OpenEHR vendors (EHRBase, Better Platform, Ocean Health)
+- **Vendor Abstraction**: Trait-based design supports multiple openEHR vendors (EHRBase, Better Platform, Ocean Health)
 - **Type Safety**: Strongly-typed domain models with Rust's type system
 - **Observability**: Structured logging with tracing, Azure integration
 - **Security**: TLS 1.2+, credential management, least-privilege access
@@ -75,13 +75,13 @@ Atlas solves the challenge of making OpenEHR clinical data accessible for modern
 ### Prerequisites
 
 - **Rust 1.70+** (for building from source)
-- **OpenEHR Server** (choose one):
+- **openEHR Server** (choose one):
   - **EHRBase**: Version 0.30+ with REST API v1.1.x
   - **Better Platform**: Sandbox or production environment with OIDC authentication
 - **Database Backend** (choose one):
   - **Azure Cosmos DB**: Core (SQL) API account with database created
   - **PostgreSQL**: Version 14+ with database created
-- **Network Access**: Outbound HTTPS to OpenEHR server and database
+- **Network Access**: Outbound HTTPS to openEHR server and database
 
 ### Installation
 
@@ -375,9 +375,9 @@ See the [`examples/`](examples/) directory for complete configurations:
 - **[Daily Sync](examples/incremental-sync.toml)**: Incremental sync for production
 - **[ML Features](examples/ml-features.toml)**: Flattened data for machine learning
 
-## 🔒 Anonymization (Phase 1)
+## 🔒 Anonymization
 
-Atlas includes built-in anonymization capabilities to protect PHI/PII when exporting OpenEHR compositions, helping organizations comply with HIPAA and GDPR regulations.
+Atlas includes built-in anonymization capabilities to protect PHI/PII when exporting openEHR compositions, helping organizations comply with HIPAA and GDPR regulations.
 
 ### Quick Start
 
@@ -545,7 +545,7 @@ Atlas follows a layered architecture with clear separation of concerns:
                │                                      │
                ▼                                      ▼
 ┌──────────────────────────┐   ┌──────────────────────────────────────────┐
-│   OpenEHR Server         │   │         Database Backends                │
+│   openEHR Server         │   │         Database Backends                │
 │   (EHRBase 0.30+)        │   │                                          │
 │                          │   │  ┌────────────────────────────────────┐  │
 │  ┌────────────────────┐  │   │  │  Azure Cosmos DB (NoSQL)           │  │
@@ -567,7 +567,7 @@ Atlas follows a layered architecture with clear separation of concerns:
 
 - **CLI Layer**: Command-line interface with clap
 - **Core Layer**: Business logic (export, transform, state, verification)
-- **Adapter Layer**: External integrations (OpenEHR, Cosmos DB, PostgreSQL)
+- **Adapter Layer**: External integrations (openEHR, Cosmos DB, PostgreSQL)
 - **Domain Layer**: Core types and models
 
 See [Architecture Documentation](docs/architecture.md) for details.
@@ -584,11 +584,11 @@ Flatten compositions into analytics-ready format for training predictive models 
 
 ### Operational Analytics
 
-Power real-time dashboards and reports by syncing OpenEHR data to Cosmos DB daily.
+Power real-time dashboards and reports by syncing openEHR data to Cosmos DB daily.
 
 ### Data Integration
 
-Connect OpenEHR data to Azure Synapse Analytics, Databricks, or Power BI for advanced analytics.
+Connect openEHR data to Azure Synapse Analytics, Databricks, or Power BI for advanced analytics.
 
 ### Regulatory Reporting
 
@@ -636,7 +636,7 @@ Atlas implements comprehensive security measures to protect sensitive healthcare
 
 **Protected Credentials:**
 
-- OpenEHR passwords
+- openEHR passwords
 - Cosmos DB keys
 - PostgreSQL connection strings (including embedded passwords)
 - Azure client secrets
@@ -645,7 +645,7 @@ Atlas implements comprehensive security measures to protect sensitive healthcare
 
 - **TLS 1.2+**: All connections encrypted in transit
 - **Certificate Verification**: TLS certificate validation enabled by default
-- **Least Privilege**: Read-only OpenEHR access recommended
+- **Least Privilege**: Read-only openEHR access recommended
 - **Azure RBAC**: Integrate with Azure role-based access control
 
 ### Compliance & Audit
@@ -744,16 +744,16 @@ Atlas is built with these excellent open-source projects:
 
 ### Future Enhancements
 
-- 🔄 Additional OpenEHR vendors (Ocean Health, others)
+- 🔄 Additional openEHR vendors (Ocean Health, others)
 - 🔄 OAuth 2.0 / OpenID Connect authentication
 - 🔄 Prometheus metrics export
 
 ## 📚 Related Projects
 
-- [EHRBase](https://ehrbase.org/) - Open-source OpenEHR server
-- [Better Platform](https://www.better.care/) - Enterprise OpenEHR platform
+- [EHRBase](https://ehrbase.org/) - Open-source openEHR server
+- [Better Platform](https://www.better.care/) - Enterprise openEHR platform
 - [Azure Cosmos DB](https://azure.microsoft.com/en-us/services/cosmos-db/) - Globally distributed database
-- [OpenEHR](https://www.openehr.org/) - Open standard for health data
+- [openEHR](https://www.openehr.org/) - Open standard for health data
 
 ---
 

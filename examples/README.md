@@ -8,7 +8,7 @@ This directory contains example configuration files for common Atlas use cases. 
 
 #### EHRBase Configuration (`atlas.example.toml`)
 
-Standard configuration for EHRBase OpenEHR servers using HTTP Basic Authentication.
+Standard configuration for EHRBase openEHR servers using HTTP Basic Authentication.
 
 **Quick Start**:
 ```bash
@@ -19,7 +19,7 @@ atlas export -c atlas.toml
 
 #### Better Platform Configuration (`atlas.better.example.toml`)
 
-Configuration for Better Platform OpenEHR servers using OIDC (OAuth2) authentication.
+Configuration for Better Platform openEHR servers using OIDC (OAuth2) authentication.
 
 **Key Features**:
 - OIDC authentication with automatic token refresh
@@ -99,7 +99,7 @@ atlas export -c examples/research-export.toml
 
 **Best For**:
 - Nightly data synchronization
-- Keeping Cosmos DB up-to-date with OpenEHR
+- Keeping Cosmos DB up-to-date with openEHR
 - Production environments with regular data updates
 - Automated scheduled exports
 

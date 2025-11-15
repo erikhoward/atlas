@@ -10,9 +10,9 @@ This guide provides comprehensive documentation for all Atlas configuration opti
   - [Environment Variable Substitution](#environment-variable-substitution)
   - [Configuration Sections](#configuration-sections)
     - [Application](#application)
-    - [OpenEHR](#openehr)
-      - [OpenEHR Retry Configuration](#openehr-retry-configuration)
-      - [OpenEHR Query Configuration](#openehr-query-configuration)
+    - [openEHR](#openehr)
+      - [openEHR Retry Configuration](#openehr-retry-configuration)
+      - [openEHR Query Configuration](#openehr-query-configuration)
     - [Export](#export)
     - [Cosmos DB](#cosmos-db)
     - [PostgreSQL](#postgresql)
@@ -138,9 +138,9 @@ export ATLAS_ENVIRONMENT=production
 atlas export
 ```
 
-### OpenEHR
+### openEHR
 
-Configuration for connecting to OpenEHR servers. Atlas supports multiple vendor implementations including EHRBase and Better Platform.
+Configuration for connecting to openEHR servers. Atlas supports multiple vendor implementations including EHRBase and Better Platform.
 
 #### EHRBase Configuration
 
@@ -173,7 +173,7 @@ timeout_seconds = 60
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `base_url` | string | **required** | Base URL of the OpenEHR server. For EHRBase: `https://ehrbase.example.com/ehrbase`. For Better: `https://sandbox.better.care/ehr`. Do not include `/rest/openehr/v1` - Atlas adds this automatically. |
+| `base_url` | string | **required** | Base URL of the openEHR server. For EHRBase: `https://ehrbase.example.com/ehrbase`. For Better: `https://sandbox.better.care/ehr`. Do not include `/rest/openehr/v1` - Atlas adds this automatically. |
 | `vendor_type` | string | "ehrbase" | Vendor implementation: `ehrbase` or `better` |
 | `auth_type` | string | "basic" | Authentication type: `basic` (used for both EHRBase and Better OIDC) |
 | `username` | string | null | Username for authentication (required) |
@@ -189,6 +189,11 @@ timeout_seconds = 60
 
 - **EHRBase**: Uses HTTP Basic Authentication. Only requires `username` and `password`.
 - **Better Platform**: Uses OIDC (OAuth2) with password grant flow. Requires `username`, `password`, `oidc_token_url`, and `client_id`. Tokens are automatically refreshed when they expire.
+  - **Important**: Better Platform uses custom Accept headers for composition formats:
+    - `application/openehr.wt.flat+json` for FLAT format (default used by Atlas)
+    - `application/openehr.wt.structured+json` for STRUCTURED format
+    - `application/json` for standard JSON
+    - `application/xml` for XML
 
 **⚠️ CRITICAL SECURITY WARNING - TLS Certificate Verification:**
 
@@ -226,7 +231,7 @@ timeout_seconds = 60
 - A runtime warning is logged at WARN level whenever TLS verification is disabled
 - For containerized deployments, use `ATLAS_ENVIRONMENT=production` to enforce security policies
 
-#### OpenEHR Retry Configuration
+#### openEHR Retry Configuration
 
 ```toml
 [openehr.retry]
@@ -243,7 +248,7 @@ backoff_multiplier = 2.0
 | `max_delay_ms` | integer | 30000 | Maximum delay in milliseconds between retries |
 | `backoff_multiplier` | float | 2.0 | Multiplier for exponential backoff (delay *= multiplier) |
 
-#### OpenEHR Query Configuration
+#### openEHR Query Configuration
 
 ```toml
 [openehr.query]
@@ -257,7 +262,7 @@ parallel_ehrs = 8
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `template_ids` | array[string] | **required** | List of OpenEHR template IDs to export (cannot be empty) |
+| `template_ids` | array[string] | **required** | List of openEHR template IDs to export (cannot be empty) |
 | `ehr_ids` | array[string] | [] | List of specific EHR IDs to export (empty = all EHRs) |
 | `time_range_start` | string | null | Start of time range filter (ISO 8601 format, e.g., "2024-01-01T00:00:00Z") |
 | `time_range_end` | string | null | End of time range filter (ISO 8601 format, null = now) |
@@ -296,8 +301,8 @@ dry_run = false
 
 **Composition Formats:**
 
-- **`preserve`**: Maintains the exact FLAT JSON structure from OpenEHR in the `content` field
-- **`flatten`**: Converts OpenEHR path notation (e.g., `vital_signs/blood_pressure/systolic`) to flat field names (e.g., `vital_signs_blood_pressure_systolic`)
+- **`preserve`**: Maintains the exact FLAT JSON structure from openEHR in the `content` field
+- **`flatten`**: Converts openEHR path notation (e.g., `vital_signs/blood_pressure/systolic`) to flat field names (e.g., `vital_signs_blood_pressure_systolic`)
 
 ### Cosmos DB
 
@@ -528,14 +533,14 @@ export ATLAS_OPENEHR_QUERY_EHR_IDS=""
 | `ATLAS_APPLICATION_LOG_LEVEL` | string | Log level: `trace`, `debug`, `info`, `warn`, `error` | `debug` |
 | `ATLAS_APPLICATION_DRY_RUN` | boolean | Dry run mode (no database writes) | `true` |
 
-#### OpenEHR Connection
+#### openEHR Connection
 
 | Environment Variable | Type | Description | Example |
 |---------------------|------|-------------|---------|
-| `ATLAS_OPENEHR_BASE_URL` | string | OpenEHR server base URL | `https://ehrbase.example.com` |
-| `ATLAS_OPENEHR_USERNAME` | string | OpenEHR username | `atlas_user` |
-| `ATLAS_OPENEHR_PASSWORD` | string | OpenEHR password (sensitive) | `secret` |
-| `ATLAS_OPENEHR_VENDOR_TYPE` | string | OpenEHR vendor: `ehrbase`, `better` | `ehrbase` |
+| `ATLAS_OPENEHR_BASE_URL` | string | openEHR server base URL | `https://ehrbase.example.com` |
+| `ATLAS_OPENEHR_USERNAME` | string | openEHR username | `atlas_user` |
+| `ATLAS_OPENEHR_PASSWORD` | string | openEHR password (sensitive) | `secret` |
+| `ATLAS_OPENEHR_VENDOR_TYPE` | string | openEHR vendor: `ehrbase`, `better` | `ehrbase` |
 | `ATLAS_OPENEHR_AUTH_TYPE` | string | Authentication type: `basic` | `basic` |
 | `ATLAS_OPENEHR_OIDC_TOKEN_URL` | string | OIDC token endpoint (Better Platform only) | `https://sandbox.better.care/auth/realms/portal/protocol/openid-connect/token` |
 | `ATLAS_OPENEHR_CLIENT_ID` | string | OIDC client ID (Better Platform only) | `portal` |
@@ -544,7 +549,7 @@ export ATLAS_OPENEHR_QUERY_EHR_IDS=""
 | `ATLAS_OPENEHR_TLS_CA_CERT` | string | Path to custom CA certificate | `/path/to/ca.pem` |
 | `ATLAS_OPENEHR_TIMEOUT_SECONDS` | integer | Request timeout in seconds | `120` |
 
-#### OpenEHR Retry
+#### openEHR Retry
 
 | Environment Variable | Type | Description | Example |
 |---------------------|------|-------------|---------|
@@ -803,7 +808,7 @@ Atlas implements secure credential handling to protect sensitive information:
 - **Explicit Access**: Code must explicitly call `expose_secret()` to access credential values, making security audits easier
 
 **Protected Credentials:**
-- OpenEHR password (`openehr.password`)
+- openEHR password (`openehr.password`)
 - Cosmos DB key (`cosmosdb.key`)
 - PostgreSQL connection string (`postgresql.connection_string`)
 - Azure client secret (`logging.azure_client_secret`)
@@ -816,7 +821,7 @@ Atlas implements secure credential handling to protect sensitive information:
    - Use `.env` file for local development (also add to `.gitignore`)
 
 2. **Use strong access controls**
-   - Limit OpenEHR user permissions to read-only
+   - Limit openEHR user permissions to read-only
    - Use Cosmos DB keys with minimum required permissions
    - Rotate keys regularly
    - Use Azure Managed Identity when possible
@@ -875,7 +880,7 @@ atlas export
 ### Connection Failures
 
 ```bash
-Error: Failed to connect to OpenEHR server
+Error: Failed to connect to openEHR server
 ```
 
 **Solution**:
@@ -891,7 +896,7 @@ Error: Failed to connect to OpenEHR server
 Error: A certificate chain processed, but terminated in a root certificate which is not trusted by the trust provider
 ```
 
-**Cause**: The OpenEHR server is using a self-signed certificate or a certificate from an untrusted CA.
+**Cause**: The openEHR server is using a self-signed certificate or a certificate from an untrusted CA.
 
 **Solutions**:
 
