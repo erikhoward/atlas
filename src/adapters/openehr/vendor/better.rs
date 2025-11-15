@@ -1,6 +1,6 @@
 //! Better Platform vendor implementation
 //!
-//! This module provides the Better Platform-specific implementation of the OpenEHR REST API.
+//! This module provides the Better Platform-specific implementation of the openEHR REST API.
 //! Better Platform uses OIDC (OpenID Connect) authentication with OAuth2 password grant flow.
 
 use super::{CompositionMetadata, OpenEhrVendor};
@@ -20,7 +20,7 @@ use tokio::sync::Mutex;
 ///
 /// This struct implements the `OpenEhrVendor` trait for Better Platform servers.
 /// It handles OIDC authentication, token refresh, composition fetching, and other
-/// OpenEHR operations specific to Better Platform.
+/// openEHR operations specific to Better Platform.
 ///
 /// # Authentication
 ///
@@ -64,7 +64,7 @@ pub struct BetterVendor {
     /// Token state (protected by mutex for interior mutability)
     token_state: Arc<Mutex<TokenState>>,
 
-    /// OpenEHR configuration
+    /// openEHR configuration
     config: OpenEhrConfig,
 }
 
@@ -102,7 +102,7 @@ impl BetterVendor {
     ///
     /// # Arguments
     ///
-    /// * `config` - OpenEHR configuration
+    /// * `config` - openEHR configuration
     ///
     /// # Example
     ///
@@ -127,7 +127,7 @@ impl BetterVendor {
             // Security Warning: TLS verification is disabled
             // This exposes the application to man-in-the-middle attacks
             tracing::warn!(
-                "⚠️  SECURITY WARNING: TLS certificate verification is DISABLED for OpenEHR server at {}. \
+                "⚠️  SECURITY WARNING: TLS certificate verification is DISABLED for openEHR server at {}. \
                 This configuration is INSECURE and should only be used in development/testing environments. \
                 The application is vulnerable to man-in-the-middle attacks. \
                 For production use, either enable TLS verification (tls_verify = true) or provide a custom CA certificate (tls_ca_cert).",

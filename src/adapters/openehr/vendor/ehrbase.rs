@@ -1,7 +1,7 @@
 //! EHRBase vendor implementation
 //!
-//! This module provides the EHRBase-specific implementation of the OpenEHR REST API.
-//! EHRBase is an open-source OpenEHR server that implements the OpenEHR REST API v1.1.x.
+//! This module provides the EHRBase-specific implementation of the openEHR REST API.
+//! EHRBase is an open-source openEHR server that implements the openEHR REST API v1.1.x.
 
 use super::{CompositionMetadata, OpenEhrVendor};
 use crate::config::OpenEhrConfig;
@@ -18,7 +18,7 @@ use std::time::Duration;
 /// EHRBase vendor implementation
 ///
 /// This struct implements the `OpenEhrVendor` trait for EHRBase servers.
-/// It handles authentication, composition fetching, and other OpenEHR operations
+/// It handles authentication, composition fetching, and other openEHR operations
 /// specific to EHRBase.
 ///
 /// # Example
@@ -48,7 +48,7 @@ pub struct EhrBaseVendor {
     /// Authentication token (if authenticated)
     auth_token: Option<String>,
 
-    /// OpenEHR configuration
+    /// openEHR configuration
     config: OpenEhrConfig,
 }
 
@@ -57,7 +57,7 @@ impl EhrBaseVendor {
     ///
     /// # Arguments
     ///
-    /// * `config` - OpenEHR configuration
+    /// * `config` - openEHR configuration
     ///
     /// # Example
     ///
@@ -82,7 +82,7 @@ impl EhrBaseVendor {
             // Security Warning: TLS verification is disabled
             // This exposes the application to man-in-the-middle attacks
             tracing::warn!(
-                "⚠️  SECURITY WARNING: TLS certificate verification is DISABLED for OpenEHR server at {}. \
+                "⚠️  SECURITY WARNING: TLS certificate verification is DISABLED for openEHR server at {}. \
                 This configuration is INSECURE and should only be used in development/testing environments. \
                 The application is vulnerable to man-in-the-middle attacks. \
                 For production use, either enable TLS verification (tls_verify = true) or provide a custom CA certificate (tls_ca_cert).",

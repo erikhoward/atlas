@@ -40,7 +40,7 @@ pub struct AtlasConfig {
     #[serde(default)]
     pub environment: Environment,
 
-    /// OpenEHR server configuration
+    /// openEHR server configuration
     pub openehr: OpenEhrConfig,
 
     /// Export settings
@@ -182,10 +182,10 @@ impl Default for RetryConfig {
     }
 }
 
-/// OpenEHR server configuration
+/// openEHR server configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OpenEhrConfig {
-    /// Base URL of the OpenEHR server
+    /// Base URL of the openEHR server
     pub base_url: String,
 
     /// Vendor implementation (e.g., "ehrbase")
@@ -247,7 +247,7 @@ pub struct OpenEhrConfig {
 
     /// Optional TLS CA certificate path for custom/self-signed certificates
     ///
-    /// Use this to specify a custom CA certificate file when connecting to OpenEHR servers
+    /// Use this to specify a custom CA certificate file when connecting to openEHR servers
     /// with self-signed certificates or certificates from a private CA. This is the recommended
     /// approach for production environments instead of disabling TLS verification.
     #[serde(default)]
@@ -344,7 +344,7 @@ impl Default for OpenEhrConfig {
     }
 }
 
-/// Query configuration for OpenEHR
+/// Query configuration for openEHR
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QueryConfig {
     /// Template IDs to export

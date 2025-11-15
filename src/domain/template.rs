@@ -1,11 +1,11 @@
 //! Template domain model
 //!
-//! This module defines the Template type representing OpenEHR operational templates.
+//! This module defines the Template type representing openEHR operational templates.
 
 use super::ids::TemplateId;
 use serde::{Deserialize, Serialize};
 
-/// Represents an OpenEHR operational template
+/// Represents an openEHR operational template
 ///
 /// A template defines the structure and constraints for compositions.
 /// This type holds the template identifier and metadata.

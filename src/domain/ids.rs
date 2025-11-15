@@ -1,6 +1,6 @@
 //! Domain identifier types with validation
 //!
-//! This module provides newtype wrappers for OpenEHR identifiers following TR-6.3.
+//! This module provides newtype wrappers for openEHR identifiers following TR-6.3.
 //! Each type ensures type safety and provides validation for format compliance.
 
 use serde::{Deserialize, Serialize};
@@ -10,7 +10,7 @@ use std::str::FromStr;
 /// EHR identifier newtype wrapper
 ///
 /// Represents a unique identifier for an Electronic Health Record.
-/// Typically a UUID format but can vary by OpenEHR implementation.
+/// Typically a UUID format but can vary by openEHR implementation.
 ///
 /// # Examples
 ///
@@ -75,7 +75,7 @@ impl AsRef<str> for EhrId {
 
 /// Composition UID newtype wrapper
 ///
-/// Represents a unique identifier for an OpenEHR composition including version.
+/// Represents a unique identifier for an openEHR composition including version.
 /// Format: `{uuid}::{system_id}::{version}`
 ///
 /// # Examples
@@ -181,7 +181,7 @@ impl AsRef<str> for CompositionUid {
 
 /// Template ID newtype wrapper
 ///
-/// Represents an OpenEHR operational template identifier.
+/// Represents an openEHR operational template identifier.
 ///
 /// # Examples
 ///

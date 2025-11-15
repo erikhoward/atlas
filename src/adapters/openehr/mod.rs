@@ -1,6 +1,6 @@
-//! OpenEHR adapter implementation
+//! openEHR adapter implementation
 //!
-//! This module provides the integration with OpenEHR servers, including
+//! This module provides the integration with openEHR servers, including
 //! vendor-specific implementations, client factory, and API models.
 
 pub mod client;

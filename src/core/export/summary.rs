@@ -192,11 +192,11 @@ impl Default for ExportSummary {
 /// Type of export error
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExportErrorType {
-    /// Connection error (OpenEHR or Cosmos DB)
+    /// Connection error (openEHR or Cosmos DB)
     Connection,
     /// Authentication error
     Authentication,
-    /// Query error (OpenEHR)
+    /// Query error (openEHR)
     Query,
     /// Transformation error
     Transformation,

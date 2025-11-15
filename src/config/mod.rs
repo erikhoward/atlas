@@ -21,7 +21,7 @@
 //! let config = load_config("atlas.toml")?;
 //!
 //! // Access configuration sections
-//! println!("OpenEHR URL: {}", config.openehr.base_url);
+//! println!("openEHR URL: {}", config.openehr.base_url);
 //! if let Some(cosmosdb) = &config.cosmosdb {
 //!     println!("Cosmos DB: {}", cosmosdb.database_name);
 //! }
@@ -35,7 +35,7 @@
 //! The configuration is organized into sections:
 //!
 //! - [`ApplicationConfig`] - Application settings (name, version, log level)
-//! - [`OpenEhrConfig`] - OpenEHR connection and authentication
+//! - [`OpenEhrConfig`] - openEHR connection and authentication
 //! - [`QueryConfig`] - Query parameters (templates, EHRs, batch size)
 //! - [`ExportConfig`] - Export settings (mode, format, retries)
 //! - [`CosmosDbConfig`] - Cosmos DB connection and settings
@@ -101,7 +101,7 @@
 //! export ATLAS_APPLICATION_LOG_LEVEL=debug
 //! export ATLAS_APPLICATION_DRY_RUN=true
 //!
-//! # OpenEHR connection
+//! # openEHR connection
 //! export ATLAS_OPENEHR_BASE_URL=https://prod-ehrbase.com
 //! export ATLAS_OPENEHR_USERNAME=atlas_user
 //! export ATLAS_OPENEHR_PASSWORD=secret

@@ -1,8 +1,8 @@
-//! OpenEHR vendor trait definition
+//! openEHR vendor trait definition
 //!
 //! This module defines the `OpenEhrVendor` trait that abstracts vendor-specific
-//! implementations of OpenEHR REST API servers. This allows Atlas to support
-//! multiple OpenEHR vendors (EHRBase, Better, etc.) through a common interface.
+//! implementations of openEHR REST API servers. This allows Atlas to support
+//! multiple openEHR vendors (EHRBase, Better, etc.) through a common interface.
 
 use crate::domain::ids::{CompositionUid, EhrId, TemplateId};
 use crate::domain::{Composition, Result};
@@ -66,11 +66,11 @@ impl CompositionMetadata {
     }
 }
 
-/// Trait for OpenEHR vendor implementations
+/// Trait for openEHR vendor implementations
 ///
-/// This trait defines the interface that all OpenEHR vendor implementations
+/// This trait defines the interface that all openEHR vendor implementations
 /// must provide. It abstracts the vendor-specific REST API details and provides
-/// a common interface for Atlas to interact with different OpenEHR servers.
+/// a common interface for Atlas to interact with different openEHR servers.
 ///
 /// # Example
 ///
@@ -101,7 +101,7 @@ impl CompositionMetadata {
 /// ```
 #[async_trait]
 pub trait OpenEhrVendor: Send + Sync {
-    /// Authenticate with the OpenEHR server
+    /// Authenticate with the openEHR server
     ///
     /// This method should establish authentication with the server and store
     /// any necessary tokens or credentials for subsequent requests.
@@ -208,7 +208,7 @@ pub trait OpenEhrVendor: Send + Sync {
     /// This method returns true if the vendor has valid authentication credentials.
     fn is_authenticated(&self) -> bool;
 
-    /// Get the base URL of the OpenEHR server
+    /// Get the base URL of the openEHR server
     fn base_url(&self) -> &str;
 }
 

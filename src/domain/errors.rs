@@ -15,8 +15,8 @@ pub enum AtlasError {
     #[error("Configuration error: {0}")]
     Configuration(String),
 
-    /// OpenEHR-related errors
-    #[error("OpenEHR error: {0}")]
+    /// openEHR-related errors
+    #[error("openEHR error: {0}")]
     OpenEhr(#[from] OpenEhrError),
 
     /// Cosmos DB-related errors
@@ -64,14 +64,14 @@ pub enum AtlasError {
     Other(String),
 }
 
-/// OpenEHR-specific errors
+/// openEHR-specific errors
 ///
-/// Errors that occur when interacting with OpenEHR servers.
+/// Errors that occur when interacting with openEHR servers.
 /// These errors don't expose third-party HTTP client types (TR-6.6).
 #[derive(Debug, Error)]
 pub enum OpenEhrError {
-    /// Failed to connect to OpenEHR server
-    #[error("Failed to connect to OpenEHR server: {0}")]
+    /// Failed to connect to openEHR server
+    #[error("Failed to connect to openEHR server: {0}")]
     ConnectionFailed(String),
 
     /// Authentication failed

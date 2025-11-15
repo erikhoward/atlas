@@ -1,7 +1,7 @@
 //! Preservation mode transformation
 //!
 //! This module implements the preservation transformation mode which maintains
-//! the exact FLAT JSON structure from OpenEHR without modification.
+//! the exact FLAT JSON structure from openEHR without modification.
 
 use crate::adapters::cosmosdb::models::CosmosComposition;
 use crate::domain::composition::Composition;
@@ -10,7 +10,7 @@ use serde_json::Value;
 
 /// Transform a composition in preservation mode
 ///
-/// This mode maintains the exact FLAT JSON structure from OpenEHR,
+/// This mode maintains the exact FLAT JSON structure from openEHR,
 /// storing it as-is with only Atlas metadata added.
 ///
 /// # Arguments

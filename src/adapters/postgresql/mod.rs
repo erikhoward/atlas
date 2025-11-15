@@ -1,7 +1,7 @@
 //! PostgreSQL database integration
 //!
 //! This module provides integration with PostgreSQL for storing
-//! OpenEHR compositions.
+//! openEHR compositions.
 
 pub mod adapter;
 pub mod client;

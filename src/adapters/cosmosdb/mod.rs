@@ -1,7 +1,7 @@
 //! Azure Cosmos DB integration
 //!
 //! This module provides integration with Azure Cosmos DB for storing
-//! OpenEHR compositions.
+//! openEHR compositions.
 
 pub mod adapter;
 pub mod bulk;

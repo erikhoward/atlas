@@ -77,7 +77,7 @@ impl InitArgs {
     /// Generate minimal configuration
     fn generate_minimal_config() -> String {
         r#"# Atlas Configuration File
-# OpenEHR to Database ETL Tool
+# openEHR to Database ETL Tool
 # Supports: Azure Cosmos DB or PostgreSQL
 
 # Database target (postgresql or cosmosdb)
@@ -150,7 +150,7 @@ azure_enabled = false
     /// Generate configuration with examples and comments
     fn generate_config_with_examples() -> String {
         r#"# Atlas Configuration File
-# OpenEHR to Database ETL Tool
+# openEHR to Database ETL Tool
 #
 # This file contains all configuration options with examples and explanations.
 #
@@ -187,10 +187,10 @@ dry_run = false
 environment = "development"
 
 # ============================================================================
-# OpenEHR Server Configuration
+# openEHR Server Configuration
 # ============================================================================
 [openehr]
-# Base URL of the OpenEHR server
+# Base URL of the openEHR server
 base_url = "https://ehrbase.example.com/ehrbase/rest/openehr/v1"
 
 # Vendor type (currently only "ehrbase" is supported)

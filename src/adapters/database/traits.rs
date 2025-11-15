@@ -39,7 +39,7 @@ pub struct BulkInsertFailure {
 /// Database client trait for composition storage
 ///
 /// This trait defines the interface that all database adapters must implement
-/// for storing and managing OpenEHR compositions.
+/// for storing and managing openEHR compositions.
 #[async_trait]
 pub trait DatabaseClient: Send + Sync {
     /// Downcast to Any for type-specific operations

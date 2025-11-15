@@ -1,7 +1,7 @@
 //! Export coordinator - main orchestrator for the export process
 //!
 //! This module coordinates the entire export workflow, managing the interaction
-//! between OpenEHR, database backends, state management, and batch processing.
+//! between openEHR, database backends, state management, and batch processing.
 
 use crate::adapters::cosmosdb::{CosmosDbAdapter, CosmosDbClient};
 use crate::adapters::database::create_database_and_state;
@@ -43,7 +43,7 @@ impl ExportCoordinator {
     /// * `config` - Atlas configuration
     /// * `shutdown_signal` - Receiver for shutdown signal (true = shutdown requested)
     pub async fn new(config: AtlasConfig, shutdown_signal: watch::Receiver<bool>) -> Result<Self> {
-        // Create OpenEHR client
+        // Create openEHR client
         let openehr_client = Arc::new(OpenEhrClient::new(config.openehr.clone()).await?);
 
         // Create database client and state storage using factory
@@ -340,7 +340,7 @@ impl ExportCoordinator {
     ///
     /// This is the main entry point for the export process. It:
     /// 1. Validates configuration
-    /// 2. Connects to OpenEHR and Cosmos DB
+    /// 2. Connects to openEHR and Cosmos DB
     /// 3. Loads or creates state
     /// 4. Determines EHRs to process
     /// 5. For each template_id:
@@ -457,7 +457,7 @@ impl ExportCoordinator {
             None
         };
 
-        // Fetch composition metadata from OpenEHR
+        // Fetch composition metadata from openEHR
         let compositions_metadata = self
             .openehr_client
             .vendor()
@@ -567,11 +567,11 @@ impl ExportCoordinator {
                 .collect());
         }
 
-        // Otherwise, fetch all EHR IDs from OpenEHR vendor
-        tracing::info!("No EHR IDs configured - fetching all EHR IDs from OpenEHR server");
+        // Otherwise, fetch all EHR IDs from openEHR vendor
+        tracing::info!("No EHR IDs configured - fetching all EHR IDs from openEHR server");
         let ehr_ids = self.openehr_client.vendor().get_ehr_ids().await?;
 
-        tracing::info!(count = ehr_ids.len(), "Fetched EHR IDs from OpenEHR server");
+        tracing::info!(count = ehr_ids.len(), "Fetched EHR IDs from openEHR server");
 
         Ok(ehr_ids)
     }
@@ -645,7 +645,7 @@ mod tests {
     use std::any::Any;
     use std::sync::Mutex;
 
-    // Mock OpenEHR Vendor
+    // Mock openEHR Vendor
     struct MockOpenEhrVendor {
         ehr_ids: Vec<EhrId>,
         compositions_metadata: Vec<CompositionMetadata>,

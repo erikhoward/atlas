@@ -1,8 +1,8 @@
-//! OpenEHR API models
+//! openEHR API models
 //!
-//! This module defines the API request and response structures for OpenEHR REST API.
+//! This module defines the API request and response structures for openEHR REST API.
 //! These models are separate from domain models and handle the serialization/deserialization
-//! of OpenEHR-specific formats.
+//! of openEHR-specific formats.
 
 use crate::domain::ids::{CompositionUid, EhrId, TemplateId};
 use crate::domain::{AtlasError, Composition, Result};
@@ -10,9 +10,9 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// OpenEHR composition in FLAT format
+/// openEHR composition in FLAT format
 ///
-/// This represents the raw composition data as returned by the OpenEHR REST API
+/// This represents the raw composition data as returned by the openEHR REST API
 /// in FLAT format. The FLAT format uses path-based keys to represent the
 /// hierarchical structure of the composition.
 #[derive(Debug, Clone, Serialize, Deserialize)]

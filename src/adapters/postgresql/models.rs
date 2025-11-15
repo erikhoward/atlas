@@ -29,7 +29,7 @@ pub struct PostgreSQLComposition {
     /// Template ID
     pub template_id: String,
 
-    /// Time the composition was committed in OpenEHR
+    /// Time the composition was committed in openEHR
     pub time_committed: DateTime<Utc>,
 
     /// Composition content in JSONB format
