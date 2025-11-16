@@ -1,4 +1,4 @@
-<img src=".github/atlas-16x9-cover.png" alt="Atlas Logo" />
+<img src="atlas-cover-image.png" alt="Atlas Logo" />
 
 # Atlas
 
