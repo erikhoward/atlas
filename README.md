@@ -1,3 +1,5 @@
+<img src=".github/atlas-16x9-cover.png" alt="Atlas Logo" />
+
 # Atlas
 
 [![Build Status](https://img.shields.io/github/actions/workflow/status/erikhoward/atlas/ci.yml?branch=main)](https://github.com/erikhoward/atlas/actions)
@@ -64,7 +66,7 @@ Atlas solves the challenge of making openEHR clinical data accessible for modern
 
 ### Technical Highlights
 
-- **Vendor Abstraction**: Trait-based design supports multiple openEHR vendors (EHRBase, Better Platform, Ocean Health)
+- **Vendor Abstraction**: Trait-based design supports multiple openEHR vendors (EHRBase, Better Platform)
 - **Type Safety**: Strongly-typed domain models with Rust's type system
 - **Observability**: Structured logging with tracing, Azure integration
 - **Security**: TLS 1.2+, credential management, least-privilege access
@@ -744,9 +746,10 @@ Atlas is built with these excellent open-source projects:
 
 ### Future Enhancements
 
-- 🔄 Additional openEHR vendors (Ocean Health, others)
-- 🔄 OAuth 2.0 / OpenID Connect authentication
 - 🔄 Prometheus metrics export
+- 🔄 FHIR transformation
+- 🔄 Bi-directional synchronization
+- 🔄 Support for other cloud providers (AWS, GCP)
 
 ## 📚 Related Projects
 
@@ -757,6 +760,6 @@ Atlas is built with these excellent open-source projects:
 
 ---
 
-**Made with ❤️ by the Atlas Team**
+**Made with ❤️ by the Erik Howard & Atlas Contributors**
 
 If you find Atlas useful, please consider giving it a ⭐ on GitHub!
