@@ -12,6 +12,7 @@
 *.swo
 *~
 .DS_Store
+.zed
 
 # Logs
 *.log
